@@ -69,11 +69,11 @@ cp .env.example .env
 
 ### Required environment variables
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://user:pass@host/db?sslmode=require` |
-| `CLERK_JWKS_URL` | From Clerk dashboard → API Keys (e.g. `https://your-app.clerk.accounts.dev/.well-known/jwks.json`) |
-| `MUSICBRAINZ_USER_AGENT` | Required by MetaBrainz API: `"AppName/Version (email@example.com)"` |
+| Variable                 | Description                                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`           | `postgresql+asyncpg://user:pass@host/db?sslmode=require`                                           |
+| `CLERK_JWKS_URL`         | From Clerk dashboard → API Keys (e.g. `https://your-app.clerk.accounts.dev/.well-known/jwks.json`) |
+| `MUSICBRAINZ_USER_AGENT` | Required by MetaBrainz API: `"AppName/Version (email@example.com)"`                                |
 
 ---
 
