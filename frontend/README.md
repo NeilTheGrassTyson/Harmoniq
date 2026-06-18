@@ -55,11 +55,11 @@ cp .env.local.example .env.local
 
 ### Required environment variables
 
-| Variable | Description |
-|---|---|
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | From Clerk dashboard → API Keys (public) |
-| `CLERK_SECRET_KEY` | From Clerk dashboard → API Keys (secret, server-only) |
-| `NEXT_PUBLIC_API_URL` | Backend URL — `http://localhost:8000` for local dev |
+| Variable                            | Description                                           |
+| ----------------------------------- | ----------------------------------------------------- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | From Clerk dashboard → API Keys (public)              |
+| `CLERK_SECRET_KEY`                  | From Clerk dashboard → API Keys (secret, server-only) |
+| `NEXT_PUBLIC_API_URL`               | Backend URL — `http://localhost:8000` for local dev   |
 
 The `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `SIGN_UP_URL`, and `AFTER_SIGN_IN/UP_URL` variables in `.env.local.example` can be copied as-is.
 

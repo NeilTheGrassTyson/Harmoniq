@@ -1,6 +1,7 @@
 """
 Rate limiting configuration via slowapi (Starlette-native wrapper for limits).
 """
+
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 

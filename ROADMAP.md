@@ -15,7 +15,10 @@
 
 ---
 
-## 0. Infra & Stack Decisions (prerequisite)
+## 0. Infra & Stack Decisions (prerequisite) 
+
+***✅ COMPELTE***
+
 **⛔ Plan-mode gate — research and get sign-off before writing code.**
 
 - **Database / backend framework / frontend framework** — chosen for a
@@ -26,8 +29,6 @@
   needs to be settled before anything in "Next" ships to real users.
 - **Canonical music database** — the source the Music Catalog feature
   below is built on top of; chosen here, used everywhere downstream.
-
-## ✅ COMPELTE
 
 ---
 
