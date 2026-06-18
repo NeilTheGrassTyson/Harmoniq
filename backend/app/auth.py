@@ -5,6 +5,7 @@ Every protected route depends on `get_current_user`, which extracts and
 verifies the Clerk session token. The backend never stores sessions —
 verification is stateless against Clerk's public JWKS endpoint.
 """
+
 import logging
 from functools import lru_cache
 from typing import Annotated
@@ -39,9 +40,7 @@ def _verify_clerk_token(token: str) -> dict:  # type: ignore[type-arg]
         jwks = _fetch_jwks()
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
-        key = next(
-            (k for k in jwks.get("keys", []) if k.get("kid") == kid), None
-        )
+        key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
         if key is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
