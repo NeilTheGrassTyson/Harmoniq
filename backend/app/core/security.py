@@ -1,6 +1,7 @@
 """
 HTTP security headers applied globally via middleware.
 """
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
