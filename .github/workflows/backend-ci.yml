@@ -1,0 +1,83 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  lint-and-type-check:
+    name: Lint & type check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Ruff lint
+        run: poetry run ruff check .
+
+      - name: Ruff format check
+        run: poetry run ruff format --check .
+
+      - name: Mypy type check
+        run: poetry run mypy app
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      # Minimal env for the health endpoint test (no real DB needed)
+      DATABASE_URL: postgresql+asyncpg://test:test@localhost/test
+      CLERK_JWKS_URL: https://example.clerk.accounts.dev/.well-known/jwks.json
+      MUSICBRAINZ_USER_AGENT: "Harmoniq/0.1.0 (ci@harmoniq.test)"
+      APP_ENV: test
+      DEBUG: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run tests
+        run: poetry run pytest --cov=app --cov-report=xml -q
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+          flags: backend
+        continue-on-error: true

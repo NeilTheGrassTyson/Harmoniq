@@ -1,0 +1,73 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+
+jobs:
+  lint-type-format:
+    name: Lint, typecheck & format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier format check
+        run: npm run format:check
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    env:
+      # Placeholder keys so build doesn't fail on missing env vars.
+      # These are public/non-secret placeholders — real keys are in Vercel.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+      CLERK_SECRET_KEY: sk_test_placeholder
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build

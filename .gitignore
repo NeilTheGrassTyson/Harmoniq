@@ -1,0 +1,89 @@
+# ─── Harmoniq monorepo .gitignore ───────────────────────────────────────────
+
+# Old prototype — intentionally excluded from version history
+Old/
+
+# ─── Environment / secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.local.example
+*.env
+
+# ─── Python / Backend ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.venv/
+venv/
+env/
+.python-version
+
+# Poetry
+# poetry.lock is committed — do NOT gitignore it
+
+# Mypy
+.mypy_cache/
+.dmypy.json
+
+# Pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Ruff
+.ruff_cache/
+
+# ─── Node / Frontend ─────────────────────────────────────────────────────────
+node_modules/
+.next/
+.nuxt/
+out/
+dist/
+
+# Next.js
+.next/
+next-env.d.ts
+
+# npm / yarn / pnpm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+.pnpm-store/
+
+# ─── OS / Editor ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# JetBrains
+.idea/
+
+# VSCode (keep workspace settings if useful)
+.vscode/launch.json
+.vscode/tasks.json
+
+# ─── Claude Code ─────────────────────────────────────────────────────────────
+.claude/
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.log
+*.pid
+*.seed
+*.orig
+plan.txt
