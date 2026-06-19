@@ -31,12 +31,19 @@ backend/
 │   ├── api/
 │   │   └── v1/
 │   │       ├── router.py    Root API router (prefix: /api/v1)
-│   │       └── health.py    GET /api/v1/health
+│   │       ├── health.py    GET /api/v1/health
+│   │       └── catalog.py   GET /api/v1/catalog/search, /artists/{mbid}, /albums/{mbid}, /tracks/{mbid}
 │   ├── core/
 │   │   ├── security.py  HTTP security headers middleware
 │   │   └── rate_limit.py  slowapi limiter instance
-│   ├── models/          SQLAlchemy ORM models (one file per domain)
-│   └── schemas/         Pydantic request/response schemas
+│   ├── models/
+│   │   ├── __init__.py  Re-exports all models (required for Alembic autogenerate)
+│   │   └── catalog.py   Artist, Album, Track ORM models
+│   ├── schemas/
+│   │   └── catalog.py   Pydantic request/response schemas for catalog endpoints
+│   └── services/
+│       ├── musicbrainz.py  MusicBrainz API client (rate limiter, in-process cache)
+│       └── catalog.py      Upsert/ingestion logic and detail-view queries
 ├── alembic/
 │   ├── env.py           Migration environment (reads settings, imports models)
 │   ├── script.py.mako   Migration file template
@@ -120,7 +127,7 @@ All four must pass before a PR can merge (enforced by CI).
 1. **Model** — add a SQLAlchemy model in `app/models/<domain>.py`, import it in `app/models/__init__.py`
 2. **Migration** — run `alembic revision --autogenerate -m "describe the change"`, review the generated file
 3. **Schema** — add Pydantic request/response models in `app/schemas/<domain>.py`
-4. **Service** — add business logic in `app/services/<domain>.py` (create this directory when the first service ships)
+4. **Service** — add business logic in `app/services/<domain>.py`
 5. **Route** — add route handlers in `app/api/v1/<domain>.py`, register in `app/api/v1/router.py`
 6. **Tests** — add tests in `tests/test_<domain>.py`
 
