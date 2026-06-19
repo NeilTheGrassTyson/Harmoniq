@@ -70,3 +70,46 @@ export interface TrackDetail {
   track_number: number | null;
   disc_number: number | null;
 }
+
+// ── Users & profiles ──────────────────────────────────────────────────────────
+
+export type VisibilityScope = "private" | "friends" | "public";
+
+/** Public or viewer-scoped profile. Gated fields are absent (not null) when excluded by visibility. */
+export interface ProfileResponse {
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  is_own_profile: boolean;
+  bio?: string | null;
+  activity_placeholder?: boolean;
+  ratings_count?: number;
+}
+
+/** Full profile for the authenticated owner, including visibility settings. */
+export interface OwnProfileResponse {
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  visibility_bio: VisibilityScope;
+  visibility_activity: VisibilityScope;
+  visibility_ratings: VisibilityScope;
+}
+
+export interface UsernameCheckResponse {
+  available: boolean;
+}
+
+export interface AvatarUploadResponse {
+  avatar_url: string;
+}
+
+export interface ProfileUpdateRequest {
+  display_name?: string;
+  username?: string;
+  bio?: string | null;
+  visibility_bio?: VisibilityScope;
+  visibility_activity?: VisibilityScope;
+  visibility_ratings?: VisibilityScope;
+}

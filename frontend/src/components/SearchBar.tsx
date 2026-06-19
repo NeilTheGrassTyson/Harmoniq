@@ -37,13 +37,11 @@ export default function SearchBar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Debounced search
+  // Debounced search — only fires when query is long enough.
+  // Short queries reset to idle via derivedPanel below (no setState needed).
   useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setPanel({ kind: "idle" });
-      return;
-    }
+    if (trimmed.length < 2) return;
     const timeout = setTimeout(async () => {
       setPanel({ kind: "loading" });
       try {
@@ -65,7 +63,10 @@ export default function SearchBar() {
     setPanel({ kind: "idle" });
   };
 
-  const showPanel = panel.kind !== "idle";
+  // When query is too short, treat panel as idle without a setState call.
+  const derivedPanel: PanelState =
+    query.trim().length < 2 ? { kind: "idle" } : panel;
+  const showPanel = derivedPanel.kind !== "idle";
 
   return (
     <div ref={containerRef} className="relative w-full max-w-sm">
@@ -81,31 +82,31 @@ export default function SearchBar() {
 
       {showPanel && (
         <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[20rem] rounded border border-neutral-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-          {panel.kind === "loading" && (
+          {derivedPanel.kind === "loading" && (
             <div className="px-4 py-3 text-sm text-neutral-400">Searching…</div>
           )}
 
-          {panel.kind === "error" && (
+          {derivedPanel.kind === "error" && (
             <div className="px-4 py-3 text-sm text-neutral-500">
               Couldn&rsquo;t reach the music catalog right now. Try again in a moment.
             </div>
           )}
 
-          {panel.kind === "empty" && (
+          {derivedPanel.kind === "empty" && (
             <div className="px-4 py-3 text-sm text-neutral-500">
-              No results for &ldquo;{panel.query}&rdquo;.
+              No results for &ldquo;{derivedPanel.query}&rdquo;.
             </div>
           )}
 
-          {panel.kind === "results" && (
+          {derivedPanel.kind === "results" && (
             <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-              {panel.data.artists.length > 0 && (
+              {derivedPanel.data.artists.length > 0 && (
                 <section>
                   <p className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-widest text-neutral-400">
                     Artists
                   </p>
                   <ul>
-                    {panel.data.artists.map((a) => (
+                    {derivedPanel.data.artists.map((a) => (
                       <li key={a.mbid}>
                         <Link
                           href={`/artist/${a.mbid}`}
@@ -128,13 +129,13 @@ export default function SearchBar() {
                 </section>
               )}
 
-              {panel.data.albums.length > 0 && (
+              {derivedPanel.data.albums.length > 0 && (
                 <section>
                   <p className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-widest text-neutral-400">
                     Albums
                   </p>
                   <ul>
-                    {panel.data.albums.map((a) => (
+                    {derivedPanel.data.albums.map((a) => (
                       <li key={a.mbid}>
                         <Link
                           href={`/album/${a.mbid}`}
@@ -155,13 +156,13 @@ export default function SearchBar() {
                 </section>
               )}
 
-              {panel.data.tracks.length > 0 && (
+              {derivedPanel.data.tracks.length > 0 && (
                 <section>
                   <p className="px-4 pt-3 pb-1 text-xs font-medium uppercase tracking-widest text-neutral-400">
                     Tracks
                   </p>
                   <ul>
-                    {panel.data.tracks.map((t) => (
+                    {derivedPanel.data.tracks.map((t) => (
                       <li key={t.mbid}>
                         <Link
                           href={`/track/${t.mbid}`}
