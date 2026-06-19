@@ -18,6 +18,9 @@ class Settings(BaseSettings):
 
     # ── Clerk auth ───────────────────────────────────────────────────────────
     clerk_jwks_url: str  # https://api.clerk.com/v1/jwks (per Clerk app)
+    # Optional until provisioned — validated at the call site when used.
+    clerk_secret_key: str | None = None  # sk_live_... — Clerk Management API
+    clerk_webhook_secret: str | None = None  # whsec_... — webhook signature
 
     # ── CORS ─────────────────────────────────────────────────────────────────
     # Comma-separated list of allowed origins.
@@ -29,6 +32,14 @@ class Settings(BaseSettings):
 
     # ── MusicBrainz ──────────────────────────────────────────────────────────
     musicbrainz_user_agent: str  # "AppName/Version contact@example.com"
+
+    # ── Cloudflare R2 (avatar storage) ───────────────────────────────────────
+    # Optional until provisioned — validated at the call site when used.
+    r2_account_id: str | None = None
+    r2_access_key_id: str | None = None
+    r2_secret_access_key: str | None = None
+    r2_bucket_name: str | None = None
+    r2_public_url: str | None = None  # e.g. https://pub-xxx.r2.dev
 
     @property
     def cors_origins_list(self) -> list[str]:

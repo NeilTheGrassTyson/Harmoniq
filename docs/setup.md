@@ -19,13 +19,20 @@ You also need accounts on:
 - **Neon** (neon.tech) — create a project, copy the connection string
 - **Clerk** (clerk.com) — create an application, copy the API keys
 
+The following are optional for local development (features degrade gracefully
+without them):
+- **Cloudflare** — R2 bucket for avatar uploads (avatar upload returns 503
+  without it; all other features work)
+- **Clerk webhook** — for syncing Clerk profile changes to Harmoniq (only
+  needed if you want `user.updated` events to propagate)
+
 ---
 
 ## 1. Clone and configure
 
 ```bash
-git clone https://github.com/your-org/harmoniq.git
-cd harmoniq
+git clone https://github.com/NeilTheGrassTyson/Harmoniq.git
+cd Harmoniq
 ```
 
 ---
@@ -42,13 +49,12 @@ source .venv/bin/activate
 # Windows:
 .venv\Scripts\activate
 
-# Install dependencies
+# Install dependencies (includes boto3 for R2 uploads)
 pip install poetry
 poetry install
 
-# Configure environment
-cp .env.example .env
-# Edit .env — fill in DATABASE_URL, CLERK_JWKS_URL, MUSICBRAINZ_USER_AGENT
+# Configure environment — see "Environment variables" section below
+cp .env.example .env   # if .env.example exists; otherwise edit .env directly
 
 # Run database migrations
 alembic upgrade head
@@ -73,7 +79,7 @@ cd frontend
 npm install
 
 # Configure environment
-cp .env.local.example .env.local
+cp .env.local.example .env.local   # if .env.local.example exists
 # Edit .env.local — fill in Clerk keys and NEXT_PUBLIC_API_URL
 
 # Start the development server
@@ -84,7 +90,113 @@ The frontend is now running at `http://localhost:3000`.
 
 ---
 
-## 4. Verify the setup
+## 4. Environment variables
+
+### Backend (`backend/.env`)
+
+Minimum required to run the server and migrations:
+
+```env
+DATABASE_URL=postgresql+asyncpg://user:pass@host/db?ssl=require
+CLERK_JWKS_URL=https://<your-clerk-instance>.clerk.accounts.dev/.well-known/jwks.json
+MUSICBRAINZ_USER_AGENT=Harmoniq/0.1.0 (your@email.com)
+```
+
+Additional variables for user accounts and avatars:
+
+```env
+# Clerk Management API — Dashboard → API Keys → Secret keys
+# Required for the onboarding gate to sync to Clerk JWT after first sign-up.
+# Without this, users are redirected to /onboarding on every page load until
+# they sign out and back in (JWT refreshes on next sign-in).
+CLERK_SECRET_KEY=sk_live_...
+
+# Clerk webhook secret — see "Clerk webhook setup" section below
+CLERK_WEBHOOK_SECRET=whsec_...
+
+# Cloudflare R2 — see "R2 setup" section below
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=harmoniq-avatars
+R2_PUBLIC_URL=https://pub-xxxx.r2.dev
+```
+
+### Frontend (`frontend/.env.local`)
+
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+---
+
+## 5. Clerk configuration
+
+### JWT template (required for onboarding gate)
+
+The onboarding gate reads `publicMetadata.onboarded` from the Clerk JWT. For
+this to work, you must add a custom claim to the session token:
+
+1. Go to **Clerk Dashboard → Configure → Sessions → Customize session token**
+2. Add the following JSON under "Claims":
+   ```json
+   {
+     "metadata": "{{ user.public_metadata }}"
+   }
+   ```
+3. Save. New tokens issued after this point will include the `metadata` claim.
+
+Without this step, authenticated users will be redirected to `/onboarding` on
+every page load even after completing onboarding.
+
+### Webhook endpoint (optional for local dev)
+
+The `user.updated` webhook syncs Clerk profile changes (display name, avatar)
+to the Harmoniq DB. For local development you can use
+[ngrok](https://ngrok.com) to expose your local server:
+
+```bash
+ngrok http 8000
+```
+
+Then in **Clerk Dashboard → Webhooks → Add Endpoint**:
+- URL: `https://<your-ngrok-id>.ngrok.io/api/v1/webhooks/clerk`
+- Events: `user.updated`
+- Copy the **Signing Secret** and add it to `backend/.env` as `CLERK_WEBHOOK_SECRET`.
+
+---
+
+## 6. Cloudflare R2 setup (avatar uploads)
+
+If you want avatar uploads to work locally:
+
+1. Log into **Cloudflare Dashboard → R2 → Create bucket**
+   - Suggested name: `harmoniq-avatars-dev`
+2. Enable public access on the bucket:
+   - In the bucket settings, under **Public access**, enable "Allow public access"
+   - Note the public URL (format: `https://pub-xxxx.r2.dev`)
+3. Create an R2 API token:
+   - **Cloudflare Dashboard → R2 → Manage R2 API Tokens → Create API Token**
+   - Permissions: Object Read & Write on your bucket
+   - Copy the **Access Key ID** and **Secret Access Key**
+4. Find your **Account ID** in the top-right of the Cloudflare dashboard
+5. Add to `backend/.env`:
+   ```env
+   R2_ACCOUNT_ID=<account-id>
+   R2_ACCESS_KEY_ID=<access-key-id>
+   R2_SECRET_ACCESS_KEY=<secret-access-key>
+   R2_BUCKET_NAME=harmoniq-avatars-dev
+   R2_PUBLIC_URL=https://pub-xxxx.r2.dev
+   ```
+
+Without R2 configured, the `POST /api/v1/users/me/avatar` endpoint returns
+503. All other endpoints work normally.
+
+---
+
+## 7. Verify the setup
 
 ```bash
 # Health check
@@ -92,12 +204,13 @@ curl http://localhost:8000/api/v1/health
 # Expected: {"status":"ok","version":"0.1.0"}
 ```
 
-Open `http://localhost:3000` in a browser — you should see the Harmoniq
-placeholder page.
+Open `http://localhost:3000` in a browser. Sign up via Clerk, complete
+onboarding (choose a username), and you should land on your profile page at
+`/u/<your-username>`.
 
 ---
 
-## 5. Running tests
+## 8. Running tests
 
 ```bash
 # Backend tests (from backend/)
@@ -108,14 +221,11 @@ npm run typecheck
 
 # Frontend lint (from frontend/)
 npm run lint
-
-# Frontend format check (from frontend/)
-npm run format:check
 ```
 
 ---
 
-## 6. Database branching (Neon)
+## 9. Database branching (Neon)
 
 Neon supports database branches that mirror git branches. For feature work:
 
@@ -131,7 +241,7 @@ This keeps your local migrations isolated without affecting `main`.
 
 ---
 
-## 7. Common issues
+## 10. Common issues
 
 **`ModuleNotFoundError: No module named 'app'`**  
 Make sure your virtual environment is activated and you're running commands
@@ -144,3 +254,16 @@ Check `CLERK_JWKS_URL` in `backend/.env`.
 **Next.js build fails with missing env vars**  
 Clerk requires `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` to be present at build time.
 Make sure `.env.local` is populated before running `npm run build`.
+
+**Redirected to `/onboarding` on every page load after completing onboarding**  
+The Clerk JWT template is not configured. See step 5 (Clerk configuration →
+JWT template). After configuring it, sign out and sign back in so a new token
+is issued.
+
+**Avatar upload returns 503**  
+R2 credentials are not configured. See step 6. Avatar upload is optional for
+local development.
+
+**`ValidationError` on backend startup with missing R2/Clerk variables**  
+These variables now have `None` defaults — this should not happen. If it does,
+check that your `.env` file doesn't have syntax errors (no spaces around `=`).
