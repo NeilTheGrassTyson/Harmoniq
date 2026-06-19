@@ -1,6 +1,6 @@
 # Harmoniq — Architecture Overview
 
-> **Status:** Phase 0 baseline — modular monolith.
+> **Status:** Phase 1 (Feature 2 shipped) — modular monolith.
 > This document describes what the system *is* today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---
@@ -12,18 +12,18 @@ Harmoniq/
 ├── backend/              FastAPI application (Python 3.12+)
 │   ├── app/
 │   │   ├── api/v1/       HTTP route handlers (thin — no business logic)
-│   │   ├── core/         Security, rate limiting, shared middleware
+│   │   ├── core/         Enums, rate limiting, security helpers
 │   │   ├── models/       SQLAlchemy ORM models (database schema)
 │   │   ├── schemas/      Pydantic request/response contracts
 │   │   ├── services/     Business logic (one module per domain)
 │   │   ├── main.py       App factory
 │   │   ├── config.py     Settings (pydantic-settings, env-driven)
 │   │   ├── database.py   Async SQLAlchemy engine + session factory
-│   │   └── auth.py       Clerk JWT verification middleware
+│   │   └── auth.py       Clerk JWT verification + optional auth helper
 │   ├── alembic/          Database migrations
 │   └── tests/            Pytest test suite
 │
-├── frontend/             Next.js 15 application (App Router, TypeScript)
+├── frontend/             Next.js 16 application (App Router, TypeScript)
 │   ├── src/app/          Page routes and layouts (RSC by default)
 │   ├── src/components/   Shared UI components
 │   ├── src/lib/          Utility functions, API client, type helpers
@@ -51,7 +51,7 @@ distribution.
 │  Browser                                                        │
 │  Next.js (Vercel)                                               │
 │  ─ App Router, RSC, Tailwind CSS                                │
-│  ─ Clerk <ClerkProvider> for session UI                         │
+│  ─ Clerk <ClerkProvider> for session UI + JWT gate              │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ HTTPS + JWT (Clerk session token)
 ┌──────────────────────────▼──────────────────────────────────────┐
@@ -60,13 +60,14 @@ distribution.
 │  ─ api/v1/: route handlers                                      │
 │  ─ services/: identity, social graph, catalog, melody, feed     │
 │  ─ slowapi: rate limiting                                       │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ asyncpg
-┌──────────────────────────▼──────────────────────────────────────┐
-│  PostgreSQL (Neon)                                              │
-│  ─ SQLAlchemy 2.0 async ORM                                     │
-│  ─ Alembic migrations                                           │
-└─────────────────────────────────────────────────────────────────┘
+└──────────┬───────────────┴──────────────────────────────────────┘
+           │ boto3 (S3-compatible)          │ asyncpg
+           ▼                               ▼
+┌──────────────────────┐    ┌──────────────────────────────────────┐
+│  Cloudflare R2       │    │  PostgreSQL (Neon)                   │
+│  ─ Avatar storage    │    │  ─ SQLAlchemy 2.0 async ORM          │
+│  ─ Public CDN URL    │    │  ─ Alembic migrations                │
+└──────────────────────┘    └──────────────────────────────────────┘
 ```
 
 ---
@@ -80,9 +81,14 @@ distribution.
 4. The FastAPI `auth.py` middleware verifies the JWT against Clerk's JWKS
    endpoint on every protected route. No session state is stored in the
    backend.
-5. The decoded `user_id` (Clerk's `sub` claim) is the canonical user
-   identifier throughout the system. It is stored in the `users` table on
-   first authenticated request.
+5. On first sign-in the user is routed to `/onboarding` to choose a username.
+   After the Harmoniq user record is created, the backend sets
+   `publicMetadata.onboarded = true` in Clerk via the Management API. The
+   Next.js middleware reads this flag from the JWT on every request and
+   redirects unonboarded users to `/onboarding`.
+6. The decoded `clerk_id` (Clerk's `sub` claim) maps to an internal UUID in
+   the `users` table. Internal joins always use the UUID; the `clerk_id` is
+   only used for identity lookups.
 
 ---
 
@@ -104,14 +110,15 @@ The backend is divided into logical service modules. They are co-deployed
 but have explicit boundaries — no service imports from another's internal
 modules, only from shared `models/` and `schemas/`.
 
-| Service | Responsibility |
-|---|---|
-| `identity` | User records, profile, visibility settings |
-| `social` | Follow graph, trust relationships |
-| `catalog` | Music ingestion from MusicBrainz; track/album/artist entities |
-| `melody` | Melody lifecycle state machine (send → received → opened/rejected) |
-| `harmony` | Harmony score computation (computed component only) |
-| `feed` | Home and Discovery surface composition |
+| Service | Status | Responsibility |
+|---|---|---|
+| `identity` (user.py) | ✅ Phase 1 | User records, profile, visibility settings, avatar |
+| `catalog` | ✅ Phase 1 | Music ingestion from MusicBrainz; track/album/artist entities |
+| `storage` | ✅ Phase 1 | Cloudflare R2 avatar upload |
+| `social` | Planned | Follow graph, trust relationships |
+| `melody` | Planned | Melody lifecycle state machine |
+| `harmony` | Planned | Harmony score computation |
+| `feed` | Planned | Home and Discovery surface composition |
 
 ---
 
@@ -121,10 +128,73 @@ modules, only from shared `models/` and `schemas/`.
 - **ORM:** SQLAlchemy 2.0 with async `asyncpg` driver.
 - **Migrations:** Alembic — every schema change is a versioned migration file.
 - **Identifiers:** UUID primary keys throughout. Clerk's `sub` is stored as
-  a string; internal joins use UUIDs.
-- **Visibility enforcement:** Every query over user-generated data accepts a
-  `requesting_user_id` parameter and applies visibility scope at the SQL
-  level — never in application code after the fact.
+  a `clerk_id` string column; internal joins use UUIDs.
+- **Visibility enforcement:** Performed at the service layer (`services/user.py`)
+  using a `VisibilityScope` enum (`private` / `friends` / `public`). Fields
+  excluded by scope are absent from the JSON response (not null) — achieved via
+  Pydantic's `model_construct` + `exclude_unset`. Never enforced in route
+  handlers or on the frontend.
+
+### Tables (current)
+
+```
+users
+  id                UUID PK
+  clerk_id          VARCHAR UNIQUE NOT NULL   ← Clerk sub claim
+  username          VARCHAR UNIQUE NOT NULL   ← chosen at onboarding
+  display_name      VARCHAR(50) NOT NULL
+  avatar_url        VARCHAR                   ← public R2 URL
+  bio               VARCHAR(280)
+  visibility_bio    VARCHAR NOT NULL DEFAULT 'private'
+  visibility_activity VARCHAR NOT NULL DEFAULT 'private'
+  visibility_ratings  VARCHAR NOT NULL DEFAULT 'private'
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+
+artists
+  id            UUID PK
+  mbid          VARCHAR UNIQUE NOT NULL
+  name          VARCHAR NOT NULL
+  sort_name     VARCHAR
+  disambiguation VARCHAR
+  image_url     VARCHAR
+  last_fetched_at TIMESTAMPTZ NOT NULL
+
+albums (release groups)
+  id            UUID PK
+  mbid          VARCHAR UNIQUE NOT NULL
+  title         VARCHAR NOT NULL
+  artist_id     UUID FK → artists.id
+  release_year  INTEGER
+  album_type    VARCHAR
+  cover_art_url VARCHAR
+  last_fetched_at TIMESTAMPTZ NOT NULL
+
+tracks (recordings)
+  id            UUID PK
+  mbid          VARCHAR UNIQUE NOT NULL
+  title         VARCHAR NOT NULL
+  artist_id     UUID FK → artists.id
+  album_id      UUID FK → albums.id   ← nullable
+  duration_ms   INTEGER
+  track_number  INTEGER
+  disc_number   INTEGER
+  last_fetched_at TIMESTAMPTZ NOT NULL
+```
+
+---
+
+## Media Storage
+
+Avatars are stored in **Cloudflare R2** (S3-compatible object storage).
+
+- The backend receives the uploaded file, validates content type via magic bytes
+  (JPEG `\xff\xd8\xff`, PNG `\x89PNG\r\n\x1a\n`, WebP `RIFF…WEBP`), and uploads
+  via `boto3` in a thread-pool executor.
+- The public CDN URL (`R2_PUBLIC_URL/avatars/{uuid}.{ext}`) is stored in the DB.
+  Raw bytes never touch Postgres.
+- Maximum file size: 5 MB. Supported types: JPEG, PNG, WebP.
+- R2 requires a public bucket or custom domain; configure in Cloudflare Dashboard.
 
 ---
 
@@ -149,12 +219,23 @@ Three environments: `development`, `staging`, `production`. Secrets are
 never committed — `.env.example` files document every required variable with
 placeholder values.
 
-| Variable | Where it lives |
-|---|---|
-| Database URL | Railway / Neon dashboard → env var injection |
-| Clerk secret key | Railway env var |
-| Clerk publishable key | Vercel env var (public, prefixed `NEXT_PUBLIC_`) |
-| MusicBrainz API key | Railway env var |
+| Variable | Where it lives | Required for |
+|---|---|---|
+| `DATABASE_URL` | Railway / Neon dashboard | All server ops |
+| `CLERK_JWKS_URL` | Railway env var | JWT verification |
+| `CLERK_SECRET_KEY` | Railway env var | Onboarding flag sync |
+| `CLERK_WEBHOOK_SECRET` | Railway env var | Webhook signature verification |
+| `CLERK_PUBLISHABLE_KEY` | Vercel env var (public) | Frontend Clerk UI |
+| `MUSICBRAINZ_USER_AGENT` | Railway env var | MusicBrainz API |
+| `R2_ACCOUNT_ID` | Railway env var | Avatar upload |
+| `R2_ACCESS_KEY_ID` | Railway env var | Avatar upload |
+| `R2_SECRET_ACCESS_KEY` | Railway env var | Avatar upload |
+| `R2_BUCKET_NAME` | Railway env var | Avatar upload |
+| `R2_PUBLIC_URL` | Railway env var | Avatar URL generation |
+
+R2 and Clerk SK/webhook credentials are optional at import time and
+validated at their call sites — Alembic migrations can run with only
+`DATABASE_URL` and `CLERK_JWKS_URL` set.
 
 ---
 
