@@ -17,7 +17,7 @@ alembic = "^1.14"
 python-jose = { version = "^3.3", extras = ["cryptography"] }
 httpx = "^0.28"
 slowapi = "^0.1.9"
-python-multipart = "^0.0.20"
+python-multipart = ">=0.0.20,<0.0.33"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"
