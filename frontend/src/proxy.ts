@@ -5,6 +5,7 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/sso-callback(.*)",
   // Catalog pages — publicly readable
   "/artist/(.*)",
   "/album/(.*)",
@@ -22,13 +23,14 @@ export default clerkMiddleware(async (auth, request) => {
   // `"metadata": "{{ user.public_metadata }}"` for this check to work.
   // Configure it in: Clerk Dashboard → Configure → Sessions → Customize session token.
   if (userId) {
-    const metadata = sessionClaims?.metadata as
-      | Record<string, unknown>
-      | undefined;
+    const metadata = sessionClaims?.metadata as Record<string, unknown> | undefined;
     const isOnboarded = metadata?.onboarded === true;
     const pathname = request.nextUrl.pathname;
 
-    if (!isOnboarded && !pathname.startsWith("/onboarding")) {
+    // Only gate private routes on the onboarded flag. Public browse routes
+    // (/, /u/*, /artist/*, etc.) are readable before onboarding completes —
+    // this also avoids a JWT-propagation race after the onboarding form submits.
+    if (!isOnboarded && !pathname.startsWith("/onboarding") && !isPublicRoute(request)) {
       return NextResponse.redirect(new URL("/onboarding", request.url));
     }
   }
