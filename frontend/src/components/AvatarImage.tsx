@@ -28,17 +28,12 @@ function _initials(username: string): string {
  * Falls back to the placeholder on load error or when src is absent.
  * Never shows a broken image icon.
  */
-export default function AvatarImage({
-  src,
-  username,
-  size,
-  className = "",
-}: AvatarImageProps) {
+export default function AvatarImage({ src, username, size, className = "" }: AvatarImageProps) {
   const [failed, setFailed] = useState(false);
 
   const hue = _hue(username);
   const bg = `hsl(${hue} 35% 55%)`;
-  const roundedClass = className || "rounded-full";
+  const roundedClass = className || "rounded-full"; // unslop-ignore — user avatar, circular per DESIGN_SYSTEM §4
 
   if (!src || failed) {
     return (

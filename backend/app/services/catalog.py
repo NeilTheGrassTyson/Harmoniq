@@ -7,6 +7,7 @@ Ingestion is always upsert-on-MBID: existing rows are updated, not duplicated.
 """
 
 import logging
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -15,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.services.musicbrainz as mb
+import app.services.rating as rating_svc
 from app.models.catalog import Album, Artist, Track
 from app.schemas.catalog import (
     AlbumDetail,
@@ -25,8 +27,12 @@ from app.schemas.catalog import (
     TrackDetail,
     TrackResult,
 )
+from app.services import user as user_svc
 
 logger = logging.getLogger(__name__)
+
+_SEARCH_CACHE_TTL = 300.0  # 5 minutes — matches MB client TTL
+_search_cache: dict[str, tuple[float, SearchResponse]] = {}
 
 _CAA_URL = "https://coverartarchive.org/release-group/{mbid}/front"
 
@@ -80,9 +86,7 @@ def _release_group_mbid(raw_recording: dict[str, Any]) -> str | None:
 # ── Upsert helpers ─────────────────────────────────────────────────────────────
 
 
-async def _upsert_artist(
-    session: AsyncSession, raw: dict[str, Any]
-) -> Artist:
+async def _upsert_artist(session: AsyncSession, raw: dict[str, Any]) -> Artist:
     mbid: str = raw["id"]
     now = _now()
 
@@ -127,9 +131,7 @@ async def _upsert_album(
     title = raw.get("title") or ""
     raw_type = (raw.get("primary-type") or "").lower()
     album_type = _ALBUM_TYPE_MAP.get(raw_type, "other") if raw_type else None
-    release_year = _parse_release_year(
-        raw.get("first-release-date") or raw.get("date")
-    )
+    release_year = _parse_release_year(raw.get("first-release-date") or raw.get("date"))
     cover_art_url = _CAA_URL.format(mbid=mbid)
 
     if album is None:
@@ -221,9 +223,16 @@ async def _resolve_artist_id(
 # ── Search ─────────────────────────────────────────────────────────────────────
 
 
-async def search_and_ingest(
-    query: str, session: AsyncSession
-) -> SearchResponse:
+async def search_and_ingest(query: str, session: AsyncSession) -> SearchResponse:
+    cache_key = query.strip().lower()
+    cached = _search_cache.get(cache_key)
+    if cached is not None:
+        cached_at, response = cached
+        if time.monotonic() - cached_at < _SEARCH_CACHE_TTL:
+            logger.debug("search cache hit: %s", cache_key)
+            return response
+        logger.debug("search cache stale: %s", cache_key)
+
     raw_artists: list[dict[str, Any]] = []
     raw_albums: list[dict[str, Any]] = []
     raw_tracks: list[dict[str, Any]] = []
@@ -234,6 +243,14 @@ async def search_and_ingest(
     except Exception:
         logger.exception("MusicBrainz search failed for query (redacted in prod)")
         raise
+
+    # Strip MusicBrainz "Special Purpose" housekeeping entries ([unknown],
+    # [no artist], etc.) — they degrade search quality and are never real artists.
+    raw_artists = [
+        a for a in raw_artists
+        if a.get("type") != "Special Purpose"
+        and not (a.get("name", "").startswith("[") and a.get("name", "").endswith("]"))
+    ]
 
     # ── Ingest artists ────────────────────────────────────────────────────────
     artist_rows: list[Artist] = []
@@ -260,9 +277,7 @@ async def search_and_ingest(
             )
             album_rows.append(await _upsert_album(session, raw, artist_id))
         except Exception:
-            logger.error(
-                "Failed to ingest album mbid=%s", raw.get("id"), exc_info=True
-            )
+            logger.error("Failed to ingest album mbid=%s", raw.get("id"), exc_info=True)
 
     # ── Ingest tracks ─────────────────────────────────────────────────────────
     track_rows: list[Track] = []
@@ -289,9 +304,7 @@ async def search_and_ingest(
 
             track_rows.append(await _upsert_track(session, raw, artist_id, album_id))
         except Exception:
-            logger.error(
-                "Failed to ingest track mbid=%s", raw.get("id"), exc_info=True
-            )
+            logger.error("Failed to ingest track mbid=%s", raw.get("id"), exc_info=True)
 
     await session.flush()
 
@@ -323,9 +336,7 @@ async def search_and_ingest(
             title=t.get("title", ""),
             artist_name=_primary_artist_name(t),
             album_title=(
-                t.get("releases", [{}])[0].get("title")
-                if t.get("releases")
-                else None
+                t.get("releases", [{}])[0].get("title") if t.get("releases") else None
             ),
             album_mbid=_release_group_mbid(t),
             duration_ms=t.get("length"),
@@ -333,11 +344,13 @@ async def search_and_ingest(
         for t in raw_tracks
     ]
 
-    return SearchResponse(
+    result = SearchResponse(
         artists=artist_results,
         albums=album_results,
         tracks=track_results,
     )
+    _search_cache[cache_key] = (time.monotonic(), result)
+    return result
 
 
 # ── Detail views ───────────────────────────────────────────────────────────────
@@ -378,7 +391,9 @@ async def get_artist(mbid: str, session: AsyncSession) -> ArtistDetail | None:
     )
 
 
-async def get_album(mbid: str, session: AsyncSession) -> AlbumDetail | None:
+async def get_album(
+    mbid: str, session: AsyncSession, viewer_clerk_id: str | None = None
+) -> AlbumDetail | None:
     result = await session.execute(select(Album).where(Album.mbid == mbid))
     album = result.scalar_one_or_none()
 
@@ -408,10 +423,15 @@ async def get_album(mbid: str, session: AsyncSession) -> AlbumDetail | None:
             artist_name = art.name
             artist_mbid_out = art.mbid
 
-    trk_result = await session.execute(
-        select(Track).where(Track.album_id == album.id)
-    )
+    trk_result = await session.execute(select(Track).where(Track.album_id == album.id))
     tracks = trk_result.scalars().all()
+
+    viewer_id = None
+    if viewer_clerk_id:
+        viewer = await user_svc.get_by_clerk_id(session, viewer_clerk_id)
+        if viewer:
+            viewer_id = viewer.id
+    ratings = await rating_svc.list_for_entity(session, "album", album.id, viewer_id)
 
     return AlbumDetail(
         mbid=album.mbid,
@@ -432,10 +452,14 @@ async def get_album(mbid: str, session: AsyncSession) -> AlbumDetail | None:
             )
             for t in tracks
         ],
+        aggregate_score=ratings.aggregate_score,
+        reviews=ratings.reviews,
     )
 
 
-async def get_track(mbid: str, session: AsyncSession) -> TrackDetail | None:
+async def get_track(
+    mbid: str, session: AsyncSession, viewer_clerk_id: str | None = None
+) -> TrackDetail | None:
     result = await session.execute(select(Track).where(Track.mbid == mbid))
     track = result.scalar_one_or_none()
 
@@ -481,6 +505,13 @@ async def get_track(mbid: str, session: AsyncSession) -> TrackDetail | None:
             album_mbid_out = alb.mbid
             cover_art_url = alb.cover_art_url
 
+    viewer_id = None
+    if viewer_clerk_id:
+        viewer = await user_svc.get_by_clerk_id(session, viewer_clerk_id)
+        if viewer:
+            viewer_id = viewer.id
+    ratings = await rating_svc.list_for_entity(session, "track", track.id, viewer_id)
+
     return TrackDetail(
         mbid=track.mbid,
         title=track.title,
@@ -492,4 +523,6 @@ async def get_track(mbid: str, session: AsyncSession) -> TrackDetail | None:
         duration_ms=track.duration_ms,
         track_number=track.track_number,
         disc_number=track.disc_number,
+        aggregate_score=ratings.aggregate_score,
+        reviews=ratings.reviews,
     )

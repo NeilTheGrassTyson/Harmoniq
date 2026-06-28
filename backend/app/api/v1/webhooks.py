@@ -64,9 +64,7 @@ def _verify_svix_signature(
         raise ValueError("Clerk webhook secret is not valid base64") from exc
 
     signed_content = f"{svix_id}.{svix_timestamp}.{body.decode('utf-8')}"
-    expected = hmac.digest(
-        secret_bytes, signed_content.encode("utf-8"), hashlib.sha256
-    )
+    expected = hmac.digest(secret_bytes, signed_content.encode("utf-8"), hashlib.sha256)
     expected_b64 = base64.b64encode(expected).decode()
 
     for sig in svix_signature.split(" "):

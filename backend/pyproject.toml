@@ -29,6 +29,8 @@ ruff = ">=0.8,<0.16"
 mypy = "^1.13"
 types-python-jose = "^3.3"
 boto3-stubs = {extras = ["s3"], version = "^1.43.33"}
+testcontainers = {version = ">=4.0,<5", extras = ["postgresql"]}
+psycopg = {version = "^3.1", extras = ["binary"]}
 
 [tool.ruff]
 target-version = "py312"
@@ -39,7 +41,10 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "S", "A"]
 ignore = ["S101"]  # allow assert in tests
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S"]
+# S101 — assert is idiomatic in pytest.
+# E501 — test method names must be descriptive; line-length is relaxed in tests
+#         because truncating them reduces grep-ability and pytest output clarity.
+"tests/*" = ["S", "E501"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -49,6 +54,9 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: requires a running Postgres container via Docker",
+]
 
 [build-system]
 requires = ["poetry-core"]

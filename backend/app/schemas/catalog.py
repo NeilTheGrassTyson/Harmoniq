@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 from pydantic import BaseModel
+
+from app.schemas.rating import RatingRead
 
 
 class ArtistResult(BaseModel):
@@ -49,6 +53,8 @@ class AlbumDetail(BaseModel):
     album_type: str | None
     cover_art_url: str | None
     tracks: list[TrackResult]
+    aggregate_score: float | None = None
+    reviews: list[RatingRead] = []
 
 
 class TrackDetail(BaseModel):
@@ -62,3 +68,5 @@ class TrackDetail(BaseModel):
     duration_ms: int | None
     track_number: int | None
     disc_number: int | None
+    aggregate_score: float | None = None
+    reviews: list[RatingRead] = []

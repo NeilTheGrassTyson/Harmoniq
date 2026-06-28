@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     # ── MusicBrainz ──────────────────────────────────────────────────────────
     musicbrainz_user_agent: str  # "AppName/Version contact@example.com"
 
+    # ── Home sections ────────────────────────────────────────────────────────
+    # Number of entries returned per section on the Home page.
+    home_trending_count: int = 10
+    home_friends_count: int = 10
+
     # ── Cloudflare R2 (avatar storage) ───────────────────────────────────────
     # Optional until provisioned — validated at the call site when used.
     r2_account_id: str | None = None

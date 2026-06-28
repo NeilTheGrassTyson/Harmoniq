@@ -45,18 +45,23 @@ jobs:
 
   test:
     name: Tests
+    # ubuntu-latest has Docker pre-installed; Testcontainers uses it for the
+    # Postgres container that backs the integration tier (ADR 0007).
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
 
     env:
-      # Minimal env for the health endpoint test (no real DB needed)
-      DATABASE_URL: postgresql+asyncpg://test:test@localhost/test
+      # Testcontainers manages its own Postgres container; this value is only
+      # used by Settings() at import time and is never connected to in tests.
+      DATABASE_URL: postgresql+asyncpg://ci:ci@localhost/ci_placeholder
       CLERK_JWKS_URL: https://example.clerk.accounts.dev/.well-known/jwks.json
       MUSICBRAINZ_USER_AGENT: "Harmoniq/0.1.0 (ci@harmoniq.test)"
       APP_ENV: test
       DEBUG: "false"
+      # Allow Testcontainers to detect the Docker host automatically.
+      TESTCONTAINERS_RYUK_DISABLED: "false"
 
     steps:
       - uses: actions/checkout@v7
@@ -72,7 +77,7 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction
 
-      - name: Run tests
+      - name: Run tests (unit + integration)
         run: poetry run pytest --cov=app --cov-report=xml -q
 
       - name: Upload coverage

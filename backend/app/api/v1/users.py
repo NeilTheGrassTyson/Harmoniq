@@ -15,6 +15,7 @@ from app.schemas.user import (
     ProfileResponse,
     ProfileUpdateRequest,
     UsernameCheckResponse,
+    UserSearchResult,
 )
 from app.services import storage
 from app.services import user as user_svc
@@ -80,9 +81,7 @@ async def create_user(
             detail="That username is taken.",
         )
 
-    user = await user_svc.create_user(
-        session, clerk_id, req.username, req.display_name
-    )
+    user = await user_svc.create_user(session, clerk_id, req.username, req.display_name)
     try:
         await session.commit()
     except IntegrityError as exc:
@@ -224,6 +223,21 @@ async def upload_avatar(
         ) from exc
 
     return AvatarUploadResponse(avatar_url=avatar_url)
+
+
+# ── User search (must be registered before /{username} catch-all) ────────────
+
+
+@router.get("/search", response_model=list[UserSearchResult])
+@limiter.limit("20/minute")
+async def search_users(
+    request: Request,
+    q: str,
+    session: DbSession,
+) -> list[UserSearchResult]:
+    if len(q) < 2:
+        return []
+    return await user_svc.search_users(session, q)
 
 
 # ── Public profile (must be registered last — catches /{username}) ─────────────

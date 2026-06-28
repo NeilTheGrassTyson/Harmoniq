@@ -3,6 +3,7 @@ import re
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.core.enums import VisibilityScope
+from app.schemas.follow import FollowState
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9_-]{3,30}$")
 
@@ -114,6 +115,10 @@ class ProfileResponse(BaseModel):
     display_name: str
     avatar_url: str | None  # None = no avatar; always present
     is_own_profile: bool
+    follower_count: int = 0
+    following_count: int = 0
+    # follow is present only when the viewer is authenticated and not the owner:
+    follow: FollowState | None = None
     # The following are present only when visibility allows:
     bio: str | None = None
     activity_placeholder: bool | None = None  # True = show placeholder section
@@ -138,3 +143,11 @@ class UsernameCheckResponse(BaseModel):
 
 class AvatarUploadResponse(BaseModel):
     avatar_url: str
+
+
+class UserSearchResult(BaseModel):
+    """Minimal public user card returned by GET /users/search. No sensitive fields."""
+
+    username: str
+    display_name: str
+    avatar_url: str | None

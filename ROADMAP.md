@@ -17,7 +17,7 @@
 
 ## 0. Infra & Stack Decisions (prerequisite) 
 
-***✅ COMPELTE***
+***✅ COMPLETE***
 
 **⛔ Plan-mode gate — research and get sign-off before writing code.**
 
@@ -34,35 +34,35 @@
 
 ## NOW (build first — the core loop has to work end to end)
 
-### Music Catalog
+### ✅ Music Catalog
 Searchable songs, albums, artists, and artwork, sourced from the canonical
 music database chosen in infra planning.
 *Security: music metadata is public information; only user-generated
 interactions (ratings, listens, Melodies, playlists) require visibility
 controls.*
 
-### User accounts & profiles
+### ✅ User accounts & profiles
 Basic signup, login, profile page.
 *Security: visibility of any profile field (history, ratings) defaults to
 private until the user explicitly opens it up — opt-in, not opt-out.*
 
-### Search (minimal)
+### ✅ Search (minimal)
 Just enough to find a song to rate or a person to follow. Not unified,
 not ranked — a real cross-entity search engine is a Next-tier feature.
 *Security: search only returns what the requesting user is permitted to
 see — private profiles stay undiscoverable even by exact-name search.*
 
-### Ratings & reviews
+### ✅ Ratings & reviews
 Rate and review songs/albums — the RateYourMusic backbone.
 *Security: reviews are user-generated content tied to an identity; needs
 basic abuse/report handling from day one, not bolted on later.*
 
-### Follow / following
+### ✅ Follow / following
 The social graph Melody and Harmony both depend on.
 *Security: a follow request itself reveals nothing about the followed
 user's activity — following ≠ automatic visibility into their data.*
 
-### Home (minimal entry layer)
+### ✅ Home (minimal entry layer)
 Trending (global) + top songs from people you follow. Two sources, no
 more. Built here, before Melody, because it's a read-only aggregation
 over data that already exists once ratings and follows are in place.

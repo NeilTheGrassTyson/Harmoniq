@@ -10,9 +10,7 @@ below so it's loaded automatically every session:
 
 @HARMONIQ.md
 
-(Once ENGINEERING_BIBLE.md has real content, add `@ENGINEERING_BIBLE.md`
-here too — it belongs in this always-loaded tier alongside the
-constitution, not in the situational-reference tier below.)
+@ENGINEERING_BIBLE.md
 
 ## Important context: Spotify API constraints
 
@@ -60,12 +58,66 @@ referencing the file by name in your prompt:
 
 ## Conventions
 
-(Fill in once the stack is chosen: formatting/linting rules, folder
-structure, naming conventions, how to run tests locally.)
+### Stack
 
-## First session prompt
+| Layer | Choice |
+|---|---|
+| Backend | FastAPI, Python 3.12+ |
+| Database | PostgreSQL (Neon serverless) + asyncpg + SQLAlchemy 2.0 async + Alembic |
+| Auth | Clerk — `proxy.ts` gate in Next.js; Clerk Management API for `publicMetadata.onboarded` |
+| Frontend | Next.js 16 (App Router, RSC, TypeScript) |
+| Styling | Tailwind v4 — `@theme` block in `globals.css`, no `tailwind.config.js` |
+| Typography | Space Grotesk (display) via `next/font/google`; system font stack (body) |
+| File storage | Cloudflare R2 (S3-compatible via boto3) |
+| Music database | MusicBrainz + Cover Art Archive — on-demand ingestion |
+| Hosting | Frontend: Vercel; Backend: Railway |
+| Mobile dev | Tailscale + Windows OpenSSH Server + Tailscale Serve |
+| IDE | VSCode + Claude Code extension |
 
-A good way to kick this off in Claude Code: ask it to research and propose
-2-3 stack options for a social app with a custom recommendation engine
-(considering that you're building solo with AI tooling rather than a team),
-in plan mode, before any code gets written.
+### Backend tooling
+- **Dependency management:** Poetry (`pyproject.toml`). Poetry not on PATH on Windows — invoke via `py -m poetry` or the full `.venv` path.
+- **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
+- **Type check:** `mypy` (or pyright — check `pyproject.toml`).
+- **Tests:** `pytest`, `pytest-asyncio`, `pytest-cov`. Integration tests use Testcontainers (real PostgreSQL). `NullPool` required in test fixtures to avoid asyncpg connection conflicts.
+- **Run tests:** `cd backend && python -m pytest`
+- **Run dev server:** `cd backend && uvicorn app.main:app --reload`
+- **Migrations:** `cd backend && alembic upgrade head`
+
+### Frontend tooling
+- **Lint:** ESLint (`npm run lint`). Two Dependabot PRs held pending `eslint-config-next` peer dep support for TypeScript 5→6 and ESLint 9→10.
+- **Type check:** `npm run typecheck`
+- **Format:** Prettier with `prettier-plugin-tailwindcss`
+- **Run dev server:** `cd frontend && npm run dev`
+
+### Skills
+- `unslop-ui` at `.claude/skills/unslop-ui/` — `SKILL.md`, `references/`, and `scripts/devibe_scan.py` must be direct children of that folder.
+
+### Folder structure
+
+```
+backend/app/
+├── api/v1/         Route handlers (thin — no business logic)
+├── core/           Enums, rate limiting, security helpers
+├── models/         SQLAlchemy ORM models
+├── schemas/        Pydantic request/response contracts
+├── services/       Business logic (one module per domain)
+├── main.py         App factory
+├── config.py       pydantic-settings, env-driven
+├── database.py     Async engine + session factory
+└── auth.py         Clerk JWT verification
+
+frontend/src/
+├── app/            Next.js App Router pages
+│   ├── album/[mbid]/
+│   ├── artist/[mbid]/
+│   ├── onboarding/
+│   ├── settings/
+│   ├── sign-in/[[...sign-in]]/
+│   ├── sign-up/[[...sign-up]]/
+│   ├── sso-callback/
+│   ├── track/[mbid]/
+│   └── u/[username]/
+├── components/     Shared UI components
+├── lib/            API client helpers (users, catalog, ratings, follows, home)
+└── types/          Shared TypeScript types (index.ts)
+```

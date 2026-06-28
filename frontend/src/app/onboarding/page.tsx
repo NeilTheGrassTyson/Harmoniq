@@ -29,9 +29,8 @@ export default function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Derive display name: prefer user's edit, fall back to Clerk profile name.
-  const clerkName = isLoaded && user
-    ? [user.firstName, user.lastName].filter(Boolean).join(" ")
-    : "";
+  const clerkName =
+    isLoaded && user ? [user.firstName, user.lastName].filter(Boolean).join(" ") : "";
   const displayName = editedName ?? clerkName;
 
   // Check if user already has a Harmoniq account (e.g. arriving from a new
@@ -43,7 +42,7 @@ export default function OnboardingPage() {
         if (!token) return;
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/users/me`,
-          { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+          { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
         );
         if (res.ok) {
           const profile = await res.json();
@@ -58,34 +57,31 @@ export default function OnboardingPage() {
   // Debounced availability check
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleUsernameChange = useCallback(
-    (value: string) => {
-      setUsername(value);
-      setSubmitError(null);
+  const handleUsernameChange = useCallback((value: string) => {
+    setUsername(value);
+    setSubmitError(null);
 
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
-      if (!value) {
+    if (!value) {
+      setAvailability({ kind: "idle" });
+      return;
+    }
+    if (!USERNAME_RE.test(value)) {
+      setAvailability({ kind: "invalid" });
+      return;
+    }
+
+    setAvailability({ kind: "checking" });
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const result = await checkUsernameAvailable(value);
+        setAvailability(result.available ? { kind: "available" } : { kind: "taken" });
+      } catch {
         setAvailability({ kind: "idle" });
-        return;
       }
-      if (!USERNAME_RE.test(value)) {
-        setAvailability({ kind: "invalid" });
-        return;
-      }
-
-      setAvailability({ kind: "checking" });
-      debounceRef.current = setTimeout(async () => {
-        try {
-          const result = await checkUsernameAvailable(value);
-          setAvailability(result.available ? { kind: "available" } : { kind: "taken" });
-        } catch {
-          setAvailability({ kind: "idle" });
-        }
-      }, 300);
-    },
-    [],
-  );
+    }, 300);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,8 +100,7 @@ export default function OnboardingPage() {
       await user?.reload();
       router.replace(`/u/${profile.username}`);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong.";
+      const message = err instanceof Error ? err.message : "Something went wrong.";
       setSubmitError(message);
     } finally {
       setSubmitting(false);
@@ -121,10 +116,8 @@ export default function OnboardingPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
-      <h1 className="mb-1 text-2xl font-light tracking-tight">
-        Choose a username
-      </h1>
-      <p className="mb-8 text-sm text-neutral-500">
+      <h1 className="mb-1 text-2xl font-light tracking-tight text-primary">Choose a username</h1>
+      <p className="mb-8 text-sm text-secondary">
         Your username appears in your profile URL and @mentions.
       </p>
 
@@ -132,7 +125,7 @@ export default function OnboardingPage() {
         <div>
           <label
             htmlFor="username"
-            className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-neutral-400"
+            className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
           >
             Username
           </label>
@@ -146,30 +139,26 @@ export default function OnboardingPage() {
             autoCapitalize="none"
             spellCheck={false}
             maxLength={30}
-            className="w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900"
+            className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
           />
           <div className="mt-1.5 min-h-[1.25rem] text-xs">
             {availability.kind === "invalid" && (
-              <span className="text-red-500">
-                Usernames can only contain letters, numbers, underscores, and
-                hyphens (3–30 characters).
+              <span role="alert" style={{ color: "#f87171" }}>
+                Usernames can only contain letters, numbers, underscores, and hyphens (3–30
+                characters).
               </span>
             )}
             {availability.kind === "taken" && (
-              <span className="text-red-500">That username is taken.</span>
+              <span role="alert" style={{ color: "#f87171" }}>That username is taken.</span>
             )}
             {availability.kind === "available" && (
-              <span className="text-green-600 dark:text-green-400">
-                Available.
-              </span>
+              <span className="text-accent">Available.</span>
             )}
             {availability.kind === "checking" && (
-              <span className="text-neutral-400">Checking…</span>
+              <span className="text-tertiary">Checking…</span>
             )}
             {availability.kind === "idle" && username.length === 0 && (
-              <span className="text-neutral-400">
-                Letters, numbers, _ and - · 3–30 characters
-              </span>
+              <span className="text-tertiary">Letters, numbers, _ and - · 3–30 characters</span>
             )}
           </div>
         </div>
@@ -177,7 +166,7 @@ export default function OnboardingPage() {
         <div>
           <label
             htmlFor="display-name"
-            className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-neutral-400"
+            className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
           >
             Display name
           </label>
@@ -188,18 +177,16 @@ export default function OnboardingPage() {
             onChange={(e) => setEditedName(e.target.value)}
             placeholder="Your name"
             maxLength={50}
-            className="w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900"
+            className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
           />
         </div>
 
-        {submitError && (
-          <p className="text-sm text-red-500">{submitError}</p>
-        )}
+        {submitError && <p role="alert" className="text-sm text-red-500">{submitError}</p>}
 
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+          className="w-full rounded-control bg-primary px-4 py-2.5 text-sm font-medium text-canvas transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Creating account…" : "Continue"}
         </button>

@@ -28,6 +28,30 @@ without them):
 
 ---
 
+## Quick start (Windows)
+
+Once prerequisites are installed and environment variables are configured (see
+section 4), these two scripts manage the full dev environment from the project
+root:
+
+```powershell
+# Start backend + frontend (each opens in its own terminal window)
+.\scripts\start-dev.ps1
+
+# Stop everything and close those windows
+.\scripts\stop-dev.ps1
+```
+
+`start-dev.ps1` locates the venv uvicorn, starts the backend and frontend in
+separate PowerShell windows, and prints the local URLs. `stop-dev.ps1` kills
+both process trees (including child uvicorn/node processes) and closes those
+windows.
+
+The numbered steps below cover first-time setup and the manual equivalent of
+what the scripts automate.
+
+---
+
 ## 1. Clone and configure
 
 ```bash
@@ -212,14 +236,54 @@ onboarding (choose a username), and you should land on your profile page at
 
 ## 8. Running tests
 
-```bash
-# Backend tests (from backend/)
-pytest
+### Backend
 
-# Frontend type check (from frontend/)
+The test suite has two tiers, separated by the `integration` marker.
+
+**Unit tier — no external dependencies, runs in milliseconds:**
+
+```bash
+cd backend
+poetry run pytest -m "not integration" -q
+```
+
+**Integration tier — requires Docker (Testcontainers spins up Postgres 16):**
+
+```bash
+cd backend
+poetry run pytest -m "integration" -q
+```
+
+**Full suite with coverage:**
+
+```bash
+cd backend
+poetry run pytest --cov=app --cov-report=term-missing -q
+```
+
+If Docker is not available (e.g. CI without a Docker daemon, or a machine where
+Docker is not installed), use `-m "not integration"` to run only the unit tier.
+The CI workflow (`backend-ci.yml`) runs the full suite on `ubuntu-latest`, which
+has Docker pre-installed.
+
+### Static analysis
+
+```bash
+cd backend
+poetry run ruff check .          # lint
+poetry run ruff format --check . # format
+poetry run mypy app              # types (tests/ excluded)
+```
+
+### Frontend
+
+```bash
+cd frontend
+
+# Type check
 npm run typecheck
 
-# Frontend lint (from frontend/)
+# Lint
 npm run lint
 ```
 

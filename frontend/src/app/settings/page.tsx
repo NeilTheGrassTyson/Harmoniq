@@ -1,5 +1,6 @@
 "use client";
 
+import AppShell from "@/components/AppShell";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -95,7 +96,7 @@ export default function SettingsPage() {
         }
       }, 300);
     },
-    [originalUsername],
+    [originalUsername]
   );
 
   const handleAvatarClick = () => fileInputRef.current?.click();
@@ -121,7 +122,7 @@ export default function SettingsPage() {
       const token = await getToken();
       if (!token) throw new Error("Not authenticated");
       const result = await uploadAvatar(token, file);
-      setProfile((prev) => prev ? { ...prev, avatar_url: result.avatar_url } : prev);
+      setProfile((prev) => (prev ? { ...prev, avatar_url: result.avatar_url } : prev));
     } catch {
       setAvatarError("Couldn't upload your photo. Try again.");
     } finally {
@@ -160,7 +161,7 @@ export default function SettingsPage() {
       setSaveSuccess(true);
     } catch (err: unknown) {
       setSaveError(
-        err instanceof Error ? err.message : "Something went wrong. Your changes weren't saved.",
+        err instanceof Error ? err.message : "Something went wrong. Your changes weren't saved."
       );
     } finally {
       setSaving(false);
@@ -169,13 +170,15 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-10">
-        <div className="animate-pulse space-y-4">
-          <div className="h-20 w-20 rounded-full bg-neutral-100 dark:bg-neutral-800" />
-          <div className="h-4 w-48 rounded bg-neutral-100 dark:bg-neutral-800" />
-          <div className="h-4 w-32 rounded bg-neutral-100 dark:bg-neutral-800" />
-        </div>
-      </main>
+      <AppShell>
+        <main className="mx-auto max-w-2xl px-4 py-10">
+          <div className="animate-pulse space-y-4">
+            <div className="h-20 w-20 rounded-full bg-tile" /* unslop-ignore — avatar skeleton, circular per DESIGN_SYSTEM §4 */ />
+            <div className="h-4 w-48 rounded bg-tile" />
+            <div className="h-4 w-32 rounded bg-tile" />
+          </div>
+        </main>
+      </AppShell>
     );
   }
 
@@ -185,37 +188,31 @@ export default function SettingsPage() {
     !saving &&
     displayName.trim().length > 0 &&
     USERNAME_RE.test(username) &&
-    (username === originalUsername ||
-      availability.kind === "available");
+    (username === originalUsername || availability.kind === "available");
 
   return (
+    <AppShell>
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="mb-8 text-2xl font-light tracking-tight">Settings</h1>
+      <h1 className="mb-8 text-2xl font-light tracking-tight text-primary">Settings</h1>
 
       <form onSubmit={handleSave} className="space-y-8">
         {/* Avatar */}
         <div>
-          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-neutral-400">
+          <p className="mb-3 text-xs font-medium tracking-widest text-tertiary uppercase">
             Avatar
           </p>
           <div className="flex items-center gap-4">
-            <AvatarImage
-              src={profile.avatar_url}
-              username={profile.username}
-              size={64}
-            />
+            <AvatarImage src={profile.avatar_url} username={profile.username} size={64} />
             <div>
               <button
                 type="button"
                 onClick={handleAvatarClick}
                 disabled={avatarUploading}
-                className="rounded border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                className="rounded-control border border-hairline px-3 py-1.5 text-xs font-medium text-secondary hover:text-primary disabled:opacity-50"
               >
                 {avatarUploading ? "Uploading…" : "Change photo"}
               </button>
-              {avatarError && (
-                <p className="mt-1 text-xs text-red-500">{avatarError}</p>
-              )}
+              {avatarError && <p className="mt-1 text-xs text-red-500">{avatarError}</p>}
             </div>
             <input
               ref={fileInputRef}
@@ -231,7 +228,7 @@ export default function SettingsPage() {
         <div>
           <label
             htmlFor="display-name"
-            className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-neutral-400"
+            className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
           >
             Display name
           </label>
@@ -239,9 +236,12 @@ export default function SettingsPage() {
             id="display-name"
             type="text"
             value={displayName}
-            onChange={(e) => { setDisplayName(e.target.value); setSaveSuccess(false); }}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              setSaveSuccess(false);
+            }}
             maxLength={50}
-            className="w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900"
+            className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
           />
         </div>
 
@@ -249,7 +249,7 @@ export default function SettingsPage() {
         <div>
           <label
             htmlFor="username"
-            className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-neutral-400"
+            className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
           >
             Username
           </label>
@@ -261,22 +261,22 @@ export default function SettingsPage() {
             autoCapitalize="none"
             spellCheck={false}
             maxLength={30}
-            className="w-full rounded border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900"
+            className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
           />
           <div className="mt-1 min-h-[1.25rem] text-xs">
             {availability.kind === "invalid" && (
-              <span className="text-red-500">
+              <span role="alert" style={{ color: "#f87171" }}>
                 Letters, numbers, _ and - only · 3–30 characters.
               </span>
             )}
             {availability.kind === "taken" && (
-              <span className="text-red-500">That username is taken.</span>
+              <span role="alert" style={{ color: "#f87171" }}>That username is taken.</span>
             )}
             {availability.kind === "available" && (
-              <span className="text-green-600 dark:text-green-400">Available.</span>
+              <span className="text-accent">Available.</span>
             )}
             {availability.kind === "checking" && (
-              <span className="text-neutral-400">Checking…</span>
+              <span className="text-tertiary">Checking…</span>
             )}
           </div>
         </div>
@@ -285,27 +285,28 @@ export default function SettingsPage() {
         <div>
           <label
             htmlFor="bio"
-            className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-neutral-400"
+            className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
           >
             Bio
           </label>
           <textarea
             id="bio"
             value={bio}
-            onChange={(e) => { setBio(e.target.value); setSaveSuccess(false); }}
+            onChange={(e) => {
+              setBio(e.target.value);
+              setSaveSuccess(false);
+            }}
             maxLength={280}
             rows={3}
             placeholder="A few words about your taste…"
-            className="w-full resize-none rounded border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900"
+            className="w-full resize-none rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
           />
-          <p className="mt-1 text-right text-xs text-neutral-400">
-            {bio.length}/280
-          </p>
+          <p className="mt-1 text-right text-xs text-tertiary">{bio.length}/280</p>
         </div>
 
         {/* Visibility controls */}
         <div className="space-y-3">
-          <p className="text-xs font-medium uppercase tracking-widest text-neutral-400">
+          <p className="text-xs font-medium tracking-widest text-tertiary uppercase">
             Visibility
           </p>
 
@@ -329,46 +330,46 @@ export default function SettingsPage() {
             <div key={field} className="flex items-center justify-between gap-4">
               <label
                 htmlFor={`vis-${field}`}
-                className="text-sm text-neutral-600 dark:text-neutral-400"
+                className="text-sm text-secondary"
               >
                 {label}
               </label>
               <VisibilitySelect
                 id={`vis-${field}`}
                 value={value}
-                onChange={(v) => { setter(v); setSaveSuccess(false); }}
+                onChange={(v) => {
+                  setter(v);
+                  setSaveSuccess(false);
+                }}
               />
             </div>
           ))}
 
-          <p className="text-xs text-neutral-400">
-            Friends means people you both follow.
-          </p>
+          <p className="text-xs text-tertiary">Friends means people you both follow.</p>
         </div>
 
         {/* Save */}
-        {saveError && <p className="text-sm text-red-500">{saveError}</p>}
-        {saveSuccess && (
-          <p className="text-sm text-green-600 dark:text-green-400">Saved.</p>
-        )}
+        {saveError && <p role="alert" className="text-sm text-red-500">{saveError}</p>}
+        {saveSuccess && <p role="status" className="text-sm" style={{ color: "#4ade80" }}>Saved.</p>}
 
         <div className="flex items-center gap-4">
           <button
             type="submit"
             disabled={!canSave}
-            className="rounded bg-neutral-900 px-5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+            className="rounded-control bg-primary px-5 py-2 text-sm font-medium text-canvas transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {saving ? "Saving…" : "Save changes"}
           </button>
           <button
             type="button"
             onClick={() => router.push(`/u/${profile.username}`)}
-            className="text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+            className="text-sm text-tertiary hover:text-secondary"
           >
             Back to profile
           </button>
         </div>
       </form>
     </main>
+    </AppShell>
   );
 }

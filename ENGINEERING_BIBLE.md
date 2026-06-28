@@ -275,9 +275,12 @@ machine learning may assist similarity, but it does not define relevance.
 
 ## 11. Evolution Strategy
 
-Phase 1 (this document): a modular monolith backend, Spotify as the only
-integration, focused on the trust graph, identity model, Melody, Harmony,
-and the Home/Discovery split.
+Phase 1 (this document): a modular monolith backend, MusicBrainz as the
+canonical music source (on-demand ingestion), focused on the trust graph,
+identity model, ratings, follows, Melody, Harmony, and the Home/Discovery
+split. Spotify is a deferred supplementary integration (account linking,
+"currently playing") — not the data backbone. See CLAUDE.md for Spotify
+API constraints that govern this decision.
 
 Phase 2 (deferred, not designed here): additional music providers, more
 sophisticated similarity modeling.

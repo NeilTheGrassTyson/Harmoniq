@@ -5,6 +5,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.deps import OptionalClerkId
 from app.database import get_db
 from app.schemas.catalog import AlbumDetail, ArtistDetail, SearchResponse, TrackDetail
 from app.services import catalog as catalog_svc
@@ -13,9 +14,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
-_CATALOG_ERROR = (
-    "Couldn't reach the music catalog right now. Try again in a moment."
-)
+_CATALOG_ERROR = "Couldn't reach the music catalog right now. Try again in a moment."
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -59,9 +58,11 @@ async def get_artist(mbid: str, session: DbSession) -> ArtistDetail:
 
 
 @router.get("/albums/{mbid}", response_model=AlbumDetail)
-async def get_album(mbid: str, session: DbSession) -> AlbumDetail:
+async def get_album(
+    mbid: str, session: DbSession, viewer_clerk_id: OptionalClerkId
+) -> AlbumDetail:
     try:
-        detail = await catalog_svc.get_album(mbid, session)
+        detail = await catalog_svc.get_album(mbid, session, viewer_clerk_id)
     except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as exc:
         logger.exception("MusicBrainz request failed for album mbid=%s", mbid)
         raise HTTPException(
@@ -76,9 +77,11 @@ async def get_album(mbid: str, session: DbSession) -> AlbumDetail:
 
 
 @router.get("/tracks/{mbid}", response_model=TrackDetail)
-async def get_track(mbid: str, session: DbSession) -> TrackDetail:
+async def get_track(
+    mbid: str, session: DbSession, viewer_clerk_id: OptionalClerkId
+) -> TrackDetail:
     try:
-        detail = await catalog_svc.get_track(mbid, session)
+        detail = await catalog_svc.get_track(mbid, session, viewer_clerk_id)
     except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as exc:
         logger.exception("MusicBrainz request failed for track mbid=%s", mbid)
         raise HTTPException(

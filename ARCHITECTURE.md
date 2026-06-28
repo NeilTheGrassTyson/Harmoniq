@@ -1,6 +1,6 @@
 # Harmoniq — Architecture Overview
 
-> **Status:** Phase 1 (Feature 2 shipped) — modular monolith.
+> **Status:** Phase 1 (Music Catalog, User Accounts, Ratings, Follows, Home shipped) — modular monolith.
 > This document describes what the system *is* today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---
@@ -49,9 +49,9 @@ distribution.
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Browser                                                        │
-│  Next.js (Vercel)                                               │
-│  ─ App Router, RSC, Tailwind CSS                                │
-│  ─ Clerk <ClerkProvider> for session UI + JWT gate              │
+│  Next.js 16 (Vercel)                                            │
+│  ─ App Router, RSC, Tailwind CSS v4 (@theme in globals.css)     │
+│  ─ Clerk <ClerkProvider> for session UI; proxy.ts JWT gate      │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ HTTPS + JWT (Clerk session token)
 ┌──────────────────────────▼──────────────────────────────────────┐
@@ -84,11 +84,74 @@ distribution.
 5. On first sign-in the user is routed to `/onboarding` to choose a username.
    After the Harmoniq user record is created, the backend sets
    `publicMetadata.onboarded = true` in Clerk via the Management API. The
-   Next.js middleware reads this flag from the JWT on every request and
-   redirects unonboarded users to `/onboarding`.
+   Next.js `proxy.ts` (the Next.js 16 replacement for `middleware.ts`) reads
+   this flag from the JWT on every request and redirects unonboarded users
+   to `/onboarding`. Only private routes are gated — public browse routes
+   (`/`, `/u/*`, `/artist/*`, etc.) are readable before onboarding completes,
+   which also eliminates a JWT-propagation race after the onboarding form
+   submits.
 6. The decoded `clerk_id` (Clerk's `sub` claim) maps to an internal UUID in
    the `users` table. Internal joins always use the UUID; the `clerk_id` is
    only used for identity lookups.
+
+---
+
+## Frontend Layout Shell
+
+`AppShell` (`frontend/src/components/AppShell.tsx`) is the single shared
+layout for all authenticated and publicly-browsable pages. Every route that
+renders content (Home, profile, artist, album, track, search, settings) wraps
+its output in `AppShell`. The onboarding and auth pages (`/onboarding`,
+`/sign-in`, `/sign-up`, `/sso-callback`) are the only exceptions — they
+render without a shell.
+
+AppShell owns:
+- The collapsible sidebar (220px open, 0px collapsed, 200ms transition).
+- The 3-column header grid (toggle + logo / search / NavAuth).
+- The global sidebar navigation links: **Home** (`/`), **Search** (`/search`),
+  **Profile** (`/u/[username]` — signed-in users only), **Settings**
+  (`/settings`). Active state is derived from `usePathname()`.
+
+No page file should render its own header, sidebar, or navigation — those
+belong exclusively to AppShell.
+
+---
+
+## User Search
+
+### Endpoint
+
+`GET /api/v1/users/search?q={query}` — unauthenticated (optionally auth-aware in future).
+
+- **Auth:** optional. Accepts a Clerk JWT if present, ignores absence. The endpoint is
+  useful for logged-out browse flows and is therefore not protected.
+- **Rate limit:** 20 requests/minute per IP (`slowapi`).
+- **Min query length:** 2 characters. Returns `[]` immediately for shorter queries
+  without hitting the database.
+- **Matching:** case-insensitive `ILIKE` on `username` OR `display_name` (OR condition).
+- **Response:** `list[UserSearchResult]` — only `username`, `display_name`, `avatar_url`.
+  No `clerk_id`, no visibility fields, no internal IDs.
+- **Route ordering:** registered before `GET /{username}` to prevent the catch-all
+  from consuming `/search` as a username lookup.
+
+### `filter_discoverable_users` stub
+
+`services/user.py` contains a `filter_discoverable_users(query: Select) -> Select`
+function that wraps every user search query. Today it is a pass-through (all users
+are discoverable). When private profiles ship, visibility filtering is added here
+rather than scattered across callers. The stub and its test harness are in place now
+so the change surface is predictable. See `ENGINEERING_BIBLE.md §8.1`.
+
+### Frontend
+
+- `lib/users.ts:searchUsers(query)` calls this endpoint.
+- `SearchBar` fetches both `searchCatalog` and `searchUsers` in parallel using
+  `Promise.allSettled` — either fetch may fail independently without affecting the
+  other's results.
+- When on `/search`, `SearchBar` additionally calls `router.push("/search?q=…")`
+  (debounced, 300ms) to keep the URL and the `/search` page body in sync.
+- The `/search` page (`app/search/page.tsx`) reads `?q=` via `useSearchParams` and
+  renders People + Music sections (up to 10 results each), or an empty state.
 
 ---
 
@@ -112,13 +175,15 @@ modules, only from shared `models/` and `schemas/`.
 
 | Service | Status | Responsibility |
 |---|---|---|
-| `identity` (user.py) | ✅ Phase 1 | User records, profile, visibility settings, avatar |
+| `identity` (user.py) | ✅ Phase 1 | User records, profile, visibility settings, avatar, user search |
 | `catalog` | ✅ Phase 1 | Music ingestion from MusicBrainz; track/album/artist entities |
 | `storage` | ✅ Phase 1 | Cloudflare R2 avatar upload |
-| `social` | Planned | Follow graph, trust relationships |
+| `rating` | ✅ Phase 1 | Ratings and reviews; aggregate scores; reports |
+| `follow` | ✅ Phase 1 | Follow graph (follower/followed relationships) |
+| `home` | ✅ Phase 1 | Home surface: trending + friends' top songs |
 | `melody` | Planned | Melody lifecycle state machine |
 | `harmony` | Planned | Harmony score computation |
-| `feed` | Planned | Home and Discovery surface composition |
+| `discovery` | Planned | Discovery surface (Harmonic Feed) composition |
 
 ---
 
@@ -180,6 +245,36 @@ tracks (recordings)
   track_number  INTEGER
   disc_number   INTEGER
   last_fetched_at TIMESTAMPTZ NOT NULL
+
+ratings
+  id            UUID PK
+  user_id       UUID FK → users.id NOT NULL
+  entity_type   VARCHAR NOT NULL               ← 'track' | 'album'
+  entity_id     UUID NOT NULL                  ← internal PK of entity (no FK constraint — see below)
+  score         INTEGER NOT NULL               CHECK (score >= 1 AND score <= 10)
+  review_text   VARCHAR(2000) NOT NULL
+  visibility    VARCHAR NOT NULL DEFAULT 'public'
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  INDEX ix_ratings_user_id (user_id)
+  INDEX ix_ratings_entity (entity_type, entity_id, created_at)
+  INDEX ix_ratings_user_entity_created (user_id, entity_type, entity_id, created_at)
+
+reports
+  id            UUID PK
+  reporter_id   UUID FK → users.id NOT NULL
+  rating_id     UUID FK → ratings.id NOT NULL
+  UNIQUE (reporter_id, rating_id)
+  INDEX ix_reports_reporter_id (reporter_id)
+  INDEX ix_reports_rating_id (rating_id)
+
+follows
+  follower_id   UUID FK → users.id NOT NULL (CASCADE)
+  followed_id   UUID FK → users.id NOT NULL (CASCADE)
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  PRIMARY KEY (follower_id, followed_id)
+  CHECK ck_follows_no_self_follow (follower_id != followed_id)
+  INDEX ix_follows_followed_id (followed_id)   ← who follows this user?
+  INDEX ix_follows_follower_id (follower_id)   ← who does this user follow?
 ```
 
 ---
@@ -210,6 +305,39 @@ Avatars are stored in **Cloudflare R2** (S3-compatible object storage).
   response, and upserts into our catalog.
 - **Audio previews:** Deezer API (supplementary, Phase NEXT — not present
   in Phase 0/1).
+
+---
+
+## Ratings & Reviews Architecture
+
+### Polymorphic Entity Reference
+
+The `ratings` table stores a `(entity_type, entity_id)` pair rather than two separate FK columns pointing at `tracks` and `albums`. There is no DB-level FK constraint on `entity_id` — it references different tables depending on `entity_type`. Referential integrity is enforced in `services/rating.py` via `resolve_entity(session, entity_type, entity_mbid)`: if the MBID cannot be found in the appropriate catalog table, the endpoint returns 404 before writing any row.
+
+This pattern avoids schema duplication (separate `track_ratings` and `album_ratings` tables) and keeps query logic uniform across entity types. Future rating targets (artists, playlists) can be added by extending the `entity_type` enum without schema migrations.
+
+### Aggregate Calculation
+
+Aggregate scores are computed on read using a SQL window function — there is no denormalized "current score" column maintained on the entity tables. The query uses `ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC)` in a subquery to select each user's most-recent rating, then applies `AVG()` to that set:
+
+```sql
+SELECT AVG(score) FROM (
+  SELECT score,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) AS rn
+  FROM ratings
+  WHERE entity_type = :et AND entity_id = :eid AND visibility = 'public'
+) sub WHERE rn = 1
+```
+
+This correctly handles re-ratings (only the most recent counts) without requiring an `is_current` flag to be maintained across inserts and deletes.
+
+### Visibility Default Exception
+
+All other user-generated content in Harmoniq defaults to `private`. Ratings default to `public` — an explicit, approved exception. Ratings are the primary social signal of the product; a private-by-default system would be dark from launch. This exception is recorded in `specs/phase-1-ratings-reviews.md`.
+
+### Report Duplicate Prevention
+
+The UNIQUE constraint on `(reporter_id, rating_id)` in the `reports` table catches duplicate reports at the DB level. `services/rating.py` catches `IntegrityError`, rolls back, and returns a `(False, "duplicate")` tuple to the route handler. This is race-condition safe without a pre-flight SELECT.
 
 ---
 
@@ -294,10 +422,18 @@ npm run dev
 
 All significant architectural decisions are recorded in `docs/adr/`:
 
+The frontend design token reference is documented separately in
+[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) — colors, typography,
+spacing, motion, and component patterns.
+
+**Outstanding:** Clerk's `appearance` prop for the sign-in and sign-up pages
+has not yet been configured. The pages use Clerk's default dark theme until
+this is wired up.
+
 | # | Title |
 |---|---|
 | [0001](docs/adr/0001-backend-framework.md) | Backend framework: FastAPI |
-| [0002](docs/adr/0002-frontend-framework.md) | Frontend framework: Next.js 15 |
+| [0002](docs/adr/0002-frontend-framework.md) | Frontend framework: Next.js 16 |
 | [0003](docs/adr/0003-database.md) | Database: PostgreSQL via Neon |
 | [0004](docs/adr/0004-authentication.md) | Authentication: Clerk |
 | [0005](docs/adr/0005-hosting.md) | Hosting: Vercel + Railway |

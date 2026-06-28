@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ── Design system tokens (DESIGN_SYSTEM.md §2-5) ───────────────────────── */
+
+@theme {
+  /* Color palette */
+  --color-canvas:        #0b0d12;
+  --color-sidebar:       #0e1015;
+  --color-tile:          #151821;
+  --color-tile-friend:   #121a2a;
+  --color-hairline:      rgba(255,255,255,0.07);
+  --color-primary:       #f2f3f5;
+  --color-secondary:     #8b93a3;
+  --color-tertiary:      #757c8c;
+  --color-accent:        #2f8cff;
+  --color-icon-trend:    #343b4d;
+  --color-icon-friend:   #34507c;
+  --color-friend-dot:    #5a8fd6;
+  --color-nav-active:    rgba(255,255,255,0.06);
+  --color-nav-hover:     rgba(255,255,255,0.04);
+  --color-control:       rgba(255,255,255,0.05);
+
+  /* Radius scale */
+  --radius-frame:   14px;
+  --radius-control: 8px;
+  --radius-nav:     6px;
 }
 
+/* Display font references the CSS var injected by next/font */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-space-grotesk), system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ── Base ────────────────────────────────────────────────────────────────── */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #0b0d12;
+  color: #f2f3f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Sidebar width transition is easier to define here than in arbitrary Tailwind */
+.sidebar-panel {
+  transition: width 200ms ease;
+  overflow: hidden;
+}
+
+/* Focus ring — the only permitted shadow in the design system (DESIGN_SYSTEM.md §8)
+   Applied globally via :focus-visible so keyboard users see a ring on every
+   interactive element, not just the search field. Mouse clicks suppress it. */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1.5px rgba(47, 140, 255, 0.6);
+}
+
+/* Search field uses :focus (not :focus-visible) to suppress the browser's
+   default outline at all times, then delegates to the global ring above. */
+.search-focus:focus {
+  outline: none;
+}
+
+/* Tile hover — translateY(-2px), 150ms */
+.tile-hover {
+  transition: transform 150ms ease;
+}
+.tile-hover:hover {
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-hover,
+  .sidebar-panel {
+    transition: none;
+  }
+  .tile-hover:hover {
+    transform: none;
+  }
 }

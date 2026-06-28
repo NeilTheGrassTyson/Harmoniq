@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import AppShell from "@/components/AppShell";
 import CoverArt from "@/components/CoverArt";
+import RatingSection from "@/components/RatingSection";
 import { getAlbum } from "@/lib/catalog";
 
 function formatDuration(ms: number | null): string {
@@ -11,17 +14,16 @@ function formatDuration(ms: number | null): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default async function AlbumPage(props: {
-  params: Promise<{ mbid: string }>;
-}) {
+export default async function AlbumPage(props: { params: Promise<{ mbid: string }> }) {
   const { mbid } = await props.params;
+  const { getToken } = await auth();
+  const token = await getToken().catch(() => null);
 
   let album;
   try {
-    album = await getAlbum(mbid);
+    album = await getAlbum(mbid, token ?? undefined);
   } catch (err: unknown) {
-    const status =
-      err instanceof Error && err.message.includes("404") ? 404 : 503;
+    const status = err instanceof Error && err.message.includes("404") ? 404 : 503;
     if (status === 404) notFound();
     throw err;
   }
@@ -31,6 +33,7 @@ export default async function AlbumPage(props: {
     : null;
 
   return (
+    <AppShell>
     <main className="mx-auto max-w-2xl px-4 py-10">
       <div className="mb-8 flex items-start gap-5">
         <CoverArt src={album.cover_art_url} alt={album.title} size={120} />
@@ -39,12 +42,12 @@ export default async function AlbumPage(props: {
           {album.artist_name && album.artist_mbid && (
             <Link
               href={`/artist/${album.artist_mbid}`}
-              className="mt-0.5 block text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+              className="mt-0.5 block text-sm text-secondary hover:text-primary"
             >
               {album.artist_name}
             </Link>
           )}
-          <p className="mt-1 text-xs text-neutral-400">
+          <p className="mt-1 text-xs text-tertiary">
             {[album.release_year, typeLabel].filter(Boolean).join(" · ")}
           </p>
         </div>
@@ -52,7 +55,7 @@ export default async function AlbumPage(props: {
 
       {album.tracks.length > 0 ? (
         <section>
-          <h2 className="mb-3 text-xs font-medium uppercase tracking-widest text-neutral-400">
+          <h2 className="mb-3 text-xs font-medium tracking-widest text-tertiary uppercase">
             Tracks in catalog
           </h2>
           <ul className="space-y-px">
@@ -60,11 +63,11 @@ export default async function AlbumPage(props: {
               <li key={t.mbid}>
                 <Link
                   href={`/track/${t.mbid}`}
-                  className="flex items-center gap-3 rounded px-2 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                  className="flex items-center gap-3 rounded-nav px-2 py-2 hover:bg-nav-hover"
                 >
                   <span className="min-w-0 flex-1 text-sm">{t.title}</span>
                   {t.duration_ms !== null && (
-                    <span className="shrink-0 text-xs tabular-nums text-neutral-400">
+                    <span className="shrink-0 text-xs text-tertiary tabular-nums">
                       {formatDuration(t.duration_ms)}
                     </span>
                   )}
@@ -74,8 +77,16 @@ export default async function AlbumPage(props: {
           </ul>
         </section>
       ) : (
-        <p className="text-sm text-neutral-400">No tracks in catalog yet.</p>
+        <p className="text-sm text-tertiary">No tracks in catalog yet.</p>
       )}
+
+      <RatingSection
+        entityType="album"
+        entityMbid={mbid}
+        initialReviews={album.reviews}
+        initialAggregate={album.aggregate_score}
+      />
     </main>
+    </AppShell>
   );
 }

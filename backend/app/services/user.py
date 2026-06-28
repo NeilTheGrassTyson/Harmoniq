@@ -11,12 +11,15 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import VisibilityScope
 from app.models.user import User
-from app.schemas.user import OwnProfileResponse, ProfileResponse
+from app.schemas.follow import FollowState
+from app.schemas.user import OwnProfileResponse, ProfileResponse, UserSearchResult
+from app.services import follow as follow_svc
+from app.services import rating as rating_svc
 
 logger = logging.getLogger(__name__)
 
@@ -25,17 +28,15 @@ def _now() -> datetime:
     return datetime.now(tz=UTC)
 
 
-# ── Friends check (stub) ──────────────────────────────────────────────────────
+# ── Friends check ─────────────────────────────────────────────────────────────
 
 
 async def _is_friend(
-    _session: AsyncSession,
-    _viewer_id: uuid.UUID,
-    _profile_id: uuid.UUID,
+    session: AsyncSession,
+    viewer_id: uuid.UUID,
+    profile_id: uuid.UUID,
 ) -> bool:
-    # Stub: follows table not yet implemented. Until it exists, FRIENDS-scoped
-    # fields behave as PRIVATE for non-owners — no special-casing required.
-    return False
+    return await follow_svc.is_mutual_follow(session, viewer_id, profile_id)
 
 
 # ── Basic lookups ─────────────────────────────────────────────────────────────
@@ -111,6 +112,7 @@ async def get_profile(
 
     is_own = False
     is_friend = False
+    viewer: User | None = None
 
     if viewer_clerk_id:
         viewer = await get_by_clerk_id(session, viewer_clerk_id)
@@ -135,12 +137,23 @@ async def get_profile(
         )
         return False
 
+    follower_count = await follow_svc.get_follower_count(session, user.id)
+    following_count = await follow_svc.get_following_count(session, user.id)
+
+    follow_state: FollowState | None = None
+    if not is_own and viewer is not None:
+        follow_state = await follow_svc.get_follow_state(session, viewer.id, user.id)
+
     fields: dict[str, Any] = {
         "username": user.username,
         "display_name": user.display_name,
         "avatar_url": user.avatar_url,
         "is_own_profile": is_own,
+        "follower_count": follower_count,
+        "following_count": following_count,
     }
+    if follow_state is not None:
+        fields["follow"] = follow_state
 
     # Bio: include for own profile (even if null, for "Add a bio" prompt) or
     # when viewer has permission AND bio has a value.
@@ -152,10 +165,12 @@ async def get_profile(
     if can_see(user.visibility_activity):
         fields["activity_placeholder"] = True
 
-    # Ratings count: queried live from ratings table (Phase 1: always 0).
+    # Ratings count: queried live from ratings table.
     if can_see(user.visibility_ratings):
-        # TODO: replace with an actual count query when the ratings table exists.
-        fields["ratings_count"] = 0
+        viewer_id = viewer.id if viewer is not None else None
+        fields["ratings_count"] = await rating_svc.count_for_user(
+            session, user.id, viewer_id
+        )
 
     return ProfileResponse.model_construct(**fields)
 
@@ -178,7 +193,7 @@ async def update_profile(
 
     if username is not None and username != user.username:
         old_username = user.username
-        user.username = username
+        user.username = username.lower()
         logger.info(
             "Username changed internal_id=%s old=%s new=%s",
             user.id,
@@ -186,11 +201,9 @@ async def update_profile(
             username,
         )
 
-    # bio=None means "clear the field"; the validator converts empty string to None.
-    # We only apply the update when the key is explicitly included in the request.
-    # This check is performed in the route handler via request.model_fields_set.
-    if bio is not None or bio == user.bio:
-        user.bio = bio
+    # bio=None means "clear the field". The route handler resolves model_fields_set
+    # before calling here, so bio already holds the correct value to apply.
+    user.bio = bio
 
     if visibility_bio is not None:
         old = user.visibility_bio
@@ -238,6 +251,39 @@ async def update_avatar_url(
     user.updated_at = _now()
     logger.info("Avatar updated internal_id=%s", user.id)
     return avatar_url
+
+
+# ── User search ───────────────────────────────────────────────────────────────
+
+
+def filter_discoverable_users(query):
+    # Currently a pass-through — all users are discoverable at launch.
+    # This function is security scaffolding: when private profiles ship (e.g. a
+    # future visibility_profile column), add the WHERE clause here rather than
+    # scattering it across callers. This keeps enforcement at the service layer
+    # per ENGINEERING_BIBLE §8.1. The stub exists now so the test harness is
+    # in place and the change surface is predictable.
+    return query
+
+
+async def search_users(session: AsyncSession, q: str) -> list[UserSearchResult]:
+    pattern = f"%{q}%"
+    stmt = (
+        select(User)
+        .where(or_(User.username.ilike(pattern), User.display_name.ilike(pattern)))
+        .order_by(User.username)
+        .limit(20)
+    )
+    stmt = filter_discoverable_users(stmt)
+    rows = (await session.execute(stmt)).scalars().all()
+    return [
+        UserSearchResult(
+            username=u.username,
+            display_name=u.display_name,
+            avatar_url=u.avatar_url,
+        )
+        for u in rows
+    ]
 
 
 # ── Clerk webhook sync ────────────────────────────────────────────────────────

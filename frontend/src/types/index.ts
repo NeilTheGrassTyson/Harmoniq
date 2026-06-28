@@ -56,6 +56,8 @@ export interface AlbumDetail {
   album_type: string | null;
   cover_art_url: string | null;
   tracks: TrackResult[];
+  aggregate_score: number | null;
+  reviews: RatingRead[];
 }
 
 export interface TrackDetail {
@@ -69,11 +71,41 @@ export interface TrackDetail {
   duration_ms: number | null;
   track_number: number | null;
   disc_number: number | null;
+  aggregate_score: number | null;
+  reviews: RatingRead[];
+}
+
+// ── User search ───────────────────────────────────────────────────────────────
+
+export interface UserSearchResult {
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
 }
 
 // ── Users & profiles ──────────────────────────────────────────────────────────
 
 export type VisibilityScope = "private" | "friends" | "public";
+
+// ── Follow / Following ────────────────────────────────────────────────────────
+
+export interface FollowState {
+  is_following: boolean;
+  follows_you: boolean;
+  is_friend: boolean;
+}
+
+export interface FollowSummary {
+  user_id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+
+export interface FollowListResponse {
+  items: FollowSummary[];
+  next_cursor: string | null;
+}
 
 /** Public or viewer-scoped profile. Gated fields are absent (not null) when excluded by visibility. */
 export interface ProfileResponse {
@@ -81,6 +113,9 @@ export interface ProfileResponse {
   display_name: string;
   avatar_url: string | null;
   is_own_profile: boolean;
+  follower_count: number;
+  following_count: number;
+  follow?: FollowState;
   bio?: string | null;
   activity_placeholder?: boolean;
   ratings_count?: number;
@@ -112,4 +147,85 @@ export interface ProfileUpdateRequest {
   visibility_bio?: VisibilityScope;
   visibility_activity?: VisibilityScope;
   visibility_ratings?: VisibilityScope;
+}
+
+// ── Ratings & Reviews ─────────────────────────────────────────────────────────
+
+export interface ReviewerInfo {
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+
+export interface RatingRead {
+  id: string;
+  reviewer: ReviewerInfo;
+  score: number;
+  review_text: string;
+  visibility: VisibilityScope;
+  created_at: string;
+}
+
+export interface EntityRatingListResponse {
+  aggregate_score: number | null;
+  reviews: RatingRead[];
+}
+
+export interface UserRatingRead {
+  id: string;
+  entity_type: string;
+  entity_mbid: string | null;
+  entity_title: string | null;
+  score: number;
+  review_text: string;
+  visibility: VisibilityScope;
+  created_at: string;
+}
+
+export interface UserRatingListResponse {
+  reviews: UserRatingRead[];
+}
+
+// ── Home ─────────────────────────────────────────────────────────────────────
+
+export interface TrackSummary {
+  id: string;
+  mbid: string;
+  title: string;
+  artist_name: string | null;
+  cover_art_url: string | null;
+}
+
+export interface UserSummary {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+
+export interface TrendingEntry {
+  track: TrackSummary;
+  aggregate_score: number;
+}
+
+export interface FriendEntry {
+  track: TrackSummary;
+  score: number;
+  rated_by: UserSummary;
+}
+
+export interface HomeResponse {
+  trending: TrendingEntry[];
+  trending_error: boolean;
+  friends: FriendEntry[];
+  friends_error: boolean;
+  has_mutual_follows: boolean;
+}
+
+export interface RatingSubmitRequest {
+  entity_type: string;
+  entity_mbid: string;
+  score: number;
+  review_text: string;
+  visibility?: VisibilityScope;
 }

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import AppShell from "@/components/AppShell";
 import CoverArt from "@/components/CoverArt";
+import RatingSection from "@/components/RatingSection";
 import { getTrack } from "@/lib/catalog";
 
 function formatDuration(ms: number | null): string {
@@ -11,36 +14,32 @@ function formatDuration(ms: number | null): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default async function TrackPage(props: {
-  params: Promise<{ mbid: string }>;
-}) {
+export default async function TrackPage(props: { params: Promise<{ mbid: string }> }) {
   const { mbid } = await props.params;
+  const { getToken } = await auth();
+  const token = await getToken().catch(() => null);
 
   let track;
   try {
-    track = await getTrack(mbid);
+    track = await getTrack(mbid, token ?? undefined);
   } catch (err: unknown) {
-    const status =
-      err instanceof Error && err.message.includes("404") ? 404 : 503;
+    const status = err instanceof Error && err.message.includes("404") ? 404 : 503;
     if (status === 404) notFound();
     throw err;
   }
 
   return (
+    <AppShell>
     <main className="mx-auto max-w-2xl px-4 py-10">
       <div className="mb-8 flex items-start gap-5">
-        <CoverArt
-          src={track.cover_art_url}
-          alt={track.album_title ?? track.title}
-          size={80}
-        />
+        <CoverArt src={track.cover_art_url} alt={track.album_title ?? track.title} size={80} />
         <div className="min-w-0">
           <h1 className="text-2xl font-light tracking-tight">{track.title}</h1>
 
           {track.artist_name && track.artist_mbid && (
             <Link
               href={`/artist/${track.artist_mbid}`}
-              className="mt-0.5 block text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+              className="mt-0.5 block text-sm text-secondary hover:text-primary"
             >
               {track.artist_name}
             </Link>
@@ -49,21 +48,29 @@ export default async function TrackPage(props: {
           {track.album_mbid ? (
             <Link
               href={`/album/${track.album_mbid}`}
-              className="mt-0.5 block text-sm text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
+              className="mt-0.5 block text-sm text-tertiary hover:text-secondary"
             >
               {track.album_title ?? "—"}
             </Link>
           ) : (
-            <p className="mt-0.5 text-sm text-neutral-400">—</p>
+            <p className="mt-0.5 text-sm text-tertiary">—</p>
           )}
 
           {track.duration_ms !== null && (
-            <p className="mt-1 text-xs tabular-nums text-neutral-400">
+            <p className="mt-1 text-xs text-tertiary tabular-nums">
               {formatDuration(track.duration_ms)}
             </p>
           )}
         </div>
       </div>
+
+      <RatingSection
+        entityType="track"
+        entityMbid={mbid}
+        initialReviews={track.reviews}
+        initialAggregate={track.aggregate_score}
+      />
     </main>
+    </AppShell>
   );
 }
