@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import RatingComposer from "@/components/RatingComposer";
 import ReviewList from "@/components/ReviewList";
+import { getEntityRatings } from "@/lib/ratings";
 import type { RatingRead, VisibilityScope } from "@/types";
 
 interface Props {
@@ -31,6 +32,18 @@ export default function RatingSection({
   const [aggregate, setAggregate] = useState<number | null>(initialAggregate);
   const [ownReview, setOwnReview] = useState<RatingRead | null>(initialOwnReview);
 
+  // The aggregate is computed server-side; after any mutation, refetch it
+  // instead of hiding it until the next full page load. Best-effort — a
+  // failed refetch keeps the previous number rather than erroring the page.
+  async function refreshAggregate() {
+    try {
+      const fresh = await getEntityRatings(entityType, entityMbid);
+      setAggregate(fresh.aggregate_score);
+    } catch {
+      // Keep the stale value; the next page load corrects it.
+    }
+  }
+
   function handleSubmitted(rating: RatingRead) {
     setOwnReview(rating);
     // Replace any existing row from this user (matched by ID or username) rather
@@ -43,12 +56,13 @@ export default function RatingSection({
         (r) => r.id !== rating.id && r.reviewer.username !== rating.reviewer.username
       ),
     ]);
-    setAggregate(null);
+    void refreshAggregate();
   }
 
   function handleDeleted(id: string) {
     setReviews((prev) => prev.filter((r) => r.id !== id));
     if (ownReview?.id === id) setOwnReview(null);
+    void refreshAggregate();
   }
 
   function handleVisibilityChanged(id: string, v: VisibilityScope) {

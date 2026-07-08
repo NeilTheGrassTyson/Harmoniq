@@ -62,6 +62,7 @@ function ReviewItem({ review, viewerUsername, onDeleted, onVisibilityChanged }: 
   }
 
   async function handleVisibilityChange(v: VisibilityScope) {
+    setError(null);
     try {
       const token = await getToken();
       if (!token) return;
@@ -69,7 +70,9 @@ function ReviewItem({ review, viewerUsername, onDeleted, onVisibilityChanged }: 
       setVisibility(v);
       onVisibilityChanged(review.id, v);
     } catch {
-      // silently ignore
+      // A visibility change the user believes happened but didn't is a
+      // consent failure — never swallow it (ENGINEERING_BIBLE §8.1).
+      setError("Couldn't update visibility. Your review is unchanged.");
     }
   }
 
@@ -92,6 +95,12 @@ function ReviewItem({ review, viewerUsername, onDeleted, onVisibilityChanged }: 
         </div>
         <span className="text-primary shrink-0 text-sm font-medium">{review.score}/10</span>
       </div>
+
+      {review.hidden && (
+        <p className="text-tertiary mb-1 text-xs" data-testid="hidden-notice">
+          Hidden by moderation — only you can see this.
+        </p>
+      )}
 
       <p className="text-secondary text-sm leading-relaxed">{review.review_text}</p>
 

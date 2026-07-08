@@ -1,11 +1,17 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
-from app.api.v1.deps import ClerkUserId, CurrentUser, DbSession, OptionalClerkId
+from app.api.v1.deps import (
+    ClerkUserId,
+    CurrentActiveUser,
+    CurrentUser,
+    DbSession,
+    OptionalClerkId,
+)
 from app.config import settings
 from app.core.rate_limit import limiter
 from app.schemas.user import (
@@ -103,6 +109,7 @@ async def create_user(
 @limiter.limit("20/minute")  # advisory check — rate-limited to limit enumeration
 async def check_username(
     request: Request,
+    response: Response,
     q: str,
     session: DbSession,
 ) -> UsernameCheckResponse:
@@ -130,9 +137,10 @@ async def get_own_profile(
 @limiter.limit("10/minute")
 async def update_profile(
     request: Request,
+    response: Response,
     req: ProfileUpdateRequest,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> OwnProfileResponse:
     # Determine which bio update to apply based on what was sent in the request.
     # req.bio == None can mean "not included" or "clear it" — use fields_set to
@@ -156,6 +164,8 @@ async def update_profile(
             visibility_bio=req.visibility_bio,
             visibility_activity=req.visibility_activity,
             visibility_ratings=req.visibility_ratings,
+            visibility_follows=req.visibility_follows,
+            melody_accept_scope=req.melody_accept_scope,
         )
         await session.commit()
     except IntegrityError as exc:
@@ -180,9 +190,10 @@ async def update_profile(
 @limiter.limit("5/minute")
 async def upload_avatar(
     request: Request,
+    response: Response,
     file: UploadFile,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> AvatarUploadResponse:
     # Client-side validation catches most issues; server-side is authoritative.
     data = await file.read(storage.MAX_AVATAR_BYTES + 1)
@@ -232,6 +243,7 @@ async def upload_avatar(
 @limiter.limit("20/minute")
 async def search_users(
     request: Request,
+    response: Response,
     q: str,
     session: DbSession,
 ) -> list[UserSearchResult]:

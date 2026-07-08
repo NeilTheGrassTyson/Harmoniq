@@ -262,6 +262,56 @@ No duplication — the same enum used for profile visibility covers rating visib
 
 ## Known limitations
 
-- `friends` visibility always resolves to `False` until the follows table ships. Any rating set to `friends` visibility behaves like `private` until that feature lands.
+- `friends` visibility always resolves to `False` until the follows table ships. Any rating set to `friends` visibility behaves like `private` until that feature lands. *(Resolved: follows shipped 2026-06-28; `_is_friend()` now performs a real mutual-follow check.)*
 - Review list is not paginated. All visible reviews for an entity are returned in a single response.
 - Report storage only — no admin interface or moderation queue exists yet.
+
+---
+
+# Amendments — 2026-07-04 (Founder-approved)
+
+Two rulings from the 2026-07-02 repo audit amend this spec. Both were
+decided by the Founder on 2026-07-04.
+
+## A1. `visibility_ratings` is a master switch
+
+The profile-level `visibility_ratings` setting governs a user's ratings on
+**every surface**, not just the profile history section. The effective
+visibility of any rating is the **stricter** of:
+
+1. the rater's profile-level `visibility_ratings`, and
+2. the rating's own per-rating visibility,
+
+where `private` < `friends` < `public` in permissiveness. Examples: profile
+`private` + rating `public` → effectively private everywhere (entity pages,
+profile history, counts, aggregates, Home). Profile `friends` + rating
+`public` → visible to mutual follows only. The owner always sees their own
+ratings.
+
+This supersedes the original spec's implicit behavior where per-rating
+visibility alone governed entity pages and the profile setting only gated
+the profile count.
+
+**Consequence — profile-level default flips to public.** Because the
+switch now caps every surface, a `private` profile default would hide all
+of a new user's public reviews from everyone, nullifying this spec's
+approved public-by-default exception. `visibility_ratings` therefore
+defaults to `public` (new accounts and backfill of existing rows — the
+backfill preserves current behavior, since existing public reviews were
+already visible). This extends the Special Notes exception to the
+profile-level switch; users can tighten either level at any time.
+
+## A2. Aggregates count only effectively public ratings
+
+The aggregate score (entity detail pages and Home trending) is computed
+from **effectively public** ratings only — ratings that are `public` at
+both the per-rating and profile level per A1. Within that set, the original
+rule stands: each user's most recent rating wins (window function, no
+denormalized column).
+
+This restores and strengthens the original spec's aggregate SQL (which
+filtered `visibility = 'public'`); the implementation had drifted to
+include private and friends ratings in the average, which leaks signal at
+small rater counts. A consequence: Home trending becomes viewer-independent
+(every viewer sees the same list), which also simplifies the trending
+computation.

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Uuid
+from sqlalchemy import ARRAY, DateTime, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -15,6 +15,7 @@ class Artist(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     sort_name: Mapped[str | None] = mapped_column(String, nullable=True)
     disambiguation: Mapped[str | None] = mapped_column(String, nullable=True)
+    aliases: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     last_fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

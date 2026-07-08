@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import VisibilitySelect from "@/components/VisibilitySelect";
 import { submitRating } from "@/lib/ratings";
@@ -34,12 +34,16 @@ export default function RatingComposer({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync form state when the parent updates initialRating (e.g. after a successful submit).
-  useEffect(() => {
+  // Sync form state when the parent updates initialRating (e.g. after a
+  // successful submit) — the adjust-state-during-render pattern, not an
+  // effect, per react-hooks/set-state-in-effect.
+  const [prevInitialRating, setPrevInitialRating] = useState(initialRating);
+  if (prevInitialRating !== initialRating) {
+    setPrevInitialRating(initialRating);
     setScore(initialRating?.score ?? null);
     setText(initialRating?.review_text ?? "");
     setVisibility((initialRating?.visibility as VisibilityScope) ?? "public");
-  }, [initialRating]);
+  }
 
   const trimmed = text.trim();
   const tooShort = trimmed.length < REVIEW_MIN;
@@ -117,8 +121,8 @@ export default function RatingComposer({
         </p>
       </div>
 
-      {/* Visibility + submit */}
-      <div className="flex items-center gap-3">
+      {/* Visibility + submit — wraps so the button never clips on narrow screens */}
+      <div className="flex flex-wrap items-center gap-3">
         <VisibilitySelect value={visibility} onChange={setVisibility} id="rating-visibility" />
         <button
           type="submit"

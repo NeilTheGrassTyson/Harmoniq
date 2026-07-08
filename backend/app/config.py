@@ -46,6 +46,19 @@ class Settings(BaseSettings):
     r2_bucket_name: str | None = None
     r2_public_url: str | None = None  # e.g. https://pub-xxx.r2.dev
 
+    # ── Spotify (account linking + listening display) ────────────────────────
+    # Optional until provisioned — validated at the call site when used.
+    spotify_client_id: str | None = None
+    spotify_client_secret: str | None = None
+    # Must exactly match the URI registered in the Spotify dashboard; new
+    # Spotify apps require a loopback IP literal for http (not localhost).
+    spotify_redirect_uri: str | None = None  # http://127.0.0.1:3000/spotify-callback
+
+    # ── Token encryption ─────────────────────────────────────────────────────
+    # Fernet key (urlsafe base64, from Fernet.generate_key()). Encrypts
+    # stored OAuth refresh tokens and signs OAuth state (documented dual use).
+    token_encryption_key: str | None = None
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allowed_origins.split(",")]

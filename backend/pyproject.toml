@@ -19,6 +19,7 @@ httpx = "^0.28"
 slowapi = "^0.1.9"
 python-multipart = "^0.0.20"
 boto3 = "^1.43.33"
+cryptography = "^49"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"
@@ -31,6 +32,7 @@ types-python-jose = "^3.3"
 boto3-stubs = {extras = ["s3"], version = "^1.43.33"}
 testcontainers = {version = ">=4.0,<5", extras = ["postgresql"]}
 psycopg = {version = "^3.1", extras = ["binary"]}
+respx = "^0.22"
 
 [tool.ruff]
 target-version = "py312"

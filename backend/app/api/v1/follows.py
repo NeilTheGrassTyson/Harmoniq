@@ -7,12 +7,15 @@ established in Feature 3 (ratings).
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import CurrentUser, DbSession, OptionalClerkId
+from app.api.v1.deps import CurrentActiveUser, DbSession, OptionalClerkId
 from app.core.rate_limit import limiter
+from app.models.user import User
 from app.schemas.follow import FollowListResponse, FollowState
 from app.services import follow as follow_svc
+from app.services import notification as notification_svc
 from app.services import user as user_svc
 
 logger = logging.getLogger(__name__)
@@ -20,6 +23,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/follows", tags=["follows"])
 
 _FOLLOW_ERROR = "Something went wrong. Try again."
+_LIST_PRIVATE = "This list is private."
+
+
+async def _require_list_access(
+    session: AsyncSession, target: User, viewer_clerk_id: str | None
+) -> None:
+    """403 unless the viewer may see target's follow lists (visibility_follows)."""
+    viewer = None
+    if viewer_clerk_id:
+        viewer = await user_svc.get_by_clerk_id(session, viewer_clerk_id)
+    if not await follow_svc.can_view_follow_lists(session, target, viewer):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_LIST_PRIVATE)
 
 
 # ── Follow a user ─────────────────────────────────────────────────────────────
@@ -29,9 +44,10 @@ _FOLLOW_ERROR = "Something went wrong. Try again."
 @limiter.limit("30/minute")
 async def follow_user(
     request: Request,
+    response: Response,
     username: str,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> None:
     target = await user_svc.get_by_username(session, username)
     if target is None:
@@ -46,7 +62,13 @@ async def follow_user(
         )
 
     try:
-        await follow_svc.follow(session, current_user.id, target.id)
+        created = await follow_svc.follow(session, current_user.id, target.id)
+        if created:
+            # Same transaction as the follow edge; idempotent via the partial
+            # unique index, so a re-follow after unfollow never re-notifies.
+            await notification_svc.create_follower_notification(
+                session, user_id=target.id, actor_id=current_user.id
+            )
         await session.commit()
     except ValueError as exc:
         raise HTTPException(
@@ -69,9 +91,10 @@ async def follow_user(
 @limiter.limit("30/minute")
 async def unfollow_user(
     request: Request,
+    response: Response,
     username: str,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> None:
     target = await user_svc.get_by_username(session, username)
     if target is None:
@@ -124,6 +147,7 @@ async def get_follow_state(
 async def list_followers(
     username: str,
     session: DbSession,
+    viewer_clerk_id: OptionalClerkId,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> FollowListResponse:
@@ -133,6 +157,7 @@ async def list_followers(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
+    await _require_list_access(session, target, viewer_clerk_id)
     return await follow_svc.get_followers(
         session, target.id, cursor=cursor, limit=limit
     )
@@ -145,6 +170,7 @@ async def list_followers(
 async def list_following(
     username: str,
     session: DbSession,
+    viewer_clerk_id: OptionalClerkId,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> FollowListResponse:
@@ -154,6 +180,7 @@ async def list_following(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
+    await _require_list_access(session, target, viewer_clerk_id)
     return await follow_svc.get_following(
         session, target.id, cursor=cursor, limit=limit
     )

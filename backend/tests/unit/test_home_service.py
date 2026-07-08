@@ -2,9 +2,12 @@
 Unit tests for Home service pure computation functions — no database required.
 
 Tests cover:
-- _is_visible_to_viewer: visibility gate logic
-- _compute_trending: window boundary, visibility, tiebreaks, aggregate rules
-- _compute_friends_top_tracks: window boundary, top-track selection, self-exclusion
+- _compute_trending: window boundary, tiebreaks, aggregate rules. Rows are
+  already effectively public (the SQL filters both per-rating and profile
+  visibility per the ratings spec Amendments 2026-07-04), so the pure
+  function is viewer-independent.
+- _compute_friends_top_tracks: window boundary, top-track selection,
+  self-exclusion
 - _safe_section: section independence (error in one does not propagate)
 """
 
@@ -14,12 +17,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.services.home import (
-    _FriendRow,
-    _TrendingRow,
     _compute_friends_top_tracks,
     _compute_trending,
-    _is_visible_to_viewer,
+    _FriendRow,
     _safe_section,
+    _TrendingRow,
 )
 
 # ── Fixtures / factories ──────────────────────────────────────────────────────
@@ -45,14 +47,12 @@ def _trending_row(
     track_n: int = 1,
     user_n: int = 1,
     score: int = 8,
-    visibility: str = "public",
     days_ago: float = 1.0,
 ) -> _TrendingRow:
     return _TrendingRow(
         track_id=_track_id(track_n),
         user_id=_user_id(user_n),
         score=score,
-        visibility=visibility,
         created_at=_dt(days_ago),
         mbid=f"mbid-track-{track_n}",
         title=f"Track {track_n}",
@@ -84,47 +84,16 @@ def _friend_row(
     )
 
 
-# ── _is_visible_to_viewer ─────────────────────────────────────────────────────
-
-
-class TestIsVisibleToViewer:
-    def test_public_always_visible(self) -> None:
-        assert _is_visible_to_viewer("public", _user_id(2), _user_id(1), set()) is True
-
-    def test_private_not_visible_to_others(self) -> None:
-        assert _is_visible_to_viewer("private", _user_id(2), _user_id(1), set()) is False
-
-    def test_private_visible_to_own_rater(self) -> None:
-        uid = _user_id(1)
-        assert _is_visible_to_viewer("private", uid, uid, set()) is True
-
-    def test_friends_visible_when_mutual_follow(self) -> None:
-        rater = _user_id(2)
-        viewer = _user_id(1)
-        assert _is_visible_to_viewer("friends", rater, viewer, {rater}) is True
-
-    def test_friends_not_visible_without_mutual_follow(self) -> None:
-        rater = _user_id(2)
-        viewer = _user_id(1)
-        assert _is_visible_to_viewer("friends", rater, viewer, set()) is False
-
-    def test_public_visible_to_anonymous_viewer(self) -> None:
-        assert _is_visible_to_viewer("public", _user_id(1), None, set()) is True
-
-    def test_private_not_visible_to_anonymous_viewer(self) -> None:
-        assert _is_visible_to_viewer("private", _user_id(1), None, set()) is False
-
-
 # ── _compute_trending ─────────────────────────────────────────────────────────
 
 
 class TestComputeTrending:
     def test_empty_rows_returns_empty(self) -> None:
-        assert _compute_trending([], _CUTOFF_7, None, set(), 10) == []
+        assert _compute_trending([], _CUTOFF_7, 10) == []
 
-    def test_single_public_row_in_window(self) -> None:
+    def test_single_row_in_window(self) -> None:
         rows = [_trending_row(days_ago=1)]
-        result = _compute_trending(rows, _CUTOFF_7, None, set(), 10)
+        result = _compute_trending(rows, _CUTOFF_7, 10)
         assert len(result) == 1
         assert result[0].track.id == _track_id(1)
 
@@ -134,99 +103,53 @@ class TestComputeTrending:
         """created_at == cutoff: the boundary is inclusive."""
         row = _trending_row()
         row.created_at = _CUTOFF_7
-        result = _compute_trending([row], _CUTOFF_7, None, set(), 10)
+        result = _compute_trending([row], _CUTOFF_7, 10)
         assert len(result) == 1
 
     def test_row_one_microsecond_before_cutoff_is_excluded(self) -> None:
         row = _trending_row()
         row.created_at = _CUTOFF_7 - timedelta(microseconds=1)
-        result = _compute_trending([row], _CUTOFF_7, None, set(), 10)
+        result = _compute_trending([row], _CUTOFF_7, 10)
         assert len(result) == 0
 
     def test_row_one_second_after_cutoff_is_included(self) -> None:
         row = _trending_row()
         row.created_at = _CUTOFF_7 + timedelta(seconds=1)
-        result = _compute_trending([row], _CUTOFF_7, None, set(), 10)
+        result = _compute_trending([row], _CUTOFF_7, 10)
         assert len(result) == 1
 
-    # ── Visibility filtering ──────────────────────────────────────────────────
+    # ── Viewer independence ───────────────────────────────────────────────────
 
-    def test_track_with_only_private_ratings_excluded_for_other_viewer(self) -> None:
-        viewer = _user_id(99)
-        rows = [_trending_row(user_n=1, visibility="private")]
-        result = _compute_trending(rows, _CUTOFF_7, viewer, set(), 10)
-        assert len(result) == 0
-
-    def test_private_rating_visible_to_rater_themselves(self) -> None:
-        rater = _user_id(1)
-        rows = [_trending_row(user_n=1, visibility="private")]
-        result = _compute_trending(rows, _CUTOFF_7, rater, set(), 10)
-        assert len(result) == 1
-
-    def test_friends_rating_visible_to_mutual_follow(self) -> None:
-        rater = _user_id(1)
-        viewer = _user_id(99)
-        rows = [_trending_row(user_n=1, visibility="friends")]
-        result = _compute_trending(rows, _CUTOFF_7, viewer, {rater}, 10)
-        assert len(result) == 1
-
-    def test_friends_rating_excluded_for_non_mutual(self) -> None:
-        viewer = _user_id(99)
-        rows = [_trending_row(user_n=1, visibility="friends")]
-        result = _compute_trending(rows, _CUTOFF_7, viewer, set(), 10)
-        assert len(result) == 0
-
-    def test_track_with_mixed_visibility_appears_if_one_public(self) -> None:
-        """A track with one PRIVATE + one PUBLIC rating must appear (PUBLIC makes it visible)."""
-        viewer = _user_id(99)
+    def test_result_has_no_viewer_input(self) -> None:
+        """Trending is computed from effectively-public rows only (filtered in
+        SQL); the pure function takes no viewer and every viewer sees the same
+        list."""
         rows = [
-            _trending_row(track_n=1, user_n=1, visibility="private"),
-            _trending_row(track_n=1, user_n=2, visibility="public"),
+            _trending_row(track_n=1, user_n=1, score=10),
+            _trending_row(track_n=1, user_n=2, score=6),
         ]
-        result = _compute_trending(rows, _CUTOFF_7, viewer, set(), 10)
+        result = _compute_trending(rows, _CUTOFF_7, 10)
         assert len(result) == 1
+        assert result[0].aggregate_score == pytest.approx(8.0)
 
     # ── Aggregate computation ─────────────────────────────────────────────────
-
-    def test_aggregate_includes_private_ratings_in_score(self) -> None:
-        """The aggregate is computed from ALL qualifying ratings, regardless of visibility.
-        A PRIVATE rating still contributes to the average even though it gates visibility."""
-        viewer = _user_id(99)
-        rows = [
-            _TrendingRow(
-                track_id=_track_id(1),
-                user_id=_user_id(1),
-                score=10,
-                visibility="public",
-                created_at=_dt(1),
-                mbid="m1",
-                title="T1",
-                artist_name=None,
-                cover_art_url=None,
-            ),
-            _TrendingRow(
-                track_id=_track_id(1),
-                user_id=_user_id(2),
-                score=2,
-                visibility="private",
-                created_at=_dt(1),
-                mbid="m1",
-                title="T1",
-                artist_name=None,
-                cover_art_url=None,
-            ),
-        ]
-        result = _compute_trending(rows, _CUTOFF_7, viewer, set(), 10)
-        assert len(result) == 1
-        assert result[0].aggregate_score == pytest.approx(6.0)  # (10 + 2) / 2
 
     def test_most_recent_per_user_counts_for_aggregate(self) -> None:
         """When a user re-rates a track, only their most recent score contributes."""
         old = _trending_row(track_n=1, user_n=1, score=2, days_ago=5)
         recent = _trending_row(track_n=1, user_n=1, score=10, days_ago=1)
-        result = _compute_trending([old, recent], _CUTOFF_7, None, set(), 10)
+        result = _compute_trending([old, recent], _CUTOFF_7, 10)
         assert len(result) == 1
         assert result[0].aggregate_score == pytest.approx(10.0)
+
+    def test_aggregate_averages_across_users(self) -> None:
+        rows = [
+            _trending_row(track_n=1, user_n=1, score=10),
+            _trending_row(track_n=1, user_n=2, score=2),
+        ]
+        result = _compute_trending(rows, _CUTOFF_7, 10)
+        assert len(result) == 1
+        assert result[0].aggregate_score == pytest.approx(6.0)  # (10 + 2) / 2
 
     # ── Ordering and tiebreaks ────────────────────────────────────────────────
 
@@ -236,7 +159,7 @@ class TestComputeTrending:
             _trending_row(track_n=2, score=9),
             _trending_row(track_n=3, score=7),
         ]
-        result = _compute_trending(rows, _CUTOFF_7, None, set(), 10)
+        result = _compute_trending(rows, _CUTOFF_7, 10)
         scores = [e.aggregate_score for e in result]
         assert scores == sorted(scores, reverse=True)
         assert scores == [9.0, 7.0, 6.0]
@@ -247,7 +170,7 @@ class TestComputeTrending:
             _trending_row(track_n=2, score=8),
             _trending_row(track_n=1, score=8),
         ]
-        result = _compute_trending(rows, _CUTOFF_7, None, set(), 10)
+        result = _compute_trending(rows, _CUTOFF_7, 10)
         assert result[0].track.id == _track_id(1)
         assert result[1].track.id == _track_id(2)
 
@@ -257,15 +180,15 @@ class TestComputeTrending:
             _trending_row(track_n=1, score=8),
             _trending_row(track_n=2, score=8),
         ]
-        first = _compute_trending(rows, _CUTOFF_7, None, set(), 10)
-        second = _compute_trending(rows, _CUTOFF_7, None, set(), 10)
+        first = _compute_trending(rows, _CUTOFF_7, 10)
+        second = _compute_trending(rows, _CUTOFF_7, 10)
         assert [e.track.id for e in first] == [e.track.id for e in second]
 
     # ── Limit ─────────────────────────────────────────────────────────────────
 
     def test_limit_respected(self) -> None:
         rows = [_trending_row(track_n=n, score=n) for n in range(1, 6)]
-        result = _compute_trending(rows, _CUTOFF_7, None, set(), 3)
+        result = _compute_trending(rows, _CUTOFF_7, 3)
         assert len(result) == 3
 
     def test_limit_one_returns_top_track(self) -> None:
@@ -273,7 +196,7 @@ class TestComputeTrending:
             _trending_row(track_n=1, score=5),
             _trending_row(track_n=2, score=9),
         ]
-        result = _compute_trending(rows, _CUTOFF_7, None, set(), 1)
+        result = _compute_trending(rows, _CUTOFF_7, 1)
         assert len(result) == 1
         assert result[0].track.id == _track_id(2)
 
@@ -377,7 +300,9 @@ class TestComputeFriendsTopTracks:
         """A re-rated track only contributes the most recent score."""
         old = _friend_row(friend_n=1, track_n=1, score=2, days_ago=20)
         recent = _friend_row(friend_n=1, track_n=1, score=10, days_ago=1)
-        result = _compute_friends_top_tracks([old, recent], _CUTOFF_30, self._viewer, 10)
+        result = _compute_friends_top_tracks(
+            [old, recent], _CUTOFF_30, self._viewer, 10
+        )
         assert len(result) == 1
         assert result[0].score == 10
 
@@ -420,7 +345,8 @@ class TestComputeFriendsTopTracks:
 
     def test_friends_scoped_rating_surfaces(self) -> None:
         """FRIENDS-scoped ratings from mutual follows are already included by the SQL
-        filter (which only excludes PRIVATE); the pure function does not re-check."""
+        filter (which only excludes PRIVATE at both levels); the pure function
+        does not re-check."""
         rows = [_friend_row(visibility="friends")]
         result = _compute_friends_top_tracks(rows, _CUTOFF_30, self._viewer, 10)
         assert len(result) == 1

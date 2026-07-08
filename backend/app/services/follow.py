@@ -7,11 +7,14 @@ repeated requests are naturally idempotent without application-level locking.
 
 import logging
 import uuid
+from typing import Any, cast
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import CursorResult, and_, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import VisibilityScope
+from app.core.visibility import scope_allows
 from app.models.follow import Follow
 from app.models.user import User
 from app.schemas.follow import (
@@ -33,8 +36,12 @@ async def follow(
     session: AsyncSession,
     follower_id: uuid.UUID,
     followed_id: uuid.UUID,
-) -> None:
-    """No-op if edge already exists. Raises ValueError on self-follow."""
+) -> bool:
+    """
+    Returns True when a new edge was created, False when it already existed
+    (so callers can skip side effects like notifications on re-follows).
+    Raises ValueError on self-follow.
+    """
     if follower_id == followed_id:
         raise ValueError("A user cannot follow themselves.")
     stmt = (
@@ -42,8 +49,15 @@ async def follow(
         .values(follower_id=follower_id, followed_id=followed_id)
         .on_conflict_do_nothing(index_elements=["follower_id", "followed_id"])
     )
-    await session.execute(stmt)
-    logger.info("Follow: follower_id=%s → followed_id=%s", follower_id, followed_id)
+    result = cast(CursorResult[Any], await session.execute(stmt))
+    created = result.rowcount > 0
+    logger.info(
+        "Follow: follower_id=%s → followed_id=%s created=%s",
+        follower_id,
+        followed_id,
+        created,
+    )
+    return created
 
 
 async def unfollow(
@@ -58,6 +72,29 @@ async def unfollow(
     )
     await session.execute(stmt)
     logger.info("Unfollow: follower_id=%s → followed_id=%s", follower_id, followed_id)
+
+
+# ── Follow-list visibility ────────────────────────────────────────────────────
+
+
+async def can_view_follow_lists(
+    session: AsyncSession,
+    owner: User,
+    viewer: User | None,
+) -> bool:
+    """
+    True if viewer may see owner's follower/following lists, per the owner's
+    visibility_follows scope. Owner always may. Enforced here, at the
+    data-access layer, per ENGINEERING_BIBLE §8.1.
+    """
+    is_owner = viewer is not None and viewer.id == owner.id
+    if is_owner:
+        return True
+    scope = VisibilityScope(owner.visibility_follows)
+    is_friend = False
+    if scope == VisibilityScope.FRIENDS and viewer is not None:
+        is_friend = await is_mutual_follow(session, viewer.id, owner.id)
+    return scope_allows(scope, is_owner=False, is_friend=is_friend)
 
 
 # ── Mutual-follow check ───────────────────────────────────────────────────────

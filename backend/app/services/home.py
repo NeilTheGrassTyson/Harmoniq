@@ -5,6 +5,12 @@ Both queries are bounded (exactly N results, no pagination, no ranking function)
 per ENGINEERING_BIBLE §5. The core business logic lives in pure helper functions
 (_compute_trending, _compute_friends_top_tracks) so it can be tested without a
 database; the async functions handle DB I/O and delegate to those helpers.
+
+Trending counts only effectively public ratings — public at both the
+per-rating and profile (visibility_ratings) level — so it is identical for
+every viewer (ratings spec, Amendments 2026-07-04). The friends section
+filters both levels to non-private in SQL; the viewer is a mutual friend of
+every rater there, so friends-or-public effective scope is exactly right.
 """
 
 from __future__ import annotations
@@ -44,7 +50,6 @@ class _TrendingRow:
     track_id: uuid.UUID
     user_id: uuid.UUID
     score: int
-    visibility: str
     created_at: datetime
     mbid: str
     title: str
@@ -71,37 +76,17 @@ class _FriendRow:
 # ── Pure helpers ──────────────────────────────────────────────────────────────
 
 
-def _is_visible_to_viewer(
-    visibility: str,
-    rater_id: uuid.UUID,
-    viewer_id: uuid.UUID | None,
-    mutual_follow_ids: set[uuid.UUID],
-) -> bool:
-    """Return True if this rating is visible to viewer. No I/O."""
-    if viewer_id is not None and rater_id == viewer_id:
-        return True
-    scope = VisibilityScope(visibility)
-    if scope == VisibilityScope.PUBLIC:
-        return True
-    if scope == VisibilityScope.FRIENDS and rater_id in mutual_follow_ids:
-        return True
-    return False
-
-
 def _compute_trending(
     rows: list[_TrendingRow],
     cutoff: datetime,
-    viewer_id: uuid.UUID | None,
-    mutual_follow_ids: set[uuid.UUID],
     limit: int,
 ) -> list[TrendingEntry]:
     """
-    Pure computation: top-N tracks by aggregate rating in window, filtered by
-    viewer visibility. Testable without a database.
+    Pure computation: top-N tracks by aggregate rating in window. Testable
+    without a database. Rows must already be effectively public (filtered in
+    SQL), so the result is identical for every viewer.
 
     Aggregate = average of each user's most-recent rating per track.
-    A track appears only if at least one of its qualifying ratings is visible
-    to viewer — visibility does NOT affect which scores count toward the average.
     Tiebreak: aggregate DESC, then track_id ASC for full determinism.
     """
     in_window = [r for r in rows if r.created_at >= cutoff]
@@ -123,18 +108,13 @@ def _compute_trending(
                 row.cover_art_url,
             )
 
-    # Collect scores per track; mark tracks that have at least one visible rating.
+    # Collect scores per track, compute aggregates, then sort.
     track_scores: dict[uuid.UUID, list[int]] = defaultdict(list)
-    track_visible: set[uuid.UUID] = set()
-    for (track_id, user_id), row in latest.items():
+    for (track_id, _user_id), row in latest.items():
         track_scores[track_id].append(row.score)
-        if _is_visible_to_viewer(row.visibility, user_id, viewer_id, mutual_follow_ids):
-            track_visible.add(track_id)
 
-    # Compute aggregates for visible tracks, then sort.
     entries: list[tuple[float, uuid.UUID]] = []
-    for track_id in track_visible:
-        scores = track_scores[track_id]
+    for track_id, scores in track_scores.items():
         entries.append((sum(scores) / len(scores), track_id))
     entries.sort(key=lambda x: (-x[0], x[1]))
 
@@ -237,10 +217,9 @@ async def _safe_section(name: str, coro: Awaitable[Any]) -> Any:
 
 async def get_trending(
     session: AsyncSession,
-    viewer_id: uuid.UUID | None,
     limit: int,
 ) -> list[TrendingEntry]:
-    """Fetch and compute Trending for the given viewer."""
+    """Fetch and compute Trending — effectively public ratings only."""
     now = _now()
     cutoff = now - timedelta(days=TRENDING_WINDOW_DAYS)
 
@@ -249,19 +228,23 @@ async def get_trending(
             Rating.entity_id.label("track_id"),
             Rating.user_id,
             Rating.score,
-            Rating.visibility,
             Rating.created_at,
             Track.mbid,
             Track.title,
             Artist.name.label("artist_name"),
             Album.cover_art_url,
         )
+        .join(User, User.id == Rating.user_id)
         .join(Track, Track.id == Rating.entity_id)
         .outerjoin(Artist, Artist.id == Track.artist_id)
         .outerjoin(Album, Album.id == Track.album_id)
         .where(
             Rating.entity_type == "track",
             Rating.created_at >= cutoff,
+            Rating.visibility == VisibilityScope.PUBLIC.value,
+            User.visibility_ratings == VisibilityScope.PUBLIC.value,
+            # Moderation-hidden ratings never reach any Home surface.
+            Rating.hidden_at.is_(None),
         )
     )
 
@@ -270,7 +253,6 @@ async def get_trending(
             track_id=r.track_id,
             user_id=r.user_id,
             score=r.score,
-            visibility=r.visibility,
             created_at=r.created_at,
             mbid=r.mbid,
             title=r.title,
@@ -280,13 +262,7 @@ async def get_trending(
         for r in rows_result.all()
     ]
 
-    mutual_follow_ids: set[uuid.UUID] = set()
-    if viewer_id is not None:
-        from app.services import follow as follow_svc
-
-        mutual_follow_ids = await follow_svc.get_mutual_follow_ids(session, viewer_id)
-
-    return _compute_trending(rows, cutoff, viewer_id, mutual_follow_ids, limit)
+    return _compute_trending(rows, cutoff, limit)
 
 
 async def get_friends_top_tracks(
@@ -330,7 +306,12 @@ async def get_friends_top_tracks(
             Rating.entity_type == "track",
             Rating.created_at >= cutoff,
             Rating.user_id.in_(mutual_follow_ids),
+            # Both levels non-private → effective scope is friends or public,
+            # and every rater here is a mutual friend of the viewer.
             Rating.visibility != VisibilityScope.PRIVATE.value,
+            User.visibility_ratings != VisibilityScope.PRIVATE.value,
+            # Moderation-hidden ratings never reach any Home surface.
+            Rating.hidden_at.is_(None),
         )
     )
 

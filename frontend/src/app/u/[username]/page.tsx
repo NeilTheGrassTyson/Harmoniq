@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
-import AvatarImage from "@/components/AvatarImage";
-import FollowButton from "@/components/FollowButton";
+import ListeningSection from "@/components/ListeningSection";
+import ProfileHeader from "@/components/ProfileHeader";
 import { getProfile } from "@/lib/users";
 import { getUserRatings } from "@/lib/ratings";
+import { getListening } from "@/lib/spotify";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -15,8 +16,13 @@ function formatDate(iso: string): string {
   });
 }
 
-export default async function ProfilePage(props: { params: Promise<{ username: string }> }) {
+export default async function ProfilePage(props: {
+  params: Promise<{ username: string }>;
+  searchParams: Promise<{ spotify?: string }>;
+}) {
   const { username } = await props.params;
+  const { spotify } = await props.searchParams;
+  const spotifyJustConnected = spotify === "connected";
   const { getToken } = await auth();
   const token = await getToken().catch(() => null);
 
@@ -34,97 +40,27 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
     reviews: [],
   }));
 
+  // Section independence: a listening failure renders nothing, it never
+  // breaks the page. The backend re-enforces visibility regardless of the
+  // activity_placeholder flag.
+  const listening =
+    "activity_placeholder" in profile && profile.activity_placeholder
+      ? await getListening(username, token ?? undefined).catch(() => null)
+      : null;
+
   return (
     <AppShell>
       <div style={{ padding: "26px 22px 30px", maxWidth: 720 }}>
-        {/* ── Profile header ─────────────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 24 }}>
-          <AvatarImage src={profile.avatar_url} username={profile.username} size={72} />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <h1
-              className="font-display text-primary"
-              style={{ fontSize: 20, fontWeight: 500, lineHeight: 1.2 }}
-            >
-              {profile.display_name}
-            </h1>
-            <p className="text-secondary" style={{ fontSize: 13, marginTop: 2 }}>
-              @{profile.username}
-            </p>
+        <ProfileHeader
+          profile={profile}
+          autoOpenEdit={spotifyJustConnected && profile.is_own_profile}
+        />
 
-            {"bio" in profile && profile.bio && (
-              <p className="text-secondary" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
-                {profile.bio}
-              </p>
-            )}
-            {"bio" in profile && profile.bio === null && profile.is_own_profile && (
-              <Link
-                href="/settings"
-                className="text-tertiary hover:text-secondary"
-                style={{ fontSize: 13, marginTop: 8, display: "block" }}
-              >
-                Add a bio
-              </Link>
-            )}
-
-            {/* Follower / following counts */}
-            <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 13 }}>
-              <Link
-                href={`/u/${profile.username}/followers`}
-                className="text-secondary hover:text-accent"
-              >
-                <span className="text-primary" style={{ fontWeight: 500 }}>
-                  {profile.follower_count}
-                </span>{" "}
-                {profile.follower_count === 1 ? "follower" : "followers"}
-              </Link>
-              <Link
-                href={`/u/${profile.username}/following`}
-                className="text-secondary hover:text-accent"
-              >
-                <span className="text-primary" style={{ fontWeight: 500 }}>
-                  {profile.following_count}
-                </span>{" "}
-                following
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Actions ────────────────────────────────────────────────────── */}
-        <div style={{ marginBottom: 32 }}>
-          {profile.is_own_profile ? (
-            <Link
-              href="/settings"
-              style={{
-                display: "inline-block",
-                padding: "5px 14px",
-                fontSize: 12,
-                fontWeight: 500,
-                color: "#8b93a3",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: 8,
-                textDecoration: "none",
-              }}
-            >
-              Edit profile
-            </Link>
-          ) : (
-            profile.follow !== undefined && (
-              <FollowButton
-                username={profile.username}
-                initialIsFollowing={profile.follow.is_following}
-              />
-            )
-          )}
-        </div>
-
-        {/* ── Listening activity placeholder ─────────────────────────────── */}
-        {"activity_placeholder" in profile && profile.activity_placeholder && (
+        {/* ── Listening activity (Spotify, display-only) ─────────────────── */}
+        {listening !== null && (
           <section style={{ marginBottom: 32 }}>
-            <SectionLabel>Listening activity</SectionLabel>
-            <p className="text-tertiary" style={{ fontSize: 13 }}>
-              Listening history coming soon.
-            </p>
+            <SectionLabel>Listening</SectionLabel>
+            <ListeningSection username={profile.username} token={token ?? undefined} initial={listening} />
           </section>
         )}
 

@@ -161,56 +161,74 @@ def _make_rating(*, owner_id: uuid.UUID, visibility: str) -> Rating:
 
 
 class TestCanViewLogic:
+    """_can_view(rating, rater_profile_scope, viewer_id, viewer_is_friend).
+
+    The profile-level scope is a master switch: the stricter of it and the
+    per-rating scope governs (ratings spec, Amendments 2026-07-04).
+    """
+
     def test_owner_sees_own_private_rating(self) -> None:
         owner_id = uuid.uuid4()
         assert _can_view(
-            _make_rating(owner_id=owner_id, visibility="private"), owner_id, False
+            _make_rating(owner_id=owner_id, visibility="private"),
+            "public",
+            owner_id,
+            False,
         )
 
-    def test_owner_sees_own_friends_rating(self) -> None:
+    def test_owner_sees_own_rating_even_when_profile_private(self) -> None:
         owner_id = uuid.uuid4()
         assert _can_view(
-            _make_rating(owner_id=owner_id, visibility="friends"), owner_id, False
-        )
-
-    def test_owner_sees_own_public_rating(self) -> None:
-        owner_id = uuid.uuid4()
-        assert _can_view(
-            _make_rating(owner_id=owner_id, visibility="public"), owner_id, False
+            _make_rating(owner_id=owner_id, visibility="public"),
+            "private",
+            owner_id,
+            False,
         )
 
     def test_public_visible_to_anonymous(self) -> None:
         assert _can_view(
-            _make_rating(owner_id=uuid.uuid4(), visibility="public"), None, False
+            _make_rating(owner_id=uuid.uuid4(), visibility="public"),
+            "public",
+            None,
+            False,
         )
 
     def test_public_visible_to_stranger(self) -> None:
         assert _can_view(
             _make_rating(owner_id=uuid.uuid4(), visibility="public"),
+            "public",
             uuid.uuid4(),
             False,
         )
 
     def test_private_hidden_from_anonymous(self) -> None:
         assert not _can_view(
-            _make_rating(owner_id=uuid.uuid4(), visibility="private"), None, False
+            _make_rating(owner_id=uuid.uuid4(), visibility="private"),
+            "public",
+            None,
+            False,
         )
 
     def test_private_hidden_from_stranger(self) -> None:
         assert not _can_view(
             _make_rating(owner_id=uuid.uuid4(), visibility="private"),
+            "public",
             uuid.uuid4(),
             False,
         )
 
     def test_friends_hidden_from_anonymous(self) -> None:
         assert not _can_view(
-            _make_rating(owner_id=uuid.uuid4(), visibility="friends"), None, False
+            _make_rating(owner_id=uuid.uuid4(), visibility="friends"),
+            "public",
+            None,
+            False,
         )
 
     def test_friends_hidden_from_non_friend(self) -> None:
         assert not _can_view(
             _make_rating(owner_id=uuid.uuid4(), visibility="friends"),
+            "public",
             uuid.uuid4(),
             False,
         )
@@ -218,6 +236,38 @@ class TestCanViewLogic:
     def test_friends_visible_when_is_friend_true(self) -> None:
         assert _can_view(
             _make_rating(owner_id=uuid.uuid4(), visibility="friends"),
+            "public",
+            uuid.uuid4(),
+            True,
+        )
+
+    # ── Master switch: profile scope caps per-rating scope ────────────────────
+
+    def test_profile_private_hides_public_rating_from_stranger(self) -> None:
+        assert not _can_view(
+            _make_rating(owner_id=uuid.uuid4(), visibility="public"),
+            "private",
+            uuid.uuid4(),
+            False,
+        )
+
+    def test_profile_private_hides_public_rating_even_from_friend(self) -> None:
+        assert not _can_view(
+            _make_rating(owner_id=uuid.uuid4(), visibility="public"),
+            "private",
+            uuid.uuid4(),
+            True,
+        )
+
+    def test_profile_friends_caps_public_rating_to_friends(self) -> None:
+        rating = _make_rating(owner_id=uuid.uuid4(), visibility="public")
+        assert not _can_view(rating, "friends", uuid.uuid4(), False)
+        assert _can_view(rating, "friends", uuid.uuid4(), True)
+
+    def test_rating_private_stays_private_when_profile_public(self) -> None:
+        assert not _can_view(
+            _make_rating(owner_id=uuid.uuid4(), visibility="private"),
+            "public",
             uuid.uuid4(),
             True,
         )

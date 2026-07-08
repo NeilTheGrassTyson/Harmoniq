@@ -1,9 +1,9 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
-from app.api.v1.deps import CurrentUser, DbSession, OptionalClerkId
+from app.api.v1.deps import CurrentActiveUser, DbSession, OptionalClerkId
 from app.core.enums import VisibilityScope
 from app.core.rate_limit import limiter
 from app.schemas.rating import (
@@ -32,9 +32,10 @@ _REPORT_ERROR = "Couldn't submit your report. Try again."
 @limiter.limit("10/minute")
 async def submit_rating(
     request: Request,
+    response: Response,
     req: RatingSubmitRequest,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> RatingRead:
     entity_id = await rating_svc.resolve_entity(
         session, req.entity_type, req.entity_mbid
@@ -111,7 +112,7 @@ async def list_user_ratings(
         viewer = await user_svc.get_by_clerk_id(session, viewer_clerk_id)
         if viewer:
             viewer_id = viewer.id
-    return await rating_svc.list_for_user(session, profile_user.id, viewer_id)
+    return await rating_svc.list_for_user(session, profile_user, viewer_id)
 
 
 # ── Update visibility on own rating ──────────────────────────────────────────
@@ -122,7 +123,7 @@ async def update_visibility(
     rating_id: uuid.UUID,
     req: VisibilityUpdateRequest,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> RatingRead:
     rating = await rating_svc.update_visibility(
         session, rating_id, current_user.id, req.visibility
@@ -154,7 +155,7 @@ async def update_visibility(
 async def delete_rating(
     rating_id: uuid.UUID,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> None:
     deleted = await rating_svc.delete_rating(session, rating_id, current_user.id)
     if not deleted:
@@ -172,9 +173,10 @@ async def delete_rating(
 @limiter.limit("20/minute")
 async def report_rating(
     request: Request,
+    response: Response,
     rating_id: uuid.UUID,
     session: DbSession,
-    current_user: CurrentUser,
+    current_user: CurrentActiveUser,
 ) -> None:
     success, error = await rating_svc.report_rating(session, current_user.id, rating_id)
     if not success:

@@ -189,6 +189,33 @@ class TestMusicBrainzSearchHelpers:
 
         assert result[0]["title"] == "Karma Police"
 
+    async def test_search_artists_default_limit_is_20(self) -> None:
+        mock_get = AsyncMock(return_value={"artists": []})
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            await mb.search_artists("radiohead")
+
+        assert mock_get.call_args.args[1]["limit"] == "20"
+
+    async def test_search_release_groups_default_limit_is_20(self) -> None:
+        mock_get = AsyncMock(return_value={"release-groups": []})
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            await mb.search_release_groups("ok computer")
+
+        assert mock_get.call_args.args[1]["limit"] == "20"
+
+    async def test_search_recordings_default_limit_is_20(self) -> None:
+        mock_get = AsyncMock(return_value={"recordings": []})
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            await mb.search_recordings("karma police")
+
+        assert mock_get.call_args.args[1]["limit"] == "20"
+
     async def test_lookup_artist_returns_none_on_404(self) -> None:
         import httpx
 
@@ -204,3 +231,161 @@ class TestMusicBrainzSearchHelpers:
             result = await mb.lookup_artist("nonexistent-mbid")
 
         assert result is None
+
+
+# ── Artist search query construction ──────────────────────────────────────────
+
+
+class TestArtistSearchQuery:
+    async def test_query_includes_alias_field_qualifier(self) -> None:
+        mock_get = AsyncMock(return_value={"artists": []})
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            await mb.search_artists("radiohead")
+
+        query = mock_get.call_args.args[1]["query"]
+        assert query == 'artist:"radiohead" OR alias:"radiohead"'
+
+    async def test_user_input_is_lucene_escaped(self) -> None:
+        mock_get = AsyncMock(return_value={"artists": []})
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            await mb.search_artists("GY!BE")
+
+        query = mock_get.call_args.args[1]["query"]
+        assert query == 'artist:"GY\\!BE" OR alias:"GY\\!BE"'
+
+    def test_escape_covers_all_special_chars(self) -> None:
+        from app.services.musicbrainz import _escape_lucene
+
+        raw = '+ - && || ! ( ) { } [ ] ^ " ~ * ? : \\'
+        escaped = _escape_lucene(raw)
+        assert escaped == (
+            "\\+ \\- \\&\\& \\|\\| \\! \\( \\) \\{ \\} \\[ \\] "
+            '\\^ \\" \\~ \\* \\? \\: \\\\'
+        )
+
+    def test_escape_leaves_plain_text_untouched(self) -> None:
+        from app.services.musicbrainz import _escape_lucene
+
+        assert _escape_lucene("the beatles") == "the beatles"
+
+
+# ── Release-group lookup includes ──────────────────────────────────────────────
+
+
+class TestLookupReleaseGroupIncludes:
+    async def test_lookup_requests_artist_credits_and_releases(self) -> None:
+        """artists → cold-ingest artist resolution; releases → tracklist sync
+        can pick a canonical release without a second round-trip."""
+        mock_get = AsyncMock(return_value={"id": "rg-1", "title": "OK Computer"})
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            await mb.lookup_release_group("rg-1")
+
+        assert mock_get.call_args.args[1] == {"inc": "artists+releases"}
+
+
+# ── Release-group quality gate ─────────────────────────────────────────────────
+
+
+class TestStandardReleaseGroupFilter:
+    def test_plain_album_ep_single_pass(self) -> None:
+        from app.services.catalog import _is_standard_release_group
+
+        for primary in ("Album", "EP", "Single"):
+            assert _is_standard_release_group({"primary-type": primary})
+
+    def test_excluded_secondary_types_fail(self) -> None:
+        from app.services.catalog import _is_standard_release_group
+
+        for secondary in ("Live", "Compilation", "Remix", "Demo", "Soundtrack"):
+            raw = {"primary-type": "Album", "secondary-types": [secondary]}
+            assert not _is_standard_release_group(raw), secondary
+
+    def test_non_standard_primary_fails(self) -> None:
+        from app.services.catalog import _is_standard_release_group
+
+        assert not _is_standard_release_group({"primary-type": "Broadcast"})
+        assert not _is_standard_release_group({"primary-type": None})
+        assert not _is_standard_release_group({})
+
+
+class TestPickCanonicalRelease:
+    def test_prefers_official_then_earliest_date(self) -> None:
+        from app.services.catalog import _pick_canonical_release
+
+        releases = [
+            {"id": "bootleg", "status": "Bootleg", "date": "1990-01-01"},
+            {"id": "reissue", "status": "Official", "date": "2005-06-01"},
+            {"id": "original", "status": "Official", "date": "1994-05-24"},
+        ]
+        assert _pick_canonical_release(releases) == "original"
+
+    def test_empty_and_undated(self) -> None:
+        from app.services.catalog import _pick_canonical_release
+
+        assert _pick_canonical_release([]) is None
+        # Undated official sorts after dated official, not before.
+        releases = [
+            {"id": "undated", "status": "Official"},
+            {"id": "dated", "status": "Official", "date": "2001"},
+        ]
+        assert _pick_canonical_release(releases) == "dated"
+
+
+# ── Release-group browse pagination ────────────────────────────────────────────
+
+
+class TestBrowseReleaseGroups:
+    async def test_paginates_past_first_page(self) -> None:
+        page_one = {
+            "release-group-count": 3,
+            "release-groups": [{"id": "rg-1"}, {"id": "rg-2"}],
+        }
+        page_two = {
+            "release-group-count": 3,
+            "release-groups": [{"id": "rg-3"}],
+        }
+        mock_get = AsyncMock(side_effect=[page_one, page_two])
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            result = await mb.browse_release_groups("artist-mbid-1")
+
+        assert [rg["id"] for rg in result] == ["rg-1", "rg-2", "rg-3"]
+        assert mock_get.call_count == 2
+        first_params = mock_get.call_args_list[0].args[1]
+        second_params = mock_get.call_args_list[1].args[1]
+        assert first_params["offset"] == "0"
+        assert second_params["offset"] == "2"
+
+    async def test_browse_filters_to_album_single_ep(self) -> None:
+        mock_get = AsyncMock(
+            return_value={"release-group-count": 0, "release-groups": []}
+        )
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            result = await mb.browse_release_groups("artist-mbid-1")
+
+        assert result == []
+        params = mock_get.call_args.args[1]
+        assert params["artist"] == "artist-mbid-1"
+        assert params["type"] == "album|single|ep"
+        assert params["limit"] == "100"
+
+    async def test_single_page_stops_after_one_request(self) -> None:
+        mock_get = AsyncMock(
+            return_value={"release-group-count": 1, "release-groups": [{"id": "rg-1"}]}
+        )
+        with patch("app.services.musicbrainz._get", new=mock_get):
+            from app.services import musicbrainz as mb
+
+            result = await mb.browse_release_groups("artist-mbid-1")
+
+        assert len(result) == 1
+        assert mock_get.call_count == 1

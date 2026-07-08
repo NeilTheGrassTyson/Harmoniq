@@ -70,6 +70,9 @@ class RatingRead(BaseModel):
     review_text: str
     visibility: VisibilityScope
     created_at: datetime
+    # True only in the author's own view of a moderation-hidden review —
+    # hidden reviews are never serialized for anyone else.
+    hidden: bool = False
 
 
 class EntityRatingListResponse(BaseModel):
@@ -90,6 +93,7 @@ class UserRatingRead(BaseModel):
     review_text: str
     visibility: VisibilityScope
     created_at: datetime
+    hidden: bool = False
 
 
 class UserRatingListResponse(BaseModel):

@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
 import TrackTile from "@/components/TrackTile";
 import EqualizerGlyph from "@/components/EqualizerGlyph";
-import Link from "next/link";
 import { getHome } from "@/lib/home";
 import type { FriendEntry, HomeResponse, TrendingEntry } from "@/types";
 

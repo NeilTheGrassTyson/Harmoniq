@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
 import CoverArt from "@/components/CoverArt";
 import RatingSection from "@/components/RatingSection";
+import SendMelodyPanel from "@/components/SendMelodyPanel";
 import { getTrack } from "@/lib/catalog";
 
 function formatDuration(ms: number | null): string {
@@ -23,8 +24,7 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
   try {
     track = await getTrack(mbid, token ?? undefined);
   } catch (err: unknown) {
-    const status = err instanceof Error && err.message.includes("404") ? 404 : 503;
-    if (status === 404) notFound();
+    if ((err as { status?: number }).status === 404) notFound();
     throw err;
   }
 
@@ -63,6 +63,15 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
           )}
         </div>
       </div>
+
+      <SendMelodyPanel
+        track={{
+          mbid,
+          title: track.title,
+          artist_name: track.artist_name,
+          cover_art_url: track.cover_art_url,
+        }}
+      />
 
       <RatingSection
         entityType="track"

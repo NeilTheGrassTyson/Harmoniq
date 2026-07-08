@@ -71,6 +71,7 @@ async def test_users_table_columns(migrated_engine: AsyncEngine) -> None:
         "visibility_bio",
         "visibility_activity",
         "visibility_ratings",
+        "visibility_follows",
         "created_at",
         "updated_at",
     ):

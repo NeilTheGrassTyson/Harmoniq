@@ -399,7 +399,7 @@ class TestVisibilityEnforcement:
         )
 
         result = await rating_svc.list_for_user(
-            db_session, owner.id, viewer_id=stranger.id
+            db_session, owner, viewer_id=stranger.id
         )
         assert len(result.reviews) == 0
 
@@ -429,7 +429,7 @@ class TestVisibilityEnforcement:
         )
 
         count = await rating_svc.count_for_user(
-            db_session, owner.id, viewer_id=stranger.id
+            db_session, owner, viewer_id=stranger.id
         )
         assert count == 1
 
@@ -886,3 +886,290 @@ class TestRatingsAPI:
 
         assert resp.status_code == 200
         assert resp.json()["visibility"] == "private"
+
+
+# ── §4.7 Master switch: profile visibility_ratings caps every surface ─────────
+
+
+@pytest.mark.integration
+class TestMasterSwitch:
+    """
+    visibility_ratings is the stricter-of-two master switch (ratings spec,
+    Amendments 2026-07-04): profile private hides even public ratings from
+    every surface; profile friends caps public ratings to mutual follows.
+    """
+
+    async def test_profile_private_hides_public_rating_on_entity_list(
+        self, db_session: AsyncSession
+    ) -> None:
+        owner = await _make_user(db_session, clerk_id="clerk_ms_01a", username="ms_u1a")
+        stranger = await _make_user(
+            db_session, clerk_id="clerk_ms_01b", username="ms_u1b"
+        )
+        owner.visibility_ratings = VisibilityScope.PRIVATE.value
+        track = await _make_track(db_session, mbid="mbid-ms-01")
+
+        await _rate(
+            db_session,
+            user=owner,
+            entity_type="track",
+            entity_id=track.id,
+            visibility=VisibilityScope.PUBLIC,
+        )
+
+        result = await rating_svc.list_for_entity(
+            db_session, "track", track.id, viewer_id=stranger.id
+        )
+        assert len(result.reviews) == 0
+
+    async def test_profile_private_still_shows_owner_their_own(
+        self, db_session: AsyncSession
+    ) -> None:
+        owner = await _make_user(db_session, clerk_id="clerk_ms_02", username="ms_u2")
+        owner.visibility_ratings = VisibilityScope.PRIVATE.value
+        track = await _make_track(db_session, mbid="mbid-ms-02")
+
+        await _rate(db_session, user=owner, entity_type="track", entity_id=track.id)
+
+        result = await rating_svc.list_for_entity(
+            db_session, "track", track.id, viewer_id=owner.id
+        )
+        assert len(result.reviews) == 1
+
+    async def test_profile_private_hides_history_and_count(
+        self, db_session: AsyncSession
+    ) -> None:
+        owner = await _make_user(db_session, clerk_id="clerk_ms_03a", username="ms_u3a")
+        stranger = await _make_user(
+            db_session, clerk_id="clerk_ms_03b", username="ms_u3b"
+        )
+        owner.visibility_ratings = VisibilityScope.PRIVATE.value
+        track = await _make_track(db_session, mbid="mbid-ms-03")
+
+        await _rate(
+            db_session,
+            user=owner,
+            entity_type="track",
+            entity_id=track.id,
+            visibility=VisibilityScope.PUBLIC,
+        )
+
+        history = await rating_svc.list_for_user(
+            db_session, owner, viewer_id=stranger.id
+        )
+        count = await rating_svc.count_for_user(
+            db_session, owner, viewer_id=stranger.id
+        )
+        assert len(history.reviews) == 0
+        assert count == 0
+
+    async def test_profile_friends_caps_public_rating_to_friends(
+        self, db_session: AsyncSession
+    ) -> None:
+        from app.services import follow as follow_svc
+
+        owner = await _make_user(db_session, clerk_id="clerk_ms_04a", username="ms_u4a")
+        friend = await _make_user(
+            db_session, clerk_id="clerk_ms_04b", username="ms_u4b"
+        )
+        stranger = await _make_user(
+            db_session, clerk_id="clerk_ms_04c", username="ms_u4c"
+        )
+        owner.visibility_ratings = VisibilityScope.FRIENDS.value
+        await follow_svc.follow(db_session, owner.id, friend.id)
+        await follow_svc.follow(db_session, friend.id, owner.id)
+        track = await _make_track(db_session, mbid="mbid-ms-04")
+
+        await _rate(
+            db_session,
+            user=owner,
+            entity_type="track",
+            entity_id=track.id,
+            visibility=VisibilityScope.PUBLIC,
+        )
+
+        as_friend = await rating_svc.list_for_entity(
+            db_session, "track", track.id, viewer_id=friend.id
+        )
+        as_stranger = await rating_svc.list_for_entity(
+            db_session, "track", track.id, viewer_id=stranger.id
+        )
+        assert len(as_friend.reviews) == 1
+        assert len(as_stranger.reviews) == 0
+
+
+# ── §4.8 Aggregate counts only effectively public ratings ─────────────────────
+
+
+@pytest.mark.integration
+class TestAggregateVisibility:
+    """A rating that is not public at BOTH levels must never move the aggregate."""
+
+    async def test_private_rating_excluded_from_aggregate(
+        self, db_session: AsyncSession
+    ) -> None:
+        u1 = await _make_user(db_session, clerk_id="clerk_av_01a", username="av_u1a")
+        u2 = await _make_user(db_session, clerk_id="clerk_av_01b", username="av_u1b")
+        track = await _make_track(db_session, mbid="mbid-av-01")
+
+        await _rate(
+            db_session, user=u1, entity_type="track", entity_id=track.id, score=10
+        )
+        await _rate(
+            db_session,
+            user=u2,
+            entity_type="track",
+            entity_id=track.id,
+            score=2,
+            visibility=VisibilityScope.PRIVATE,
+        )
+
+        assert await rating_svc.get_aggregate(
+            db_session, "track", track.id
+        ) == pytest.approx(10.0)
+
+    async def test_friends_rating_excluded_from_aggregate(
+        self, db_session: AsyncSession
+    ) -> None:
+        u1 = await _make_user(db_session, clerk_id="clerk_av_02a", username="av_u2a")
+        u2 = await _make_user(db_session, clerk_id="clerk_av_02b", username="av_u2b")
+        track = await _make_track(db_session, mbid="mbid-av-02")
+
+        await _rate(
+            db_session, user=u1, entity_type="track", entity_id=track.id, score=8
+        )
+        await _rate(
+            db_session,
+            user=u2,
+            entity_type="track",
+            entity_id=track.id,
+            score=2,
+            visibility=VisibilityScope.FRIENDS,
+        )
+
+        assert await rating_svc.get_aggregate(
+            db_session, "track", track.id
+        ) == pytest.approx(8.0)
+
+    async def test_profile_private_users_public_rating_excluded(
+        self, db_session: AsyncSession
+    ) -> None:
+        u1 = await _make_user(db_session, clerk_id="clerk_av_03a", username="av_u3a")
+        u2 = await _make_user(db_session, clerk_id="clerk_av_03b", username="av_u3b")
+        u2.visibility_ratings = VisibilityScope.PRIVATE.value
+        track = await _make_track(db_session, mbid="mbid-av-03")
+
+        await _rate(
+            db_session, user=u1, entity_type="track", entity_id=track.id, score=6
+        )
+        await _rate(
+            db_session, user=u2, entity_type="track", entity_id=track.id, score=10
+        )
+
+        assert await rating_svc.get_aggregate(
+            db_session, "track", track.id
+        ) == pytest.approx(6.0)
+
+    async def test_only_hidden_ratings_returns_none(
+        self, db_session: AsyncSession
+    ) -> None:
+        user = await _make_user(db_session, clerk_id="clerk_av_04", username="av_u4")
+        track = await _make_track(db_session, mbid="mbid-av-04")
+
+        await _rate(
+            db_session,
+            user=user,
+            entity_type="track",
+            entity_id=track.id,
+            visibility=VisibilityScope.PRIVATE,
+        )
+
+        assert await rating_svc.get_aggregate(db_session, "track", track.id) is None
+
+
+# ── §4.9 Review post/delete lifecycle (HTTP) ──────────────────────────────────
+
+
+@pytest.mark.integration
+class TestReviewLifecycleAPI:
+    """End-to-end post → visible everywhere → delete → gone everywhere."""
+
+    async def test_post_then_visible_on_entity_and_profile(
+        self, authed_client: tuple[AsyncClient, str], db_session: AsyncSession
+    ) -> None:
+        ac, clerk_id = authed_client
+        await _make_user(db_session, clerk_id=clerk_id, username="lc_u1")
+        await _make_track(db_session, mbid="mbid-lc-01")
+
+        post = await ac.post(
+            "/api/v1/ratings/",
+            json={
+                "entity_type": "track",
+                "entity_mbid": "mbid-lc-01",
+                "score": 9,
+                "review_text": _REVIEW,
+            },
+        )
+        assert post.status_code == 201
+
+        entity = await ac.get("/api/v1/ratings/entity/track/mbid-lc-01")
+        assert entity.json()["aggregate_score"] == pytest.approx(9.0)
+        assert len(entity.json()["reviews"]) == 1
+
+        history = await ac.get("/api/v1/ratings/user/lc_u1")
+        assert len(history.json()["reviews"]) == 1
+
+    async def test_delete_removes_from_all_surfaces_and_resets_aggregate(
+        self, authed_client: tuple[AsyncClient, str], db_session: AsyncSession
+    ) -> None:
+        ac, clerk_id = authed_client
+        user = await _make_user(db_session, clerk_id=clerk_id, username="lc_u2")
+        track = await _make_track(db_session, mbid="mbid-lc-02")
+        rating = await _rate(
+            db_session, user=user, entity_type="track", entity_id=track.id, score=7
+        )
+
+        resp = await ac.delete(f"/api/v1/ratings/{rating.id}")
+        assert resp.status_code == 204
+
+        entity = await ac.get("/api/v1/ratings/entity/track/mbid-lc-02")
+        assert entity.json()["aggregate_score"] is None
+        assert entity.json()["reviews"] == []
+
+        history = await ac.get("/api/v1/ratings/user/lc_u2")
+        assert history.json()["reviews"] == []
+
+    async def test_unauthorized_delete_leaves_row_intact(
+        self, authed_client: tuple[AsyncClient, str], db_session: AsyncSession
+    ) -> None:
+        ac, clerk_id = authed_client
+        await _make_user(db_session, clerk_id=clerk_id, username="lc_u3_viewer")
+        owner = await _make_user(
+            db_session, clerk_id="clerk_lc_03_owner", username="lc_u3_owner"
+        )
+        track = await _make_track(db_session, mbid="mbid-lc-03")
+        rating = await _rate(
+            db_session, user=owner, entity_type="track", entity_id=track.id
+        )
+
+        resp = await ac.delete(f"/api/v1/ratings/{rating.id}")
+        assert resp.status_code == 404
+
+        result = await db_session.execute(select(Rating).where(Rating.id == rating.id))
+        assert result.scalar_one_or_none() is not None
+
+    async def test_unauthenticated_post_rejected(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/v1/ratings/",
+            json={
+                "entity_type": "track",
+                "entity_mbid": "any",
+                "score": 5,
+                "review_text": _REVIEW,
+            },
+        )
+        assert resp.status_code in (401, 403)
+
+    async def test_unauthenticated_delete_rejected(self, client: AsyncClient) -> None:
+        resp = await client.delete(f"/api/v1/ratings/{uuid.uuid4()}")
+        assert resp.status_code in (401, 403)

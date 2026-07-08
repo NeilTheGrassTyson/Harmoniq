@@ -11,10 +11,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import VisibilityScope
+from app.core.enums import MelodyAcceptScope, VisibilityScope
 from app.models.user import User
 from app.schemas.follow import FollowState
 from app.schemas.user import OwnProfileResponse, ProfileResponse, UserSearchResult
@@ -79,7 +79,11 @@ async def create_user(
         bio=None,
         visibility_bio=VisibilityScope.PRIVATE.value,
         visibility_activity=VisibilityScope.PRIVATE.value,
-        visibility_ratings=VisibilityScope.PRIVATE.value,
+        # Public defaults are documented constitutional exceptions — see
+        # specs/phase-1-user-accounts-profiles.md and
+        # phase-1-ratings-reviews.md, Amendments 2026-07-04.
+        visibility_ratings=VisibilityScope.PUBLIC.value,
+        visibility_follows=VisibilityScope.PUBLIC.value,
     )
     session.add(user)
     logger.info("Created Harmoniq user internal_id=%s", user.id)
@@ -98,6 +102,9 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         visibility_bio=VisibilityScope(user.visibility_bio),
         visibility_activity=VisibilityScope(user.visibility_activity),
         visibility_ratings=VisibilityScope(user.visibility_ratings),
+        visibility_follows=VisibilityScope(user.visibility_follows),
+        melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
+        is_moderator=user.is_moderator,
     )
 
 
@@ -169,7 +176,7 @@ async def get_profile(
     if can_see(user.visibility_ratings):
         viewer_id = viewer.id if viewer is not None else None
         fields["ratings_count"] = await rating_svc.count_for_user(
-            session, user.id, viewer_id
+            session, user, viewer_id
         )
 
     return ProfileResponse.model_construct(**fields)
@@ -187,6 +194,8 @@ async def update_profile(
     visibility_bio: VisibilityScope | None,
     visibility_activity: VisibilityScope | None,
     visibility_ratings: VisibilityScope | None,
+    visibility_follows: VisibilityScope | None = None,
+    melody_accept_scope: MelodyAcceptScope | None = None,
 ) -> OwnProfileResponse:
     if display_name is not None:
         user.display_name = display_name
@@ -238,6 +247,28 @@ async def update_profile(
                 visibility_ratings.value,
             )
 
+    if visibility_follows is not None:
+        old = user.visibility_follows
+        user.visibility_follows = visibility_follows.value
+        if old != visibility_follows.value:
+            logger.info(
+                "Visibility changed internal_id=%s field=follows %s→%s",
+                user.id,
+                old,
+                visibility_follows.value,
+            )
+
+    if melody_accept_scope is not None:
+        old = user.melody_accept_scope
+        user.melody_accept_scope = melody_accept_scope.value
+        if old != melody_accept_scope.value:
+            logger.info(
+                "Melody accept scope changed internal_id=%s %s→%s",
+                user.id,
+                old,
+                melody_accept_scope.value,
+            )
+
     user.updated_at = _now()
     return build_own_profile(user)
 
@@ -256,13 +287,12 @@ async def update_avatar_url(
 # ── User search ───────────────────────────────────────────────────────────────
 
 
-def filter_discoverable_users(query):
-    # Currently a pass-through — all users are discoverable at launch.
-    # This function is security scaffolding: when private profiles ship (e.g. a
-    # future visibility_profile column), add the WHERE clause here rather than
-    # scattering it across callers. This keeps enforcement at the service layer
-    # per ENGINEERING_BIBLE §8.1. The stub exists now so the test harness is
-    # in place and the change surface is predictable.
+def filter_discoverable_users(query: Select[tuple[User]]) -> Select[tuple[User]]:
+    # Pass-through — every profile is discoverable by decision (ADR 0008):
+    # privacy applies to page content, not profile existence. If that decision
+    # is ever reversed, the WHERE clause goes here rather than being scattered
+    # across callers, keeping enforcement at the service layer per
+    # ENGINEERING_BIBLE §8.1.
     return query
 
 

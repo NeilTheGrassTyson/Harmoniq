@@ -23,8 +23,7 @@ export default async function AlbumPage(props: { params: Promise<{ mbid: string 
   try {
     album = await getAlbum(mbid, token ?? undefined);
   } catch (err: unknown) {
-    const status = err instanceof Error && err.message.includes("404") ? 404 : 503;
-    if (status === 404) notFound();
+    if ((err as { status?: number }).status === 404) notFound();
     throw err;
   }
 

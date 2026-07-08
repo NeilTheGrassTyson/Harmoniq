@@ -21,6 +21,7 @@ _ARTIST_RAW = {
     "name": "Radiohead",
     "sort-name": "Radiohead",
     "disambiguation": None,
+    "score": 100,
 }
 
 _ALBUM_RAW = {
@@ -31,6 +32,7 @@ _ALBUM_RAW = {
     "artist-credit": [
         {"artist": {"id": "a74b1b7f-71a5-4011-9441-d0b5e4122711", "name": "Radiohead"}}
     ],
+    "score": 100,
 }
 
 _TRACK_RAW = {
@@ -41,6 +43,7 @@ _TRACK_RAW = {
         {"artist": {"id": "a74b1b7f-71a5-4011-9441-d0b5e4122711", "name": "Radiohead"}}
     ],
     "releases": [{"release-group": {"id": "b84dce42-1b01-4c5d-b32e-b5f1e6e59f2a"}}],
+    "score": 100,
 }
 
 _ARTIST_MBID = _ARTIST_RAW["id"]
@@ -282,3 +285,180 @@ class TestSearchAndIngest:
     ) -> None:
         artist_id = await catalog_svc._resolve_artist_id(db_session, None, None)
         assert artist_id is None
+
+
+# ── §3.7 Search relevance filtering (specs/phase-1-catalog.md, Amendments 2026-07-05) ──
+
+
+@pytest.mark.integration
+class TestSearchRelevanceFiltering:
+    async def test_low_score_artist_filtered_out(
+        self, db_session: AsyncSession
+    ) -> None:
+        low_score = {**_ARTIST_RAW, "id": "low-score-artist-mbid", "score": 10}
+        with (
+            patch(
+                "app.services.catalog.mb.search_artists",
+                new=AsyncMock(return_value=[_ARTIST_RAW, low_score]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_release_groups",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_recordings",
+                new=AsyncMock(return_value=[]),
+            ),
+        ):
+            result = await catalog_svc.search_and_ingest(
+                "relevance_low_score_q1", db_session
+            )
+
+        assert len(result.artists) == 1
+        assert result.artists[0].mbid == _ARTIST_MBID
+
+        db_result = await db_session.execute(
+            select(Artist).where(Artist.mbid == "low-score-artist-mbid")
+        )
+        assert db_result.scalar_one_or_none() is None
+
+    async def test_album_filtered_when_artist_credit_is_housekeeping(
+        self, db_session: AsyncSession
+    ) -> None:
+        """A legitimately-titled album by a '[unknown]' artist-credit must still
+        be dropped — the housekeeping filter runs on the artist credit, not
+        the album title itself."""
+        housekeeping_album = {
+            **_ALBUM_RAW,
+            "id": "housekeeping-album-mbid",
+            "title": "A Perfectly Normal Title",
+            "artist-credit": [
+                {"artist": {"id": "unknown-artist-mbid", "name": "[unknown]"}}
+            ],
+        }
+        with (
+            patch(
+                "app.services.catalog.mb.search_artists",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_release_groups",
+                new=AsyncMock(return_value=[_ALBUM_RAW, housekeeping_album]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_recordings",
+                new=AsyncMock(return_value=[]),
+            ),
+        ):
+            result = await catalog_svc.search_and_ingest(
+                "relevance_album_housekeeping_q1", db_session
+            )
+
+        assert len(result.albums) == 1
+        assert result.albums[0].mbid == _ALBUM_MBID
+
+        db_result = await db_session.execute(
+            select(Album).where(Album.mbid == "housekeeping-album-mbid")
+        )
+        assert db_result.scalar_one_or_none() is None
+
+    async def test_track_filtered_when_artist_credit_is_housekeeping(
+        self, db_session: AsyncSession
+    ) -> None:
+        housekeeping_track = {
+            **_TRACK_RAW,
+            "id": "housekeeping-track-mbid",
+            "artist-credit": [
+                {"artist": {"id": "unknown-artist-mbid", "name": "[data]"}}
+            ],
+        }
+        with (
+            patch(
+                "app.services.catalog.mb.search_artists",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_release_groups",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_recordings",
+                new=AsyncMock(return_value=[_TRACK_RAW, housekeeping_track]),
+            ),
+        ):
+            result = await catalog_svc.search_and_ingest(
+                "relevance_track_housekeeping_q1", db_session
+            )
+
+        assert len(result.tracks) == 1
+        assert result.tracks[0].mbid == _TRACK_MBID
+
+        db_result = await db_session.execute(
+            select(Track).where(Track.mbid == "housekeeping-track-mbid")
+        )
+        assert db_result.scalar_one_or_none() is None
+
+    async def test_results_sorted_by_score_descending(
+        self, db_session: AsyncSession
+    ) -> None:
+        low = {**_ARTIST_RAW, "id": "artist-score-60", "name": "Score60", "score": 60}
+        high = {**_ARTIST_RAW, "id": "artist-score-95", "name": "Score95", "score": 95}
+        mid = {**_ARTIST_RAW, "id": "artist-score-75", "name": "Score75", "score": 75}
+        with (
+            patch(
+                "app.services.catalog.mb.search_artists",
+                new=AsyncMock(return_value=[low, high, mid]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_release_groups",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_recordings",
+                new=AsyncMock(return_value=[]),
+            ),
+        ):
+            result = await catalog_svc.search_and_ingest(
+                "relevance_sort_order_q1", db_session
+            )
+
+        assert [a.name for a in result.artists] == ["Score95", "Score75", "Score60"]
+
+    async def test_results_capped_at_five_per_category(
+        self, db_session: AsyncSession
+    ) -> None:
+        artists = [
+            {
+                **_ARTIST_RAW,
+                "id": f"artist-cap-{i}",
+                "name": f"Artist{i}",
+                "score": 90 - i,
+            }
+            for i in range(8)
+        ]
+        with (
+            patch(
+                "app.services.catalog.mb.search_artists",
+                new=AsyncMock(return_value=artists),
+            ),
+            patch(
+                "app.services.catalog.mb.search_release_groups",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.services.catalog.mb.search_recordings",
+                new=AsyncMock(return_value=[]),
+            ),
+        ):
+            result = await catalog_svc.search_and_ingest(
+                "relevance_cap_five_q1", db_session
+            )
+
+        assert len(result.artists) == 5
+        assert [a.name for a in result.artists] == [
+            "Artist0",
+            "Artist1",
+            "Artist2",
+            "Artist3",
+            "Artist4",
+        ]

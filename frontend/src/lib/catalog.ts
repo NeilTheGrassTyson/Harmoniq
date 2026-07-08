@@ -8,7 +8,11 @@ async function catalogGet<T>(path: string, token?: string): Promise<T> {
   const response = await fetch(`${API_BASE}/api/v1/catalog${path}`, { headers });
   if (!response.ok) {
     const body = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error((body as { detail?: string }).detail ?? "Request failed");
+    // .status lets pages distinguish a real 404 from a transient failure —
+    // never string-match error messages for this.
+    throw Object.assign(new Error((body as { detail?: string }).detail ?? "Request failed"), {
+      status: response.status,
+    });
   }
   return response.json() as Promise<T>;
 }

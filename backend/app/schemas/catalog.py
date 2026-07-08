@@ -17,6 +17,9 @@ class AlbumResult(BaseModel):
     title: str
     artist_name: str | None
     release_year: int | None
+    # 'album' | 'ep' | 'single' where known; None on search results built
+    # straight from MB payloads that predate ingestion.
+    album_type: str | None = None
     cover_art_url: str | None
 
 

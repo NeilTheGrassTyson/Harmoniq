@@ -40,7 +40,7 @@ async def get_home(session: DbSession, current_user: CurrentUser) -> HomeRespons
 
     trending_result: list[TrendingEntry] | None = await home_svc._safe_section(
         "trending",
-        home_svc.get_trending(session, current_user.id, settings.home_trending_count),
+        home_svc.get_trending(session, settings.home_trending_count),
     )
     friends_result: list[FriendEntry] | None = await home_svc._safe_section(
         "friends",

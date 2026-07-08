@@ -9,6 +9,7 @@ Ingestion is always upsert-on-MBID: existing rows are updated, not duplicated.
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -34,6 +35,19 @@ logger = logging.getLogger(__name__)
 _SEARCH_CACHE_TTL = 300.0  # 5 minutes — matches MB client TTL
 _search_cache: dict[str, tuple[float, SearchResponse]] = {}
 
+# Discography sync freshness, keyed on artist MBID. Guards the whole browse +
+# upsert pass, not just the HTTP fetch: a prolific artist has hundreds of
+# release groups, and re-writing them on every page view is the expensive
+# part, not the (already cached) MusicBrainz requests.
+_DISCOGRAPHY_SYNC_TTL = 300.0
+_discography_sync_cache: dict[str, float] = {}
+
+# Search relevance filtering (specs/phase-1-catalog.md, Amendments 2026-07-05).
+# MusicBrainz's `score` (0-100 Lucene relevance) is never surfaced by the raw
+# client — thresholded and ranked here instead. Tunable later; not API-exposed.
+_MIN_RELEVANCE_SCORE = 50
+_MAX_RESULTS_PER_CATEGORY = 5
+
 _CAA_URL = "https://coverartarchive.org/release-group/{mbid}/front"
 
 _ALBUM_TYPE_MAP: dict[str, str] = {
@@ -44,6 +58,46 @@ _ALBUM_TYPE_MAP: dict[str, str] = {
     "broadcast": "other",
     "other": "other",
 }
+
+# Discography quality gate (Founder direction, 2026-07-07): only recorded
+# singles, EPs, and albums belong on artist pages and in search. MusicBrainz
+# marks live bootlegs, compilations, remixes, etc. as *secondary* types on a
+# release group whose primary type still reads Album/Single/EP — so both
+# axes must be checked. Excluded release groups are stored with
+# album_type='other' so display queries can skip them without a delete
+# (existing ratings may reference those rows).
+_ALLOWED_PRIMARY_TYPES = frozenset({"album", "single", "ep"})
+_EXCLUDED_SECONDARY_TYPES = frozenset(
+    {
+        "live",
+        "compilation",
+        "remix",
+        "dj-mix",
+        "mixtape/street",
+        "demo",
+        "soundtrack",
+        "spokenword",
+        "interview",
+        "audiobook",
+        "audio drama",
+        "field recording",
+    }
+)
+_DISPLAY_ALBUM_TYPES = ("album", "ep", "single")
+
+
+def _secondary_types(raw: dict[str, Any]) -> set[str]:
+    return {
+        str(t).lower() for t in raw.get("secondary-types", []) if isinstance(t, str)
+    }
+
+
+def _is_standard_release_group(raw: dict[str, Any]) -> bool:
+    """True for a plain recorded Album/EP/Single with no excluding secondary type."""
+    primary = (raw.get("primary-type") or "").lower()
+    if primary not in _ALLOWED_PRIMARY_TYPES:
+        return False
+    return not (_secondary_types(raw) & _EXCLUDED_SECONDARY_TYPES)
 
 
 def _now() -> datetime:
@@ -83,6 +137,52 @@ def _release_group_mbid(raw_recording: dict[str, Any]) -> str | None:
     return rg.get("id")  # type: ignore[no-any-return]
 
 
+def _alias_names(raw: dict[str, Any]) -> list[str]:
+    """Extract alias display names from a MusicBrainz artist payload."""
+    return [
+        alias["name"]
+        for alias in raw.get("aliases", [])
+        if isinstance(alias, dict) and alias.get("name")
+    ]
+
+
+def _is_housekeeping_name(name: str) -> bool:
+    """True for MusicBrainz bracketed placeholder names like '[unknown]', '[data]'."""
+    return name.startswith("[") and name.endswith("]")
+
+
+def _hit_score(raw: dict[str, Any]) -> int:
+    """MusicBrainz 'score' is an int on some endpoints, a numeric string on
+    others; missing or unparseable → 0 (no confidence, filtered out by the
+    threshold rather than crashing)."""
+    try:
+        return int(raw.get("score", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _filter_and_rank(
+    raw_hits: list[dict[str, Any]],
+    *,
+    name_fn: Callable[[dict[str, Any]], str | None],
+    type_check: Callable[[dict[str, Any]], bool] | None = None,
+) -> list[dict[str, Any]]:
+    """Drop housekeeping names and sub-threshold-relevance hits, sort by
+    MusicBrainz score descending, and cap at _MAX_RESULTS_PER_CATEGORY."""
+    filtered = []
+    for hit in raw_hits:
+        name = name_fn(hit) or ""
+        if _is_housekeeping_name(name):
+            continue
+        if type_check is not None and not type_check(hit):
+            continue
+        if _hit_score(hit) < _MIN_RELEVANCE_SCORE:
+            continue
+        filtered.append(hit)
+    filtered.sort(key=_hit_score, reverse=True)
+    return filtered[:_MAX_RESULTS_PER_CATEGORY]
+
+
 # ── Upsert helpers ─────────────────────────────────────────────────────────────
 
 
@@ -96,6 +196,7 @@ async def _upsert_artist(session: AsyncSession, raw: dict[str, Any]) -> Artist:
     name = raw.get("name") or ""
     sort_name = raw.get("sort-name") or None
     disambiguation = raw.get("disambiguation") or None
+    aliases = _alias_names(raw) or None
 
     if artist is None:
         artist = Artist(
@@ -104,6 +205,7 @@ async def _upsert_artist(session: AsyncSession, raw: dict[str, Any]) -> Artist:
             name=name,
             sort_name=sort_name,
             disambiguation=disambiguation,
+            aliases=aliases,
             image_url=None,
             last_fetched_at=now,
         )
@@ -112,9 +214,60 @@ async def _upsert_artist(session: AsyncSession, raw: dict[str, Any]) -> Artist:
         artist.name = name
         artist.sort_name = sort_name
         artist.disambiguation = disambiguation
+        # Lookup responses omit aliases entirely (no inc=aliases); only
+        # overwrite when MB actually sent the key so a detail-page refresh
+        # doesn't wipe aliases ingested via search.
+        if "aliases" in raw:
+            artist.aliases = aliases
         artist.last_fetched_at = now
 
     return artist
+
+
+def _album_fields(raw: dict[str, Any]) -> dict[str, Any]:
+    """Map a MusicBrainz release-group payload to Album column values."""
+    raw_type = (raw.get("primary-type") or "").lower()
+    if raw_type and not _is_standard_release_group(raw):
+        # Live/compilation/remix etc. — kept in the DB (ratings may point at
+        # it) but demoted out of the display types.
+        album_type: str | None = "other"
+    else:
+        album_type = _ALBUM_TYPE_MAP.get(raw_type, "other") if raw_type else None
+    return {
+        "title": raw.get("title") or "",
+        "release_year": _parse_release_year(
+            raw.get("first-release-date") or raw.get("date")
+        ),
+        "album_type": album_type,
+        "cover_art_url": _CAA_URL.format(mbid=raw["id"]),
+    }
+
+
+def _apply_album(
+    album: Album | None,
+    raw: dict[str, Any],
+    artist_id: uuid.UUID | None,
+    now: datetime,
+) -> Album:
+    """Create a new Album from the raw payload, or refresh an existing one.
+    A new object still needs session.add()."""
+    fields = _album_fields(raw)
+    if album is None:
+        return Album(
+            id=uuid.uuid4(),
+            mbid=raw["id"],
+            artist_id=artist_id,
+            last_fetched_at=now,
+            **fields,
+        )
+    album.title = fields["title"]
+    album.release_year = fields["release_year"]
+    album.album_type = fields["album_type"]
+    album.cover_art_url = fields["cover_art_url"]
+    album.last_fetched_at = now
+    if artist_id is not None and album.artist_id is None:
+        album.artist_id = artist_id
+    return album
 
 
 async def _upsert_album(
@@ -123,38 +276,13 @@ async def _upsert_album(
     artist_id: uuid.UUID | None = None,
 ) -> Album:
     mbid: str = raw["id"]
-    now = _now()
 
     result = await session.execute(select(Album).where(Album.mbid == mbid))
-    album = result.scalar_one_or_none()
+    existing = result.scalar_one_or_none()
 
-    title = raw.get("title") or ""
-    raw_type = (raw.get("primary-type") or "").lower()
-    album_type = _ALBUM_TYPE_MAP.get(raw_type, "other") if raw_type else None
-    release_year = _parse_release_year(raw.get("first-release-date") or raw.get("date"))
-    cover_art_url = _CAA_URL.format(mbid=mbid)
-
-    if album is None:
-        album = Album(
-            id=uuid.uuid4(),
-            mbid=mbid,
-            title=title,
-            artist_id=artist_id,
-            release_year=release_year,
-            album_type=album_type,
-            cover_art_url=cover_art_url,
-            last_fetched_at=now,
-        )
+    album = _apply_album(existing, raw, artist_id, _now())
+    if existing is None:
         session.add(album)
-    else:
-        album.title = title
-        album.release_year = release_year
-        album.album_type = album_type
-        album.cover_art_url = cover_art_url
-        album.last_fetched_at = now
-        if artist_id is not None and album.artist_id is None:
-            album.artist_id = artist_id
-
     return album
 
 
@@ -163,6 +291,8 @@ async def _upsert_track(
     raw: dict[str, Any],
     artist_id: uuid.UUID | None = None,
     album_id: uuid.UUID | None = None,
+    track_number: int | None = None,
+    disc_number: int | None = None,
 ) -> Track:
     mbid: str = raw["id"]
     now = _now()
@@ -181,8 +311,8 @@ async def _upsert_track(
             artist_id=artist_id,
             album_id=album_id,
             duration_ms=duration_ms,
-            track_number=None,
-            disc_number=None,
+            track_number=track_number,
+            disc_number=disc_number,
             last_fetched_at=now,
         )
         session.add(track)
@@ -194,6 +324,10 @@ async def _upsert_track(
             track.artist_id = artist_id
         if album_id is not None and track.album_id is None:
             track.album_id = album_id
+        if track_number is not None:
+            track.track_number = track_number
+        if disc_number is not None:
+            track.disc_number = disc_number
 
     return track
 
@@ -245,12 +379,28 @@ async def search_and_ingest(query: str, session: AsyncSession) -> SearchResponse
         raise
 
     # Strip MusicBrainz "Special Purpose" housekeeping entries ([unknown],
-    # [no artist], etc.) — they degrade search quality and are never real artists.
-    raw_artists = [
-        a for a in raw_artists
-        if a.get("type") != "Special Purpose"
-        and not (a.get("name", "").startswith("[") and a.get("name", "").endswith("]"))
-    ]
+    # [no artist], etc.) and low-relevance noise; rank by score and cap per
+    # category (specs/phase-1-catalog.md, Amendments 2026-07-05). Albums and
+    # tracks are filtered on their *artist-credit* name — a legitimately
+    # titled release by a "[unknown]" artist is the same housekeeping problem
+    # the artist filter already catches, just one level deeper.
+    raw_artists = _filter_and_rank(
+        raw_artists,
+        name_fn=lambda a: a.get("name"),
+        type_check=lambda a: a.get("type") != "Special Purpose",
+    )
+    # Albums must be standard recorded releases (no live/compilation/etc.);
+    # tracks must be audio recordings, not videos.
+    raw_albums = _filter_and_rank(
+        raw_albums,
+        name_fn=_primary_artist_name,
+        type_check=_is_standard_release_group,
+    )
+    raw_tracks = _filter_and_rank(
+        raw_tracks,
+        name_fn=_primary_artist_name,
+        type_check=lambda t: not t.get("video"),
+    )
 
     # ── Ingest artists ────────────────────────────────────────────────────────
     artist_rows: list[Artist] = []
@@ -325,6 +475,7 @@ async def search_and_ingest(query: str, session: AsyncSession) -> SearchResponse
             title=a.get("title", ""),
             artist_name=_primary_artist_name(a),
             release_year=_parse_release_year(a.get("first-release-date")),
+            album_type=_ALBUM_TYPE_MAP.get((a.get("primary-type") or "").lower()),
             cover_art_url=_CAA_URL.format(mbid=a.get("id", "")),
         )
         for a in raw_albums
@@ -353,6 +504,111 @@ async def search_and_ingest(query: str, session: AsyncSession) -> SearchResponse
     return result
 
 
+# ── Discography sync ───────────────────────────────────────────────────────────
+
+
+async def _sync_artist_discography(session: AsyncSession, artist: Artist) -> None:
+    """Ingest the artist's full release-group list from MusicBrainz.
+
+    Batched on purpose: one IN-query preloads every existing row, then a
+    single flush writes all inserts/updates via executemany. Going through
+    _upsert_album per release group issues a SELECT each (plus an autoflushed
+    write), which measured ~80s for a prolific artist against Neon.
+    Skipped entirely while the artist's sync is fresh.
+    """
+    last_synced = _discography_sync_cache.get(artist.mbid)
+    if (
+        last_synced is not None
+        and time.monotonic() - last_synced < _DISCOGRAPHY_SYNC_TTL
+    ):
+        return
+
+    raw_rgs = await mb.browse_release_groups(artist.mbid)
+    by_mbid = {raw["id"]: raw for raw in raw_rgs if raw.get("id")}
+
+    if by_mbid:
+        result = await session.execute(
+            select(Album).where(Album.mbid.in_(list(by_mbid)))
+        )
+        existing = {album.mbid: album for album in result.scalars()}
+
+        now = _now()
+        for rg_mbid, raw in by_mbid.items():
+            album = _apply_album(existing.get(rg_mbid), raw, artist.id, now)
+            if rg_mbid not in existing:
+                session.add(album)
+        await session.flush()
+
+    _discography_sync_cache[artist.mbid] = time.monotonic()
+
+
+# ── Tracklist sync ─────────────────────────────────────────────────────────────
+
+_TRACKLIST_SYNC_TTL = 300.0
+_tracklist_sync_cache: dict[str, float] = {}
+
+
+def _pick_canonical_release(releases: list[dict[str, Any]]) -> str | None:
+    """Choose the release whose tracklist represents the release group:
+    prefer official status, then earliest date, then first listed."""
+    if not releases:
+        return None
+
+    def sort_key(rel: dict[str, Any]) -> tuple[int, str]:
+        official = 0 if (rel.get("status") or "").lower() == "official" else 1
+        # ISO dates compare lexicographically; empty sorts last.
+        date = rel.get("date") or "9999"
+        return (official, date)
+
+    best = min(releases, key=sort_key)
+    return best.get("id")
+
+
+async def _sync_album_tracklist(session: AsyncSession, album: Album) -> None:
+    """Ingest the album's tracklist from its canonical MusicBrainz release.
+
+    Skipped while fresh (TTL) so repeated album-page views don't re-hit
+    MusicBrainz. Failures degrade to whatever tracks are already stored —
+    the page renders without a tracklist rather than erroring.
+    """
+    last_synced = _tracklist_sync_cache.get(album.mbid)
+    if last_synced is not None and time.monotonic() - last_synced < _TRACKLIST_SYNC_TTL:
+        return
+
+    raw_rg = await mb.lookup_release_group(album.mbid)
+    if raw_rg is None:
+        return
+    release_mbid = _pick_canonical_release(raw_rg.get("releases", []))
+    if release_mbid is None:
+        return
+    raw_release = await mb.lookup_release(release_mbid)
+    if raw_release is None:
+        return
+
+    for medium in raw_release.get("media", []):
+        disc_number = medium.get("position")
+        for raw_track in medium.get("tracks", []):
+            recording = raw_track.get("recording")
+            if not recording or not recording.get("id"):
+                continue
+            # The track position/length live on the tracklist entry; the
+            # recording payload carries the MBID and canonical title.
+            merged = {**recording}
+            if raw_track.get("length") and not merged.get("length"):
+                merged["length"] = raw_track["length"]
+            await _upsert_track(
+                session,
+                merged,
+                artist_id=album.artist_id,
+                album_id=album.id,
+                track_number=raw_track.get("position"),
+                disc_number=disc_number,
+            )
+
+    await session.flush()
+    _tracklist_sync_cache[album.mbid] = time.monotonic()
+
+
 # ── Detail views ───────────────────────────────────────────────────────────────
 
 
@@ -367,8 +623,26 @@ async def get_artist(mbid: str, session: AsyncSession) -> ArtistDetail | None:
         artist = await _upsert_artist(session, raw)
         await session.flush()
 
+    # Sync the full discography on demand (skipped while fresh, see
+    # _sync_artist_discography). A sync failure degrades to whatever albums
+    # are already stored locally rather than failing the page.
+    try:
+        await _sync_artist_discography(session, artist)
+    except Exception:
+        logger.error(
+            "Failed to sync discography for artist mbid=%s", mbid, exc_info=True
+        )
+
+    # Display only standard recorded release groups, newest first. Demoted
+    # rows (album_type='other'/'compilation'/NULL) stay in the DB for any
+    # ratings that reference them but never render on the artist page.
     alb_result = await session.execute(
-        select(Album).where(Album.artist_id == artist.id)
+        select(Album)
+        .where(
+            Album.artist_id == artist.id,
+            Album.album_type.in_(_DISPLAY_ALBUM_TYPES),
+        )
+        .order_by(Album.release_year.desc().nulls_last(), Album.title.asc())
     )
     albums = alb_result.scalars().all()
 
@@ -384,6 +658,7 @@ async def get_artist(mbid: str, session: AsyncSession) -> ArtistDetail | None:
                 title=a.title,
                 artist_name=artist.name,
                 release_year=a.release_year,
+                album_type=a.album_type,
                 cover_art_url=a.cover_art_url,
             )
             for a in albums
@@ -411,6 +686,13 @@ async def get_album(
         album = await _upsert_album(session, raw, artist_id)
         await session.flush()
 
+    # Sync the tracklist on demand (TTL-guarded). A failure degrades to the
+    # locally stored tracks rather than failing the page.
+    try:
+        await _sync_album_tracklist(session, album)
+    except Exception:
+        logger.error("Failed to sync tracklist for album mbid=%s", mbid, exc_info=True)
+
     # Resolve artist name for response
     artist_name: str | None = None
     artist_mbid_out: str | None = None
@@ -423,7 +705,15 @@ async def get_album(
             artist_name = art.name
             artist_mbid_out = art.mbid
 
-    trk_result = await session.execute(select(Track).where(Track.album_id == album.id))
+    trk_result = await session.execute(
+        select(Track)
+        .where(Track.album_id == album.id)
+        .order_by(
+            Track.disc_number.asc().nulls_last(),
+            Track.track_number.asc().nulls_last(),
+            Track.title.asc(),
+        )
+    )
     tracks = trk_result.scalars().all()
 
     viewer_id = None

@@ -96,10 +96,10 @@ class TestUserPersistence:
         assert user.created_at is not None
         assert user.updated_at is not None
 
-    async def test_default_visibility_is_private(
-        self, db_session: AsyncSession
-    ) -> None:
-        """New users default to PRIVATE on all visibility fields — opt-in, not opt-out."""
+    async def test_default_visibility(self, db_session: AsyncSession) -> None:
+        """Bio and activity default PRIVATE (opt-in). Ratings and follows
+        default PUBLIC — documented constitutional exceptions (spec
+        Amendments 2026-07-04)."""
         await _create(db_session, clerk_id="clerk_p_06", username="privdefault")
 
         result = await db_session.execute(
@@ -108,7 +108,8 @@ class TestUserPersistence:
         db_user = result.scalar_one()
         assert db_user.visibility_bio == VisibilityScope.PRIVATE.value
         assert db_user.visibility_activity == VisibilityScope.PRIVATE.value
-        assert db_user.visibility_ratings == VisibilityScope.PRIVATE.value
+        assert db_user.visibility_ratings == VisibilityScope.PUBLIC.value
+        assert db_user.visibility_follows == VisibilityScope.PUBLIC.value
 
     async def test_duplicate_username_raises_integrity_error(
         self, db_session: AsyncSession
@@ -588,9 +589,7 @@ class TestUserSearch:
         assert len(results) == 1
         assert results[0].display_name == "Ziggy Stardust"
 
-    async def test_returns_empty_for_no_matches(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_returns_empty_for_no_matches(self, db_session: AsyncSession) -> None:
         results = await user_svc.search_users(db_session, "xyznotexist99")
         assert results == []
 
@@ -616,7 +615,9 @@ class TestUserSearch:
     async def test_response_contains_only_allowed_fields(
         self, anon_client: AsyncClient, db_session: AsyncSession
     ) -> None:
-        await _create(db_session, clerk_id="clerk_srch_05", username="schema_check_user")
+        await _create(
+            db_session, clerk_id="clerk_srch_05", username="schema_check_user"
+        )
         await db_session.flush()
 
         response = await anon_client.get("/api/v1/users/search?q=schema_check")
@@ -636,9 +637,7 @@ class TestUserSearch:
         assert response.status_code == 200
         assert response.json() == []
 
-    async def test_rate_limit_header_present(
-        self, anon_client: AsyncClient
-    ) -> None:
+    async def test_rate_limit_header_present(self, anon_client: AsyncClient) -> None:
         response = await anon_client.get("/api/v1/users/search?q=test")
         assert response.status_code == 200
         assert any(k.lower().startswith("x-ratelimit") for k in response.headers)

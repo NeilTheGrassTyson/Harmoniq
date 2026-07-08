@@ -14,6 +14,10 @@ export const metadata: Metadata = {
   description: "A social music discovery network built around trust and musical identity.",
 };
 
+// The 127.0.0.1 → localhost bounce (Spotify OAuth return, Clerk dev-session
+// origin mismatch) lives in proxy.ts as an HTML response — any script tag
+// rendered from a React component triggers React 19 dev warnings.
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,9 +26,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
-        <body className="h-full bg-canvas text-primary antialiased">
-          {children}
-        </body>
+        <body className="h-full bg-canvas text-primary antialiased">{children}</body>
       </html>
     </ClerkProvider>
   );

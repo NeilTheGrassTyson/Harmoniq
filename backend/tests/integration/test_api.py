@@ -206,6 +206,7 @@ class TestCatalogSearchEndpoint:
             "name": "Radiohead",
             "sort-name": "Radiohead",
             "disambiguation": None,
+            "score": 100,
         }
         with (
             patch(

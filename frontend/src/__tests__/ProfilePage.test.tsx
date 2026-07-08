@@ -36,16 +36,18 @@ vi.mock("@/components/AppShell", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/AvatarImage", () => ({
-  default: () => <span data-testid="avatar" />,
-}));
+const mockProfileHeaderProps = vi.fn();
 
-vi.mock("@/components/FollowButton", () => ({
-  default: () => <button>Follow</button>,
+vi.mock("@/components/ProfileHeader", () => ({
+  default: (props: { autoOpenEdit?: boolean }) => {
+    mockProfileHeaderProps(props);
+    return <div data-testid="profile-header" />;
+  },
 }));
 
 const mockGetProfile = vi.fn();
 const mockGetUserRatings = vi.fn();
+const mockGetListening = vi.fn();
 
 vi.mock("@/lib/users", () => ({
   getProfile: (...args: unknown[]) => mockGetProfile(...args),
@@ -53,6 +55,18 @@ vi.mock("@/lib/users", () => ({
 
 vi.mock("@/lib/ratings", () => ({
   getUserRatings: (...args: unknown[]) => mockGetUserRatings(...args),
+}));
+
+vi.mock("@/lib/spotify", () => ({
+  getListening: (...args: unknown[]) => mockGetListening(...args),
+}));
+
+vi.mock("@/components/ListeningSection", () => ({
+  default: ({ initial }: { initial: { connected: boolean } }) => (
+    <div data-testid="listening-section">
+      {initial.connected ? "listening-data" : "not-connected"}
+    </div>
+  ),
 }));
 
 // ── Import after mocks ────────────────────────────────────────────────────────
@@ -71,42 +85,82 @@ const baseProfile = {
   follow: { is_following: false, follows_you: false, is_friend: false },
 };
 
+async function renderPage(searchParams: { spotify?: string } = {}) {
+  const jsx = await ProfilePage({
+    params: Promise.resolve({ username: "testuser" }),
+    searchParams: Promise.resolve(searchParams),
+  });
+  render(jsx);
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe("Profile page — follower/following links", () => {
+describe("Profile page — ProfileHeader wiring", () => {
   beforeEach(() => {
     mockGetProfile.mockResolvedValue(baseProfile);
     mockGetUserRatings.mockResolvedValue({ reviews: [] });
+    mockProfileHeaderProps.mockReset();
   });
 
-  async function renderPage() {
-    const jsx = await ProfilePage({
-      params: Promise.resolve({ username: "testuser" }),
+  it("renders ProfileHeader with the fetched profile", async () => {
+    await renderPage();
+    expect(screen.getByTestId("profile-header")).toBeTruthy();
+    expect(mockProfileHeaderProps).toHaveBeenCalledWith(
+      expect.objectContaining({ profile: baseProfile })
+    );
+  });
+
+  it("does not auto-open edit when ?spotify=connected is absent", async () => {
+    await renderPage();
+    expect(mockProfileHeaderProps).toHaveBeenCalledWith(
+      expect.objectContaining({ autoOpenEdit: false })
+    );
+  });
+
+  it("auto-opens edit when ?spotify=connected and viewing own profile", async () => {
+    mockGetProfile.mockResolvedValue({ ...baseProfile, is_own_profile: true });
+    await renderPage({ spotify: "connected" });
+    expect(mockProfileHeaderProps).toHaveBeenCalledWith(
+      expect.objectContaining({ autoOpenEdit: true })
+    );
+  });
+
+  it("does not auto-open edit for ?spotify=connected on someone else's profile", async () => {
+    await renderPage({ spotify: "connected" }); // baseProfile.is_own_profile === false
+    expect(mockProfileHeaderProps).toHaveBeenCalledWith(
+      expect.objectContaining({ autoOpenEdit: false })
+    );
+  });
+});
+
+describe("Profile page — Listening section", () => {
+  beforeEach(() => {
+    mockGetUserRatings.mockResolvedValue({ reviews: [] });
+    mockGetListening.mockReset();
+  });
+
+  it("renders no Listening section when activity is not visible", async () => {
+    mockGetProfile.mockResolvedValue(baseProfile); // no activity_placeholder key
+    await renderPage();
+    expect(screen.queryByTestId("listening-section")).toBeNull();
+    expect(mockGetListening).not.toHaveBeenCalled();
+  });
+
+  it("renders the Listening section from getListening when activity is visible", async () => {
+    mockGetProfile.mockResolvedValue({ ...baseProfile, activity_placeholder: true });
+    mockGetListening.mockResolvedValue({
+      connected: true,
+      now_playing: null,
+      recently_played: [],
     });
-    render(jsx);
-  }
-
-  it("renders follower count as a link to /u/[username]/followers", async () => {
     await renderPage();
-    const link = screen.getByRole("link", { name: /5 followers/ });
-    expect(link.getAttribute("href")).toBe("/u/testuser/followers");
+    expect(screen.getByTestId("listening-section").textContent).toBe("listening-data");
   });
 
-  it("renders following count as a link to /u/[username]/following", async () => {
+  it("renders nothing for the section when the listening fetch fails", async () => {
+    mockGetProfile.mockResolvedValue({ ...baseProfile, activity_placeholder: true });
+    mockGetListening.mockRejectedValue(new Error("boom"));
     await renderPage();
-    const link = screen.getByRole("link", { name: /3 following/ });
-    expect(link.getAttribute("href")).toBe("/u/testuser/following");
-  });
-
-  it("follower link has hover:text-accent class for accent hover colour", async () => {
-    await renderPage();
-    const link = screen.getByRole("link", { name: /5 followers/ });
-    expect(link.getAttribute("class")).toContain("hover:text-accent");
-  });
-
-  it("following link has hover:text-accent class for accent hover colour", async () => {
-    await renderPage();
-    const link = screen.getByRole("link", { name: /3 following/ });
-    expect(link.getAttribute("class")).toContain("hover:text-accent");
+    expect(screen.queryByTestId("listening-section")).toBeNull();
   });
 });

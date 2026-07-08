@@ -1,6 +1,11 @@
 # Harmoniq — Architecture Overview
 
-> **Status:** Phase 1 (Music Catalog, User Accounts, Ratings, Follows, Home shipped) — modular monolith.
+> **Status:** Phase 1 feature-complete — modular monolith. Shipped: Music
+> Catalog, User Accounts, Search, Ratings & Reviews, Follows, Home, Spotify
+> integration, Melody, Notifications, Moderation review/action. Remaining
+> before Phase 1 fully closes: a full visibility audit and deployment
+> verification (no staging/production instance stood up yet) — see
+> `ROADMAP.md` for the sequenced list and gating rule.
 > This document describes what the system *is* today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---
@@ -181,7 +186,10 @@ modules, only from shared `models/` and `schemas/`.
 | `rating` | ✅ Phase 1 | Ratings and reviews; aggregate scores; reports |
 | `follow` | ✅ Phase 1 | Follow graph (follower/followed relationships) |
 | `home` | ✅ Phase 1 | Home surface: trending + friends' top songs |
-| `melody` | Planned | Melody lifecycle state machine |
+| `spotify` | ✅ Phase 1 | Spotify OAuth linking; display-only listening data (never persisted, never feeds other systems) |
+| `melody` | ✅ Phase 1 | Melody lifecycle state machine (sent → received → accepted/opened/rejected) |
+| `notifications` | ✅ Phase 1 | In-app notification center (Melody received, new follower) |
+| `moderation` | ✅ Phase 1 | Report review/action: dismiss, hide rating, suspend user |
 | `harmony` | Planned | Harmony score computation |
 | `discovery` | Planned | Discovery surface (Harmonic Feed) composition |
 
@@ -194,11 +202,20 @@ modules, only from shared `models/` and `schemas/`.
 - **Migrations:** Alembic — every schema change is a versioned migration file.
 - **Identifiers:** UUID primary keys throughout. Clerk's `sub` is stored as
   a `clerk_id` string column; internal joins use UUIDs.
-- **Visibility enforcement:** Performed at the service layer (`services/user.py`)
-  using a `VisibilityScope` enum (`private` / `friends` / `public`). Fields
-  excluded by scope are absent from the JSON response (not null) — achieved via
-  Pydantic's `model_construct` + `exclude_unset`. Never enforced in route
-  handlers or on the frontend.
+- **Visibility enforcement:** Performed at the service layer using a
+  `VisibilityScope` enum (`private` / `friends` / `public`); the shared
+  decision logic lives in `app/core/visibility.py` (`effective_scope`,
+  `scope_allows`). Fields excluded by scope are absent from the JSON response
+  (not null) — achieved via Pydantic's `model_construct` + `exclude_unset`.
+  Never enforced in route handlers or on the frontend.
+- **Master switch (2026-07-04 amendments):** `visibility_ratings` caps every
+  rating surface — a rating's effective visibility is the stricter of the
+  profile setting and the rating's own scope. Aggregates (entity pages, Home
+  trending) count only effectively public ratings, making trending
+  viewer-independent. `visibility_follows` gates the follower/following list
+  endpoints (counts stay public). Defaults: bio/activity `private`;
+  ratings/follows `public` (documented constitutional exceptions — see spec
+  amendments).
 
 ### Tables (current)
 
@@ -212,9 +229,22 @@ users
   bio               VARCHAR(280)
   visibility_bio    VARCHAR NOT NULL DEFAULT 'private'
   visibility_activity VARCHAR NOT NULL DEFAULT 'private'
-  visibility_ratings  VARCHAR NOT NULL DEFAULT 'private'
+  visibility_ratings  VARCHAR NOT NULL DEFAULT 'public'   ← master switch; public default is a documented exception
+  visibility_follows  VARCHAR NOT NULL DEFAULT 'public'   ← gates follow lists; public default is a documented exception
+  melody_accept_scope VARCHAR NOT NULL DEFAULT 'everyone' ← who may send this user a Melody
+  is_moderator      BOOLEAN NOT NULL DEFAULT false        ← granted only via manual SQL, never via API
+  suspended_at      TIMESTAMPTZ                           ← NULL = active; doubles as flag + audit timestamp; unsuspend is manual SQL
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+
+spotify_connections
+  id                       UUID PK
+  user_id                  UUID FK → users.id UNIQUE NOT NULL (CASCADE)
+  spotify_user_id          VARCHAR NOT NULL
+  refresh_token_encrypted  VARCHAR NOT NULL   ← Fernet ciphertext, never plaintext
+  scopes                   VARCHAR NOT NULL
+  connected_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+  -- The ONLY persisted Spotify data. Listening data is display-only.
 
 artists
   id            UUID PK
@@ -255,6 +285,8 @@ ratings
   review_text   VARCHAR(2000) NOT NULL
   visibility    VARCHAR NOT NULL DEFAULT 'public'
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  hidden_at     TIMESTAMPTZ                     ← moderation soft-hide; author still sees their own
+  hidden_by     UUID FK → users.id              ← acting moderator
   INDEX ix_ratings_user_id (user_id)
   INDEX ix_ratings_entity (entity_type, entity_id, created_at)
   INDEX ix_ratings_user_entity_created (user_id, entity_type, entity_id, created_at)
@@ -263,9 +295,13 @@ reports
   id            UUID PK
   reporter_id   UUID FK → users.id NOT NULL
   rating_id     UUID FK → ratings.id NOT NULL
+  status        VARCHAR NOT NULL DEFAULT 'open'  ← 'open' | 'dismissed' | 'actioned'
+  resolved_at   TIMESTAMPTZ
+  resolved_by   UUID FK → users.id               ← acting moderator
   UNIQUE (reporter_id, rating_id)
   INDEX ix_reports_reporter_id (reporter_id)
   INDEX ix_reports_rating_id (rating_id)
+  INDEX ix_reports_status_created (status, created_at)
 
 follows
   follower_id   UUID FK → users.id NOT NULL (CASCADE)
@@ -275,7 +311,41 @@ follows
   CHECK ck_follows_no_self_follow (follower_id != followed_id)
   INDEX ix_follows_followed_id (followed_id)   ← who follows this user?
   INDEX ix_follows_follower_id (follower_id)   ← who does this user follow?
+
+melodies
+  id            UUID PK
+  sender_id     UUID FK → users.id NOT NULL     ← always a real human sender (ENGINEERING_BIBLE §6)
+  recipient_id  UUID FK → users.id NOT NULL
+  track_id      UUID FK → tracks.id NOT NULL    ← real FK; track-only, no polymorphism; no message column
+  status        VARCHAR NOT NULL DEFAULT 'sent' ← 'sent'|'received'|'accepted'|'opened'|'rejected'
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  received_at   TIMESTAMPTZ
+  responded_at  TIMESTAMPTZ
+  CHECK ck_melodies_no_self_send (sender_id != recipient_id)
+  CHECK ck_melodies_status (status IN the 5 values above)
+  UNIQUE uq_melodies_pending_dedup (sender_id, recipient_id, track_id) WHERE status IN ('sent','received')
+  INDEX ix_melodies_recipient_inbox (recipient_id, created_at, id)
+  INDEX ix_melodies_sender_sent (sender_id, created_at, id)
+
+notifications
+  id            UUID PK
+  user_id       UUID FK → users.id NOT NULL     ← recipient
+  type          VARCHAR NOT NULL                ← 'melody_received' | 'new_follower'
+  actor_id      UUID FK → users.id NOT NULL
+  melody_id     UUID FK → melodies.id           ← nullable
+  read_at       TIMESTAMPTZ
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  INDEX ix_notifications_user_list (user_id, created_at, id)
+  INDEX ix_notifications_unread (user_id) WHERE read_at IS NULL
+  UNIQUE uq_notifications_follower (user_id, actor_id) WHERE type = 'new_follower'
+  UNIQUE uq_notifications_melody (melody_id) WHERE melody_id IS NOT NULL
 ```
+
+Notifications are created synchronously in the same transaction as their
+trigger (Melody send, follow insert) via `ON CONFLICT DO NOTHING`, keying on
+the two idempotency uniques above — a re-follow never re-notifies, a Melody
+notifies exactly once. This is a documented coupling; an outbox table is the
+Phase 2 seam if more event types are added.
 
 ---
 
@@ -325,15 +395,18 @@ SELECT AVG(score) FROM (
   SELECT score,
     ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) AS rn
   FROM ratings
-  WHERE entity_type = :et AND entity_id = :eid AND visibility = 'public'
+  JOIN users ON users.id = ratings.user_id
+  WHERE entity_type = :et AND entity_id = :eid
+    AND ratings.visibility = 'public'
+    AND users.visibility_ratings = 'public'   -- master switch (Amendments 2026-07-04)
 ) sub WHERE rn = 1
 ```
 
-This correctly handles re-ratings (only the most recent counts) without requiring an `is_current` flag to be maintained across inserts and deletes.
+This correctly handles re-ratings (only the most recent counts) without requiring an `is_current` flag to be maintained across inserts and deletes. Only *effectively public* ratings (public at both the per-rating and profile level) ever move an aggregate — a private rating must never shift a public number.
 
 ### Visibility Default Exception
 
-All other user-generated content in Harmoniq defaults to `private`. Ratings default to `public` — an explicit, approved exception. Ratings are the primary social signal of the product; a private-by-default system would be dark from launch. This exception is recorded in `specs/phase-1-ratings-reviews.md`.
+All other user-generated content in Harmoniq defaults to `private`. Ratings default to `public` — an explicit, approved exception. Ratings are the primary social signal of the product; a private-by-default system would be dark from launch. With the 2026-07-04 master-switch amendment, the profile-level `visibility_ratings` and the new `visibility_follows` settings also default to `public` under the same reasoning. These exceptions are recorded in `specs/phase-1-ratings-reviews.md` and `specs/phase-1-user-accounts-profiles.md`.
 
 ### Report Duplicate Prevention
 
@@ -360,9 +433,13 @@ placeholder values.
 | `R2_SECRET_ACCESS_KEY` | Railway env var | Avatar upload |
 | `R2_BUCKET_NAME` | Railway env var | Avatar upload |
 | `R2_PUBLIC_URL` | Railway env var | Avatar URL generation |
+| `SPOTIFY_CLIENT_ID` | Railway env var | Spotify account linking |
+| `SPOTIFY_CLIENT_SECRET` | Railway env var | Spotify token exchange |
+| `SPOTIFY_REDIRECT_URI` | Railway env var | OAuth redirect (must match dashboard exactly) |
+| `TOKEN_ENCRYPTION_KEY` | Railway env var | Refresh-token encryption + OAuth state signing |
 
-R2 and Clerk SK/webhook credentials are optional at import time and
-validated at their call sites — Alembic migrations can run with only
+R2, Clerk SK/webhook, and Spotify credentials are optional at import time
+and validated at their call sites — Alembic migrations can run with only
 `DATABASE_URL` and `CLERK_JWKS_URL` set.
 
 ---
@@ -438,3 +515,6 @@ this is wired up.
 | [0004](docs/adr/0004-authentication.md) | Authentication: Clerk |
 | [0005](docs/adr/0005-hosting.md) | Hosting: Vercel + Railway |
 | [0006](docs/adr/0006-music-database.md) | Music catalog: MusicBrainz |
+| [0007](docs/adr/0007-backend-testing-strategy.md) | Backend testing strategy |
+| [0008](docs/adr/0008-profile-discoverability.md) | Profile discoverability: every profile findable, content private |
+| [0009](docs/adr/0009-melody-no-message-embed-card.md) | Melody carries no message; renders as an embed card |

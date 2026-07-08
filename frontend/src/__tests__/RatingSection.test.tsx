@@ -35,10 +35,12 @@ vi.mock("@/components/RatingComposer", () => ({
   },
 }));
 
-// ReviewList: renders review IDs so tests can count/inspect them
+// ReviewList: renders review IDs so tests can count/inspect them, and a
+// per-item delete trigger so tests can exercise onDeleted.
 vi.mock("@/components/ReviewList", () => ({
   default: ({
     reviews,
+    onDeleted,
   }: {
     reviews: RatingRead[];
     onDeleted: (id: string) => void;
@@ -48,6 +50,9 @@ vi.mock("@/components/ReviewList", () => ({
       {reviews.map((r) => (
         <li key={r.id} data-testid="review-item" data-review-id={r.id}>
           {r.reviewer.username}: {r.score}
+          <button data-testid={`delete-${r.id}`} onClick={() => onDeleted(r.id)}>
+            delete
+          </button>
         </li>
       ))}
     </ul>
@@ -174,5 +179,26 @@ describe("RatingSection — optimistic update on submit", () => {
     );
 
     expect(screen.getByTestId("composer-prefilled").textContent).toBe("blank");
+  });
+
+  it("removes the review row when a review is deleted", async () => {
+    render(
+      <RatingSection
+        entityType="album"
+        entityMbid="mbid-1"
+        initialReviews={[reviewA, reviewB]}
+        initialAggregate={7.0}
+      />
+    );
+
+    expect(screen.getAllByTestId("review-item")).toHaveLength(2);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("delete-r-a"));
+    });
+
+    const itemsAfter = screen.getAllByTestId("review-item");
+    expect(itemsAfter).toHaveLength(1);
+    expect(screen.queryByText(/alice: 8/)).toBeNull();
   });
 });

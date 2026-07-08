@@ -20,7 +20,14 @@ vi.mock("@clerk/nextjs", () => ({
 
 // Render next/link as a plain <a> so href and aria-current are queryable
 vi.mock("next/link", () => ({
-  default: function MockLink({ href, children, ...props }: any) {
+  default: function MockLink({
+    href,
+    children,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    href: string;
+    children: React.ReactNode;
+  }) {
     return (
       <a href={href} {...props}>
         {children}
@@ -39,6 +46,10 @@ vi.mock("@/components/NavAuth", () => ({
 
 vi.mock("@/components/EqualizerGlyph", () => ({
   default: () => <span data-testid="equalizer-glyph" />,
+}));
+
+vi.mock("@/components/NotificationBell", () => ({
+  default: () => <span data-testid="notification-bell" />,
 }));
 
 // Must import AppShell after mocks are registered
@@ -67,19 +78,21 @@ describe("AppShell sidebar navigation", () => {
     mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true, getToken: vi.fn() });
   });
 
-  it("renders all four nav links when signed in", () => {
+  it("renders all five nav links when signed in", () => {
     render(<AppShell>content</AppShell>);
     expect(screen.getByRole("link", { name: "Home" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Search" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "Melodies" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Profile" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Settings" })).toBeDefined();
   });
 
-  it("hides the Profile link when signed out", () => {
+  it("hides the Profile and Melodies links when signed out", () => {
     mockUseUser.mockReturnValue(signedOut);
     mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: false, getToken: vi.fn() });
     render(<AppShell>content</AppShell>);
     expect(screen.queryByRole("link", { name: "Profile" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Melodies" })).toBeNull();
     // Other links are still present
     expect(screen.getByRole("link", { name: "Home" })).toBeDefined();
     expect(screen.getByRole("link", { name: "Settings" })).toBeDefined();

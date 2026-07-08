@@ -146,6 +146,22 @@ R2_BUCKET_NAME=harmoniq-avatars
 R2_PUBLIC_URL=https://pub-xxxx.r2.dev
 ```
 
+Additional variables for Spotify account linking (see "Spotify setup" below):
+
+```env
+# Spotify Developer Dashboard → your app → Settings
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+# Must EXACTLY match the redirect URI registered in the dashboard.
+# New Spotify apps require a loopback IP literal (127.0.0.1, not localhost).
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:3000/spotify-callback
+
+# Fernet key encrypting stored Spotify refresh tokens (also signs OAuth state).
+# Generate once:  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Rotating or losing it orphans stored tokens — users just reconnect.
+TOKEN_ENCRYPTION_KEY=
+```
+
 ### Frontend (`frontend/.env.local`)
 
 ```env
@@ -164,16 +180,23 @@ The onboarding gate reads `publicMetadata.onboarded` from the Clerk JWT. For
 this to work, you must add a custom claim to the session token:
 
 1. Go to **Clerk Dashboard → Configure → Sessions → Customize session token**
-2. Add the following JSON under "Claims":
+2. Add the following JSON under "Claims" — the shorthand must be written
+   **without spaces inside the braces**, exactly as shown:
    ```json
    {
-     "metadata": "{{ user.public_metadata }}"
+     "metadata": "{{user.public_metadata}}"
    }
    ```
+   ⚠️ `"{{ user.public_metadata }}"` (with spaces) is NOT interpolated —
+   Clerk passes it through as a literal string, the middleware can't read
+   `metadata.onboarded`, and every protected page bounces through
+   /onboarding. Verify after saving: the minted session token's `metadata`
+   claim must be a JSON object, not a `{{ … }}` string.
 3. Save. New tokens issued after this point will include the `metadata` claim.
 
-Without this step, authenticated users will be redirected to `/onboarding` on
-every page load even after completing onboarding.
+Without this step, authenticated users cannot be gated to `/onboarding`
+after sign-up (the middleware skips the gate when the claim is missing or
+malformed rather than bouncing everyone).
 
 ### Webhook endpoint (optional for local dev)
 
@@ -217,6 +240,42 @@ If you want avatar uploads to work locally:
 
 Without R2 configured, the `POST /api/v1/users/me/avatar` endpoint returns
 503. All other endpoints work normally.
+
+---
+
+## 6b. Spotify setup (account linking + listening display)
+
+1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   and create an app (Development Mode is fine — capped at 5 users).
+2. In the app's settings, add the redirect URI **exactly**:
+   `http://127.0.0.1:3000/spotify-callback`
+   (Spotify's 2025 policy rejects `localhost` for new apps — loopback IP
+   literal required. You still browse the app on `http://localhost:3000`
+   as normal: Clerk dev sessions only exist on the localhost origin, so
+   the callback page automatically forwards Spotify's 127.0.0.1 redirect
+   back to localhost before completing the connection.)
+3. Under **User Management**, add the Spotify account email of every user
+   who will connect (dev-mode allowlist). A 403 "user not registered"
+   during OAuth means the account isn't on this list.
+   ⚠️ **Inviting testers:** this cap is hard — 5 external users max in
+   Development Mode, each pre-registered by email here before they can
+   link. If Spotify linking isn't part of what you're testing with a given
+   cohort, skip this step entirely; every other feature works without it.
+4. Copy the Client ID and Client Secret into `backend/.env`
+   (`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`).
+5. Generate the token-encryption key:
+
+   ```bash
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+
+   and set it as `TOKEN_ENCRYPTION_KEY`.
+
+Without Spotify configured, `GET /api/v1/spotify/connect-url` returns 503
+and the settings page shows the connect button's error state. All other
+endpoints work normally. Only the encrypted refresh token is stored;
+listening data is fetched live and never persisted
+(specs/phase-1-spotify-listening.md).
 
 ---
 
@@ -286,6 +345,25 @@ npm run typecheck
 # Lint
 npm run lint
 ```
+
+---
+
+## 8b. Granting moderator access
+
+`is_moderator` is granted only via a direct database write — no API path
+sets it (Founder decision, 2026-07-07; see `specs/phase-1-moderation.md`).
+The moderation surface itself is existence-hidden (404, not 403) for
+non-moderators, so there is nothing to configure beyond this column.
+
+```sql
+UPDATE users SET is_moderator = true WHERE username = 'your-username';
+```
+
+Run this against the target database (local Postgres, a Neon branch, or
+the deployed instance) after the account has completed onboarding. To
+revoke: set it back to `false`. There is no in-app UI for this by design —
+see `specs/phase-1-moderation.md` Known Limitations before scaling past a
+single Founder-moderator.
 
 ---
 

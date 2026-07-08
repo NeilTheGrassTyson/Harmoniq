@@ -1,12 +1,12 @@
 "use client";
 
-// Fully dynamic page — prerendering is not useful here since content depends
-// entirely on ?q= param. useSearchParams is safe without an outer Suspense
-// boundary when the component is never statically prerendered.
+// Content depends entirely on the ?q= param. useSearchParams requires a
+// Suspense boundary above it so the static prerender of the shell can
+// bail out to client rendering for the query-dependent part.
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import AvatarImage from "@/components/AvatarImage";
@@ -163,18 +163,20 @@ function Section({
   );
 }
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? "";
-  const [state, setState] = useState<SearchState>({ kind: "idle" });
+  // Only the async fetch outcome is state; the view state (idle / loading /
+  // empty / results) is derived at render so no setState fires synchronously
+  // inside the effect.
+  const [fetched, setFetched] = useState<{
+    q: string;
+    people: UserSearchResult[];
+    music: SearchResponse | null;
+  } | null>(null);
 
   useEffect(() => {
-    if (q.length < 2) {
-      setState({ kind: "idle" });
-      return;
-    }
-
-    setState({ kind: "loading" });
+    if (q.length < 2) return;
 
     let cancelled = false;
 
@@ -182,22 +184,11 @@ export default function SearchPage() {
       ([musicSettled, usersSettled]) => {
         if (cancelled) return;
 
-        const music =
-          musicSettled.status === "fulfilled" ? musicSettled.value : null;
-        const people =
-          usersSettled.status === "fulfilled" ? usersSettled.value : [];
-
-        const hasMusic =
-          music !== null &&
-          (music.artists.length > 0 ||
-            music.albums.length > 0 ||
-            music.tracks.length > 0);
-
-        if (people.length === 0 && !hasMusic) {
-          setState({ kind: "empty" });
-        } else {
-          setState({ kind: "results", people, music });
-        }
+        setFetched({
+          q,
+          people: usersSettled.status === "fulfilled" ? usersSettled.value : [],
+          music: musicSettled.status === "fulfilled" ? musicSettled.value : null,
+        });
       }
     );
 
@@ -206,9 +197,25 @@ export default function SearchPage() {
     };
   }, [q]);
 
+  let state: SearchState;
+  if (q.length < 2) {
+    state = { kind: "idle" };
+  } else if (fetched === null || fetched.q !== q) {
+    state = { kind: "loading" };
+  } else {
+    const hasMusic =
+      fetched.music !== null &&
+      (fetched.music.artists.length > 0 ||
+        fetched.music.albums.length > 0 ||
+        fetched.music.tracks.length > 0);
+    state =
+      fetched.people.length === 0 && !hasMusic
+        ? { kind: "empty" }
+        : { kind: "results", people: fetched.people, music: fetched.music };
+  }
+
   return (
-    <AppShell>
-      <main style={{ padding: "26px 22px 30px", maxWidth: 680 }}>
+    <main style={{ padding: "26px 22px 30px", maxWidth: 680 }}>
         {q.length < 2 && (
           <div
             style={{
@@ -324,7 +331,16 @@ export default function SearchPage() {
             )}
           </>
         )}
-      </main>
+    </main>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <AppShell>
+      <Suspense fallback={null}>
+        <SearchContent />
+      </Suspense>
     </AppShell>
   );
 }

@@ -2381,6 +2381,21 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<8)"]
 
 [[package]]
+name = "respx"
+version = "0.22.0"
+description = "A utility for mocking out the Python HTTPX and HTTP Core libraries."
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "respx-0.22.0-py2.py3-none-any.whl", hash = "sha256:631128d4c9aba15e56903fb5f66fb1eff412ce28dd387ca3a81339e52dbd3ad0"},
+    {file = "respx-0.22.0.tar.gz", hash = "sha256:3c8924caa2a50bd71aefc07aa812f2466ff489f1848c96e954a5362d17095d91"},
+]
+
+[package.dependencies]
+httpx = ">=0.25.0"
+
+[[package]]
 name = "rsa"
 version = "4.9.1"
 description = "Pure-Python RSA implementation"
@@ -3138,4 +3153,4 @@ dev = ["pytest", "setuptools"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "d693de91f124086637df10df152bae43e317a17d6223bd3ebf5f12e57b2fdbaa"
+content-hash = "e10b0795c59cd919da9461c0024523d8900d401c0efbcc6aba308094356e8be8"

@@ -372,3 +372,41 @@ None.
 ---
 
 *Approved 2026-06-18. Implementation proceeds under the standard Review Workflow in WORKFLOW.md.*
+
+---
+
+# Amendments — 2026-07-05 (Founder-approved)
+
+## C1. Search relevance filtering
+
+Search results were previously unfiltered by relevance: `app/services/musicbrainz.py`'s
+three search functions returned raw MusicBrainz hits verbatim, and only
+artists were screened for MusicBrainz's "Special Purpose" housekeeping
+entries (`[unknown]`, `[data]`, etc.) — never albums or tracks, even though
+those carry the same problem one level deeper (a legitimately-titled
+release credited to a housekeeping artist).
+
+`app/services/catalog.py` now applies, for all three categories:
+
+* A minimum relevance threshold on MusicBrainz's own `score` field
+  (0–100 Lucene relevance) — `_MIN_RELEVANCE_SCORE = 50`, a module
+  constant, tunable later, not exposed via the API.
+* The housekeeping-name filter, extended to albums and tracks by checking
+  the *artist-credit* name (via the existing `_primary_artist_name`
+  helper) rather than the release/recording title — the bracketed-name
+  problem lives on the artist, not the album/track title.
+* Results sorted by score descending and capped at
+  `_MAX_RESULTS_PER_CATEGORY = 5` (matching the prior de facto count, now
+  chosen deliberately from a larger, ranked pool rather than incidentally
+  from an unranked one).
+
+To give the filter enough headroom, `search_artists`/`search_release_groups`/
+`search_recordings` now request `limit=20` from MusicBrainz by default
+(previously `5`), still filtered back down to 5 before returning.
+
+## C2. Cover art explicitly out of scope
+
+This amendment does **not** touch cover-art sourcing or verification —
+`_CAA_URL` is still built unconditionally from the MBID with no existence
+check, per an explicit Founder decision to scope this pass to search
+relevance only. Any cover-art fix remains a separate, future piece of work.

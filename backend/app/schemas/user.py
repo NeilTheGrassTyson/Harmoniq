@@ -2,7 +2,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.core.enums import VisibilityScope
+from app.core.enums import MelodyAcceptScope, VisibilityScope
 from app.schemas.follow import FollowState
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9_-]{3,30}$")
@@ -72,6 +72,8 @@ class ProfileUpdateRequest(BaseModel):
     visibility_bio: VisibilityScope | None = None
     visibility_activity: VisibilityScope | None = None
     visibility_ratings: VisibilityScope | None = None
+    visibility_follows: VisibilityScope | None = None
+    melody_accept_scope: MelodyAcceptScope | None = None
 
     @field_validator("username")
     @classmethod
@@ -135,6 +137,10 @@ class OwnProfileResponse(BaseModel):
     visibility_bio: VisibilityScope
     visibility_activity: VisibilityScope
     visibility_ratings: VisibilityScope
+    visibility_follows: VisibilityScope
+    melody_accept_scope: MelodyAcceptScope
+    # Never present on public profile responses — own-profile only.
+    is_moderator: bool = False
 
 
 class UsernameCheckResponse(BaseModel):

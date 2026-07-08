@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
 import AvatarImage from "@/components/AvatarImage";
 import { getFollowing } from "@/lib/follows";
@@ -11,10 +12,12 @@ export default async function FollowingPage(props: {
 }) {
   const { username } = await props.params;
   const { cursor } = await props.searchParams;
+  const { getToken } = await auth();
+  const token = await getToken().catch(() => null);
 
   let profile;
   try {
-    profile = await getProfile(username);
+    profile = await getProfile(username, token ?? undefined);
   } catch (err: unknown) {
     const status =
       err instanceof Error && (err as Error & { status?: number }).status === 404 ? 404 : 503;
@@ -22,7 +25,14 @@ export default async function FollowingPage(props: {
     throw err;
   }
 
-  const data = await getFollowing(username, cursor).catch(() => ({ items: [], next_cursor: null }));
+  const { data, listPrivate } = await getFollowing(username, cursor, 20, token ?? undefined).then(
+    (result) => ({ data: result, listPrivate: false }),
+    (err: unknown) => ({
+      data: { items: [], next_cursor: null },
+      listPrivate:
+        err instanceof Error && (err as Error & { status?: number }).status === 403,
+    })
+  );
 
   return (
     <AppShell>
@@ -39,7 +49,9 @@ export default async function FollowingPage(props: {
           </h1>
         </div>
 
-        {data.items.length === 0 ? (
+        {listPrivate ? (
+          <p className="text-sm text-tertiary">This list is private.</p>
+        ) : data.items.length === 0 ? (
           <p className="text-sm text-tertiary">Not following anyone yet.</p>
         ) : (
           <ul className="divide-y divide-hairline">

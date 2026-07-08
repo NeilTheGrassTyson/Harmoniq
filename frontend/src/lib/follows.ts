@@ -46,19 +46,27 @@ export function getFollowState(username: string, token?: string): Promise<Follow
 export function getFollowers(
   username: string,
   cursor?: string,
-  limit = 20
+  limit = 20,
+  token?: string
 ): Promise<FollowListResponse> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set("cursor", cursor);
-  return followsGet<FollowListResponse>(`/${encodeURIComponent(username)}/followers?${params}`);
+  return followsGet<FollowListResponse>(
+    `/${encodeURIComponent(username)}/followers?${params}`,
+    token
+  );
 }
 
 export function getFollowing(
   username: string,
   cursor?: string,
-  limit = 20
+  limit = 20,
+  token?: string
 ): Promise<FollowListResponse> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set("cursor", cursor);
-  return followsGet<FollowListResponse>(`/${encodeURIComponent(username)}/following?${params}`);
+  return followsGet<FollowListResponse>(
+    `/${encodeURIComponent(username)}/following?${params}`,
+    token
+  );
 }

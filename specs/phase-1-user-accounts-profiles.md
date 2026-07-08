@@ -377,3 +377,91 @@ gates render output.
 - Real ratings count — query from ratings table when that feature lands.
 - Real listening activity — replace placeholder when listen-log feature lands.
 - Shared TypeScript type generation from Pydantic schemas — deferred to Phase NEXT.
+
+---
+
+# Amendments — 2026-07-04 (Founder-approved)
+
+## A1. New profile setting: `visibility_follows`
+
+A fourth visibility scope joins `visibility_bio` / `visibility_activity` /
+`visibility_ratings`:
+
+* `visibility_follows` — governs who may view the user's **follower and
+  following lists** (`GET /api/v1/follows/{username}/followers` and
+  `/following`). Scope values are the standard `public` / `friends` /
+  `private`. The owner always sees their own lists. Denied viewers receive
+  403 ("This list is private."), not an empty list.
+* **Follower/following counts remain always-visible** on the profile
+  (Instagram model — the numbers are identity-card facts; the names are
+  the shareable content).
+* `GET /api/v1/follows/{username}/state` (the viewer's own relationship to
+  the profile) is unaffected — it reveals only the viewer's own edges.
+
+## A2. Default is `public` — a documented constitutional exception
+
+Unlike the other three scopes (default `private`), `visibility_follows`
+defaults to **public**, for both new accounts and all existing rows
+(migration backfill). This is a deliberate exception to the
+"default private" convention and to ENGINEERING_BIBLE §8.1's
+most-private-default rule, approved by the Founder 2026-07-04 under
+HARMONIQ.md's constitutional-exception process, on the same reasoning as
+the ratings public default: the follow graph is the connective tissue of a
+social product, and a dark-by-default graph would make discovery through
+people impossible at launch. The setting exists so consent is explicit,
+specific, and revocable — any user can tighten it at any time and the
+change takes effect immediately.
+
+Prior to this amendment the lists were world-readable with **no** setting;
+this amendment strictly increases user control.
+
+## A3. `visibility_ratings` default flips to `public`
+
+With the ratings master switch (see phase-1-ratings-reviews.md, Amendment
+A1), a `private` profile-level default would hide every new user's public
+reviews from everyone. `visibility_ratings` therefore now defaults to
+`public` for new accounts, and existing rows are backfilled to `public`
+(behavior-preserving: before the master switch, existing public reviews
+were already visible; the old setting only hid the profile count).
+`visibility_bio` and `visibility_activity` keep their `private` defaults.
+
+---
+
+# Amendments — 2026-07-05 (Founder-approved)
+
+## A4. Profile editing moves inline; `/settings` repurposed
+
+Editing your own profile (avatar, display name, username, bio, all four
+visibility scopes, and the Spotify connected-accounts controls) no longer
+lives on a dedicated `/settings` page. It now reveals inline on the profile
+page itself (`/u/{username}`), behind an "Edit profile" toggle, with
+Save/Cancel — `ProfileHeader` owns the open/closed state and
+`ProfileEditPanel` holds the form (`frontend/src/components/`). The
+"Add a bio" prompt shown when a bio is empty opens the same panel instead
+of navigating away.
+
+`/settings` is retained as a route, but repurposed: it is now reserved for
+future **global application settings** (accessibility, notifications, and
+similar account-wide preferences that aren't specific to the public
+profile) — none of which are implemented yet. It currently renders a
+placeholder.
+
+**Username-change navigation:** because editing now happens on the route
+that itself is keyed by username, a successful save that changed the
+username navigates the browser to `/u/{newUsername}` (client-side,
+`router.replace`) rather than merely refreshing in place; an unchanged
+username triggers a plain `router.refresh()` so any other server-rendered
+data on the page (e.g. the ratings list) stays in sync with the edit.
+
+**Spotify OAuth callback target:** the callback page
+(`frontend/src/app/spotify-callback/page.tsx`) now redirects to
+`/u/{username}?spotify=connected` on success (previously
+`/settings?spotify=connected`), fetching the username via `GET /users/me`
+immediately after the token exchange. The profile page reads the
+`spotify=connected` query param server-side and passes it down as a plain
+`autoOpenEdit` boolean prop — the edit panel never reads `useSearchParams`
+itself, avoiding any client-side Suspense-boundary concern.
+
+No backend changes were required for this amendment — `GET /users/me` /
+`PATCH /users/me` and `GET /users/{username}` are unchanged; the edit panel
+simply calls the same endpoints the old settings page called.

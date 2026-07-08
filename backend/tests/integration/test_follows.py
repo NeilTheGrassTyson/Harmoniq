@@ -6,7 +6,6 @@ Each test gets its own `db_session` wrapped in a transaction that rolls back
 on teardown for full isolation.
 """
 
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -604,3 +603,134 @@ class TestFollowsAPI:
         app.dependency_overrides.clear()
 
         assert 429 in responses, "Expected a 429 after exceeding the rate limit"
+
+
+# ── §4.8 Follow-list visibility (visibility_follows gating) ───────────────────
+
+
+@pytest.mark.integration
+class TestFollowListVisibility:
+    """
+    visibility_follows gates the follower/following LIST endpoints (user
+    accounts spec, Amendments 2026-07-04). Default is public (documented
+    constitutional exception); owner always sees own lists; denied viewers
+    get 403, not an empty list. Counts are not gated.
+    """
+
+    async def _authed_client(
+        self, db_session: AsyncSession, clerk_id: str
+    ) -> AsyncClient:
+        async def _current_user() -> str:
+            return clerk_id
+
+        async def _optional_id() -> str | None:
+            return clerk_id
+
+        app.dependency_overrides[get_db] = _db_override(db_session)
+        app.dependency_overrides[get_current_user] = _current_user
+        app.dependency_overrides[get_optional_clerk_id] = _optional_id
+        from httpx import ASGITransport
+
+        return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+    def _anon_client(self, db_session: AsyncSession) -> AsyncClient:
+        from httpx import ASGITransport
+
+        app.dependency_overrides[get_db] = _db_override(db_session)
+        return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+    async def test_default_public_lists_visible_to_anonymous(
+        self, db_session: AsyncSession
+    ) -> None:
+        a = await _make_user(db_session, clerk_id="fw_vis_01a", username="fw_vis_01a")
+        b = await _make_user(db_session, clerk_id="fw_vis_01b", username="fw_vis_01b")
+        await _follow(db_session, a, b)
+
+        async with self._anon_client(db_session) as client:
+            resp = await client.get(f"/api/v1/follows/{b.username}/followers")
+        app.dependency_overrides.clear()
+        assert resp.status_code == 200
+
+    async def test_private_lists_hidden_from_anonymous(
+        self, db_session: AsyncSession
+    ) -> None:
+        a = await _make_user(db_session, clerk_id="fw_vis_02a", username="fw_vis_02a")
+        b = await _make_user(db_session, clerk_id="fw_vis_02b", username="fw_vis_02b")
+        b.visibility_follows = "private"
+        await _follow(db_session, a, b)
+
+        async with self._anon_client(db_session) as client:
+            followers = await client.get(f"/api/v1/follows/{b.username}/followers")
+            following = await client.get(f"/api/v1/follows/{b.username}/following")
+        app.dependency_overrides.clear()
+        assert followers.status_code == 403
+        assert following.status_code == 403
+
+    async def test_private_lists_hidden_from_signed_in_stranger(
+        self, db_session: AsyncSession
+    ) -> None:
+        a = await _make_user(db_session, clerk_id="fw_vis_03a", username="fw_vis_03a")
+        b = await _make_user(db_session, clerk_id="fw_vis_03b", username="fw_vis_03b")
+        b.visibility_follows = "private"
+        await _follow(db_session, a, b)
+
+        async with await self._authed_client(db_session, a.clerk_id) as client:
+            resp = await client.get(f"/api/v1/follows/{b.username}/followers")
+        app.dependency_overrides.clear()
+        assert resp.status_code == 403
+
+    async def test_owner_always_sees_own_private_lists(
+        self, db_session: AsyncSession
+    ) -> None:
+        a = await _make_user(db_session, clerk_id="fw_vis_04a", username="fw_vis_04a")
+        b = await _make_user(db_session, clerk_id="fw_vis_04b", username="fw_vis_04b")
+        b.visibility_follows = "private"
+        await _follow(db_session, a, b)
+
+        async with await self._authed_client(db_session, b.clerk_id) as client:
+            resp = await client.get(f"/api/v1/follows/{b.username}/followers")
+        app.dependency_overrides.clear()
+        assert resp.status_code == 200
+        assert len(resp.json()["items"]) == 1
+
+    async def test_friends_scope_allows_mutual_follow_only(
+        self, db_session: AsyncSession
+    ) -> None:
+        owner = await _make_user(
+            db_session, clerk_id="fw_vis_05o", username="fw_vis_05o"
+        )
+        friend = await _make_user(
+            db_session, clerk_id="fw_vis_05f", username="fw_vis_05f"
+        )
+        stranger = await _make_user(
+            db_session, clerk_id="fw_vis_05s", username="fw_vis_05s"
+        )
+        owner.visibility_follows = "friends"
+        await _follow(db_session, owner, friend)
+        await _follow(db_session, friend, owner)
+
+        async with await self._authed_client(db_session, friend.clerk_id) as client:
+            as_friend = await client.get(f"/api/v1/follows/{owner.username}/followers")
+        app.dependency_overrides.clear()
+        async with await self._authed_client(db_session, stranger.clerk_id) as client:
+            as_stranger = await client.get(
+                f"/api/v1/follows/{owner.username}/followers"
+            )
+        app.dependency_overrides.clear()
+
+        assert as_friend.status_code == 200
+        assert as_stranger.status_code == 403
+
+    async def test_counts_remain_visible_when_lists_private(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Counts are identity-card facts (Instagram model) — never gated."""
+        a = await _make_user(db_session, clerk_id="fw_vis_06a", username="fw_vis_06a")
+        b = await _make_user(db_session, clerk_id="fw_vis_06b", username="fw_vis_06b")
+        b.visibility_follows = "private"
+        await _follow(db_session, a, b)
+
+        profile = await user_svc.get_profile(db_session, b.username, None)
+        assert profile is not None
+        data = profile.model_dump(exclude_unset=True)
+        assert data["follower_count"] == 1

@@ -112,14 +112,15 @@ These objects are called:
 
 A **Melody** is a recommendation of a song from one user to another.
 
-It contains:
+It renders as an interactive embed card:
 
+- Cover art
 - Song (title + artist)
-- Sender identity
-- Optional short context message (lightweight)
+- Sender identity ("From \<name\>")
 - Timestamp
 
-A Melody is not content.
+There is no message field. The track itself is the gesture — a Melody is
+not content, and it is not a text composer.
 It is a **social gesture encoded as music**.
 
 ---
@@ -130,12 +131,14 @@ A Melody can exist in the following states:
 
 - **Sent**
 - **Received**
-- **Opened**
-- **Accepted (Open)**
-- **Rejected**
-- **Previewed (Demo)**
+- **Accepted** (taken without listening)
+- **Opened** (previewed and visited — also a positive outcome)
+- **Rejected** (recoverable)
 
-Each state is intentional and visible in private user (sender/recipient) history.
+Each state is intentional and visible in private user (sender/recipient)
+history. Every Melody a user receives is kept in their Melody inbox — a
+user-only page listing each Melody, who sent it, and what the recipient
+did with it.
 
 ---
 
@@ -143,11 +146,13 @@ Each state is intentional and visible in private user (sender/recipient) history
 
 When receiving a Melody, the user can:
 
-- **Open** → immediately listen and accept the recommendation  
-- **Demo + Open** → preview before committing  
-- **Reject** → dismiss without social penalty (recoverable from trash) 
+- **Accept** → take the recommendation without listening right now
+- **Open** → go straight to a preview and the song/album page
+- **Reject** → dismiss without social penalty (recoverable from the inbox)
 
-Rejection must remain socially neutral to avoid discouraging sharing. Visible to sender only.
+Accepting and opening are both positive responses. Rejection must remain
+socially neutral to avoid discouraging sharing, and is visible to the
+sender only.
 
 ---
 

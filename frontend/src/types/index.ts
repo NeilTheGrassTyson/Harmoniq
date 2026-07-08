@@ -20,6 +20,7 @@ export interface AlbumResult {
   title: string;
   artist_name: string | null;
   release_year: number | null;
+  album_type?: "album" | "ep" | "single" | "compilation" | "other" | null;
   cover_art_url: string | null;
 }
 
@@ -121,6 +122,8 @@ export interface ProfileResponse {
   ratings_count?: number;
 }
 
+export type MelodyAcceptScope = "everyone" | "follows" | "mutuals";
+
 /** Full profile for the authenticated owner, including visibility settings. */
 export interface OwnProfileResponse {
   username: string;
@@ -130,6 +133,9 @@ export interface OwnProfileResponse {
   visibility_bio: VisibilityScope;
   visibility_activity: VisibilityScope;
   visibility_ratings: VisibilityScope;
+  visibility_follows: VisibilityScope;
+  melody_accept_scope: MelodyAcceptScope;
+  is_moderator: boolean;
 }
 
 export interface UsernameCheckResponse {
@@ -147,6 +153,34 @@ export interface ProfileUpdateRequest {
   visibility_bio?: VisibilityScope;
   visibility_activity?: VisibilityScope;
   visibility_ratings?: VisibilityScope;
+  visibility_follows?: VisibilityScope;
+  melody_accept_scope?: MelodyAcceptScope;
+}
+
+// ── Spotify (account linking + listening display) ─────────────────────────────
+
+export interface SpotifyConnectionStatus {
+  connected: boolean;
+  spotify_user_id: string | null;
+  connected_at: string | null;
+}
+
+export interface ListeningTrack {
+  track_name: string;
+  artist_name: string;
+  album_name: string | null;
+  album_art_url: string | null;
+  spotify_url: string | null;
+}
+
+export interface RecentlyPlayedItem extends ListeningTrack {
+  played_at: string;
+}
+
+export interface ListeningResponse {
+  connected: boolean;
+  now_playing: ListeningTrack | null;
+  recently_played: RecentlyPlayedItem[];
 }
 
 // ── Ratings & Reviews ─────────────────────────────────────────────────────────
@@ -164,6 +198,8 @@ export interface RatingRead {
   review_text: string;
   visibility: VisibilityScope;
   created_at: string;
+  /** True only in the author's own view of a moderation-hidden review. */
+  hidden?: boolean;
 }
 
 export interface EntityRatingListResponse {
@@ -180,6 +216,7 @@ export interface UserRatingRead {
   review_text: string;
   visibility: VisibilityScope;
   created_at: string;
+  hidden?: boolean;
 }
 
 export interface UserRatingListResponse {
@@ -228,4 +265,95 @@ export interface RatingSubmitRequest {
   score: number;
   review_text: string;
   visibility?: VisibilityScope;
+}
+
+// ── Melody ───────────────────────────────────────────────────────────────────
+
+export type MelodyStatus = "sent" | "received" | "accepted" | "opened" | "rejected";
+
+export type MelodyRespondAction = "accept" | "open" | "reject";
+
+/** Recipient's view: true status, sender identity. */
+export interface MelodyInboxItem {
+  id: string;
+  sender: UserSummary;
+  track: TrackSummary;
+  status: MelodyStatus;
+  created_at: string;
+  responded_at: string | null;
+}
+
+/** Sender's view: recipient identity, sender-visible status ('received' shown as 'sent'). */
+export interface MelodySentItem {
+  id: string;
+  recipient: UserSummary;
+  track: TrackSummary;
+  status: MelodyStatus;
+  created_at: string;
+  responded_at: string | null;
+}
+
+export interface MelodyInboxResponse {
+  items: MelodyInboxItem[];
+  next_cursor: string | null;
+}
+
+export interface MelodySentResponse {
+  items: MelodySentItem[];
+  next_cursor: string | null;
+}
+
+// ── Notifications ────────────────────────────────────────────────────────────
+
+export type NotificationType = "melody_received" | "new_follower";
+
+export interface NotificationMelodyRef {
+  id: string;
+  track: TrackSummary;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  actor: UserSummary;
+  melody: NotificationMelodyRef | null;
+  read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  next_cursor: string | null;
+}
+
+export interface UnreadCountResponse {
+  count: number;
+}
+
+// ── Moderation ───────────────────────────────────────────────────────────────
+
+export type ReportStatus = "open" | "dismissed" | "actioned";
+
+export interface ReportedRating {
+  id: string;
+  entity_type: string;
+  score: number;
+  review_text: string;
+  hidden: boolean;
+  author: UserSummary;
+  author_suspended: boolean;
+}
+
+export interface ReportQueueItem {
+  id: string;
+  status: ReportStatus;
+  created_at: string;
+  reporter: UserSummary;
+  rating: ReportedRating;
+  open_report_count: number;
+}
+
+export interface ReportQueueResponse {
+  items: ReportQueueItem[];
+  next_cursor: string | null;
 }

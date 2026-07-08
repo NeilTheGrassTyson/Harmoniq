@@ -65,6 +65,25 @@ export default function SearchBar() {
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+  // URL sync and dropdown fetches run only after the user has actually typed.
+  // Without this gate, mounting on /search?q=… would push a bare /search
+  // (stripping the query), and dismissing the panel after a result click
+  // would fire a competing navigation that cancels the click's.
+  const hasEdited = useRef(false);
+
+  // Restore the query text when landing directly on /search?q=… so the
+  // header input matches the page body. hasEdited stays false: no refetch,
+  // no URL push, no uninvited dropdown. Deferred a tick so no state update
+  // fires synchronously inside the effect body.
+  useEffect(() => {
+    if (pathname !== "/search") return;
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (!q) return;
+    const t = setTimeout(() => setQuery(q), 0);
+    return () => clearTimeout(t);
+    // Mount-only by design; later query changes are user-driven.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -77,6 +96,7 @@ export default function SearchBar() {
   }, []);
 
   useEffect(() => {
+    if (!hasEdited.current) return;
     const trimmed = query.trim();
 
     if (trimmed.length < 2) {
@@ -124,13 +144,16 @@ export default function SearchBar() {
     return () => clearTimeout(timeout);
   }, [query, pathname, router]);
 
+  // Close the panel WITHOUT clearing the query: clearing would re-trigger
+  // the URL-sync effect mid-navigation and cancel the clicked link.
   const dismiss = () => {
-    setQuery("");
     setPanel({ kind: "idle" });
   };
 
   const derivedPanel: PanelState = query.trim().length < 2 ? { kind: "idle" } : panel;
-  const showPanel = derivedPanel.kind !== "idle";
+  // On /search the page body renders the same results — a dropdown on top
+  // of them is duplicate content that occludes the page.
+  const showPanel = derivedPanel.kind !== "idle" && pathname !== "/search";
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -181,7 +204,18 @@ export default function SearchBar() {
       <input
         type="search"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          hasEdited.current = true;
+          setQuery(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          // Escape closes the dropdown only — the browser's native
+          // clear-the-input behavior would wipe the query and results.
+          if (e.key === "Escape") {
+            e.preventDefault();
+            setPanel({ kind: "idle" });
+          }
+        }}
         placeholder="search"
         aria-label="Search artists, albums, tracks, and people"
         aria-expanded={showPanel}

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavAuth from "@/components/NavAuth";
+import NotificationBell from "@/components/NotificationBell";
 import EqualizerGlyph from "@/components/EqualizerGlyph";
 
 function IconMenu({ size = 18 }: { size?: number }) {
@@ -41,6 +42,22 @@ function IconUser({ size = 18 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
       <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconMelody({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 18V5l12-2v13"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -112,23 +129,26 @@ export default function AppShell({ children }: AppShellProps) {
   const { isSignedIn, user } = useUser();
   const username = user?.username ?? null;
 
-  // Auto-collapse on narrow viewports after first render. SSR always starts
-  // open; this effect corrects on the client without blocking paint.
-  useEffect(() => {
-    if (window.innerWidth < MOBILE_BREAKPOINT) {
-      setOpen(false);
-    }
-    const onResize = () => {
+  // Auto-collapse on narrow viewports. SSR always starts open; the layout
+  // effect corrects synchronously before first paint (a rAF callback proved
+  // unreliable here — it can land after paint or be cancelled by a remount,
+  // leaving the sidebar open at phone widths).
+  useLayoutEffect(() => {
+    const collapseIfNarrow = () => {
       if (window.innerWidth < MOBILE_BREAKPOINT) {
         setOpen(false);
       }
     };
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
+    collapseIfNarrow();
+    window.addEventListener("resize", collapseIfNarrow, { passive: true });
+    return () => {
+      window.removeEventListener("resize", collapseIfNarrow);
+    };
   }, []);
 
   const isHomeActive = pathname === "/";
   const isSearchActive = pathname.startsWith("/search");
+  const isMelodiesActive = pathname.startsWith("/melodies");
   const isProfileActive = !!username && pathname.startsWith(`/u/${username}`);
   const isSettingsActive = pathname.startsWith("/settings");
 
@@ -177,8 +197,9 @@ export default function AppShell({ children }: AppShellProps) {
           <SearchBar />
         </div>
 
-        {/* Right: profile */}
-        <div className="flex justify-end">
+        {/* Right: notifications + profile */}
+        <div className="flex items-center justify-end" style={{ gap: 8 }}>
+          <NotificationBell />
           <NavAuth />
         </div>
       </header>
@@ -200,6 +221,14 @@ export default function AppShell({ children }: AppShellProps) {
           >
             <NavLink href="/" icon={<IconHome size={16} />} label="Home" active={isHomeActive} />
             <NavLink href="/search" icon={<IconSearch size={16} />} label="Search" active={isSearchActive} />
+            {isSignedIn && (
+              <NavLink
+                href="/melodies"
+                icon={<IconMelody size={16} />}
+                label="Melodies"
+                active={isMelodiesActive}
+              />
+            )}
             {isSignedIn && username && (
               <NavLink
                 href={`/u/${username}`}
@@ -212,8 +241,10 @@ export default function AppShell({ children }: AppShellProps) {
           </nav>
         </aside>
 
-        {/* Page content — div, not main, so each page can own its own <main> */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Page content — div, not main, so each page can own its own <main>.
+            min-w-0 lets the flex child shrink below content width instead of
+            forcing horizontal overflow on narrow viewports. */}
+        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           {children}
         </div>
       </div>
