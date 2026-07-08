@@ -12,9 +12,33 @@ import EqualizerGlyph from "@/components/EqualizerGlyph";
 function IconMenu({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <line x1="4" x2="20" y1="6" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <line x1="4" x2="20" y1="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <line x1="4" x2="20" y1="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line
+        x1="4"
+        x2="20"
+        y1="6"
+        y2="6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="4"
+        x2="20"
+        y1="12"
+        y2="12"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="4"
+        x2="20"
+        y1="18"
+        y2="18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -22,8 +46,20 @@ function IconMenu({ size = 18 }: { size?: number }) {
 function IconHome({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <polyline
+        points="9 22 9 12 15 12 15 22"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -32,7 +68,15 @@ function IconSearch({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line
+        x1="21"
+        y1="21"
+        x2="16.65"
+        y2="16.65"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -41,7 +85,12 @@ function IconUser({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" />
-      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -91,7 +140,7 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className="flex items-center rounded-nav text-secondary hover:text-primary"
+      className="rounded-nav text-secondary hover:text-primary flex items-center"
       style={{
         padding: "7px 10px",
         gap: 10,
@@ -176,7 +225,7 @@ export default function AppShell({ children }: AppShellProps) {
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
             aria-expanded={open}
-            className="flex items-center justify-center rounded-nav text-secondary hover:text-primary"
+            className="rounded-nav text-secondary hover:text-primary flex items-center justify-center"
             style={{ width: 30, height: 30, color: "#8b93a3" }}
           >
             <IconMenu />
@@ -220,7 +269,12 @@ export default function AppShell({ children }: AppShellProps) {
             style={{ padding: "16px 10px", gap: 2, minWidth: SIDEBAR_WIDTH }}
           >
             <NavLink href="/" icon={<IconHome size={16} />} label="Home" active={isHomeActive} />
-            <NavLink href="/search" icon={<IconSearch size={16} />} label="Search" active={isSearchActive} />
+            <NavLink
+              href="/search"
+              icon={<IconSearch size={16} />}
+              label="Search"
+              active={isSearchActive}
+            />
             {isSignedIn && (
               <NavLink
                 href="/melodies"
@@ -237,16 +291,19 @@ export default function AppShell({ children }: AppShellProps) {
                 active={isProfileActive}
               />
             )}
-            <NavLink href="/settings" icon={<IconSettings size={16} />} label="Settings" active={isSettingsActive} />
+            <NavLink
+              href="/settings"
+              icon={<IconSettings size={16} />}
+              label="Settings"
+              active={isSettingsActive}
+            />
           </nav>
         </aside>
 
         {/* Page content — div, not main, so each page can own its own <main>.
             min-w-0 lets the flex child shrink below content width instead of
             forcing horizontal overflow on narrow viewports. */}
-        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          {children}
-        </div>
+        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</div>
       </div>
     </div>
   );

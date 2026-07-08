@@ -116,7 +116,9 @@ describe("AppShell sidebar navigation", () => {
   it("marks Settings as active on /settings", () => {
     mockUsePathname.mockReturnValue("/settings");
     render(<AppShell>content</AppShell>);
-    expect(screen.getByRole("link", { name: "Settings" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Settings" }).getAttribute("aria-current")).toBe(
+      "page"
+    );
     expect(screen.getByRole("link", { name: "Home" }).getAttribute("aria-current")).toBeNull();
   });
 

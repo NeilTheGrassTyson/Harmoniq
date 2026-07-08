@@ -65,7 +65,7 @@ live penetration testing.
   exists** in `backend/` or `frontend/`, despite `docs/setup.md` referring
   to `cp .env.example .env` and `.env.local.example` in its quick-start
   steps. This is a real onboarding gap for a friend helping debug, not a
-  secrets leak (no secrets are exposed by the *absence* of the file) —
+  secrets leak (no secrets are exposed by the _absence_ of the file) —
   carried into the pre-invite checklist as a concrete fix.
 - No committed secrets found in tracked source (config values are all
   `str | None` env-driven with no hardcoded defaults for keys/tokens).

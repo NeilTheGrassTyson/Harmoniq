@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
-        <body className="h-full bg-canvas text-primary antialiased">{children}</body>
+        <body className="bg-canvas text-primary h-full antialiased">{children}</body>
       </html>
     </ClerkProvider>
   );

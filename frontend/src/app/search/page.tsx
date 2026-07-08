@@ -148,13 +148,7 @@ function SubText({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Section({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: 28 }}>
       <SectionLabel>{label}</SectionLabel>
@@ -180,17 +174,15 @@ function SearchContent() {
 
     let cancelled = false;
 
-    Promise.allSettled([searchCatalog(q), searchUsers(q)]).then(
-      ([musicSettled, usersSettled]) => {
-        if (cancelled) return;
+    Promise.allSettled([searchCatalog(q), searchUsers(q)]).then(([musicSettled, usersSettled]) => {
+      if (cancelled) return;
 
-        setFetched({
-          q,
-          people: usersSettled.status === "fulfilled" ? usersSettled.value : [],
-          music: musicSettled.status === "fulfilled" ? musicSettled.value : null,
-        });
-      }
-    );
+      setFetched({
+        q,
+        people: usersSettled.status === "fulfilled" ? usersSettled.value : [],
+        music: musicSettled.status === "fulfilled" ? musicSettled.value : null,
+      });
+    });
 
     return () => {
       cancelled = true;
@@ -216,121 +208,109 @@ function SearchContent() {
 
   return (
     <main style={{ padding: "26px 22px 30px", maxWidth: 680 }}>
-        {q.length < 2 && (
-          <div
+      {q.length < 2 && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: 80,
+            gap: 12,
+            color: "#8b93a3",
+          }}
+        >
+          <EqualizerGlyph size={36} fill="#8b93a3" />
+          <p
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingTop: 80,
-              gap: 12,
-              color: "#8b93a3",
+              margin: 0,
+              fontSize: 14,
+              fontFamily: "var(--font-space-grotesk), system-ui, sans-serif",
             }}
           >
-            <EqualizerGlyph size={36} fill="#8b93a3" />
-            <p
-              style={{
-                margin: 0,
-                fontSize: 14,
-                fontFamily: "var(--font-space-grotesk), system-ui, sans-serif",
-              }}
-            >
-              Search for music or people
-            </p>
-          </div>
-        )}
-
-        {state.kind === "loading" && q.length >= 2 && (
-          <p style={{ fontSize: 13, color: "#757c8c" }}>Searching…</p>
-        )}
-
-        {state.kind === "empty" && (
-          <p style={{ fontSize: 13, color: "#757c8c" }}>
-            No results for &ldquo;{q}&rdquo;.
+            Search for music or people
           </p>
-        )}
+        </div>
+      )}
 
-        {state.kind === "results" && (
-          <>
-            {state.people.length > 0 && (
-              <Section label="People">
-                {state.people.slice(0, MAX_PER_SECTION).map((u) => (
-                  <li key={u.username}>
-                    <ResultRow href={`/u/${u.username}`}>
-                      <AvatarImage
-                        src={u.avatar_url}
-                        username={u.username}
-                        size={40}
-                      />
-                      <span style={{ minWidth: 0 }}>
-                        <PrimaryText>{u.display_name}</PrimaryText>
-                        <SubText>@{u.username}</SubText>
-                      </span>
-                    </ResultRow>
-                  </li>
-                ))}
-              </Section>
-            )}
+      {state.kind === "loading" && q.length >= 2 && (
+        <p style={{ fontSize: 13, color: "#757c8c" }}>Searching…</p>
+      )}
 
-            {state.music !== null && state.music.artists.length > 0 && (
-              <Section label="Artists">
-                {state.music.artists.slice(0, MAX_PER_SECTION).map((a) => (
-                  <li key={a.mbid}>
-                    <ResultRow href={`/artist/${a.mbid}`}>
-                      <ArtworkBlock src={a.image_url} alt={a.name} round />
-                      <span style={{ minWidth: 0 }}>
-                        <PrimaryText>{a.name}</PrimaryText>
-                        {a.disambiguation && (
-                          <SubText>{a.disambiguation}</SubText>
-                        )}
-                      </span>
-                    </ResultRow>
-                  </li>
-                ))}
-              </Section>
-            )}
+      {state.kind === "empty" && (
+        <p style={{ fontSize: 13, color: "#757c8c" }}>No results for &ldquo;{q}&rdquo;.</p>
+      )}
 
-            {state.music !== null && state.music.albums.length > 0 && (
-              <Section label="Albums">
-                {state.music.albums.slice(0, MAX_PER_SECTION).map((a) => (
-                  <li key={a.mbid}>
-                    <ResultRow href={`/album/${a.mbid}`}>
-                      <ArtworkBlock src={a.cover_art_url} alt={a.title} />
-                      <span style={{ minWidth: 0 }}>
-                        <PrimaryText>{a.title}</PrimaryText>
-                        <SubText>
-                          {[a.artist_name, a.release_year]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </SubText>
-                      </span>
-                    </ResultRow>
-                  </li>
-                ))}
-              </Section>
-            )}
+      {state.kind === "results" && (
+        <>
+          {state.people.length > 0 && (
+            <Section label="People">
+              {state.people.slice(0, MAX_PER_SECTION).map((u) => (
+                <li key={u.username}>
+                  <ResultRow href={`/u/${u.username}`}>
+                    <AvatarImage src={u.avatar_url} username={u.username} size={40} />
+                    <span style={{ minWidth: 0 }}>
+                      <PrimaryText>{u.display_name}</PrimaryText>
+                      <SubText>@{u.username}</SubText>
+                    </span>
+                  </ResultRow>
+                </li>
+              ))}
+            </Section>
+          )}
 
-            {state.music !== null && state.music.tracks.length > 0 && (
-              <Section label="Tracks">
-                {state.music.tracks.slice(0, MAX_PER_SECTION).map((t) => (
-                  <li key={t.mbid}>
-                    <ResultRow href={`/track/${t.mbid}`}>
-                      <span style={{ minWidth: 0, flex: 1 }}>
-                        <PrimaryText>{t.title}</PrimaryText>
-                        <SubText>
-                          {[t.artist_name, t.album_title]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </SubText>
-                      </span>
-                    </ResultRow>
-                  </li>
-                ))}
-              </Section>
-            )}
-          </>
-        )}
+          {state.music !== null && state.music.artists.length > 0 && (
+            <Section label="Artists">
+              {state.music.artists.slice(0, MAX_PER_SECTION).map((a) => (
+                <li key={a.mbid}>
+                  <ResultRow href={`/artist/${a.mbid}`}>
+                    <ArtworkBlock src={a.image_url} alt={a.name} round />
+                    <span style={{ minWidth: 0 }}>
+                      <PrimaryText>{a.name}</PrimaryText>
+                      {a.disambiguation && <SubText>{a.disambiguation}</SubText>}
+                    </span>
+                  </ResultRow>
+                </li>
+              ))}
+            </Section>
+          )}
+
+          {state.music !== null && state.music.albums.length > 0 && (
+            <Section label="Albums">
+              {state.music.albums.slice(0, MAX_PER_SECTION).map((a) => (
+                <li key={a.mbid}>
+                  <ResultRow href={`/album/${a.mbid}`}>
+                    <ArtworkBlock src={a.cover_art_url} alt={a.title} />
+                    <span style={{ minWidth: 0 }}>
+                      <PrimaryText>{a.title}</PrimaryText>
+                      <SubText>
+                        {[a.artist_name, a.release_year].filter(Boolean).join(" · ")}
+                      </SubText>
+                    </span>
+                  </ResultRow>
+                </li>
+              ))}
+            </Section>
+          )}
+
+          {state.music !== null && state.music.tracks.length > 0 && (
+            <Section label="Tracks">
+              {state.music.tracks.slice(0, MAX_PER_SECTION).map((t) => (
+                <li key={t.mbid}>
+                  <ResultRow href={`/track/${t.mbid}`}>
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <PrimaryText>{t.title}</PrimaryText>
+                      <SubText>
+                        {[t.artist_name, t.album_title].filter(Boolean).join(" · ")}
+                      </SubText>
+                    </span>
+                  </ResultRow>
+                </li>
+              ))}
+            </Section>
+          )}
+        </>
+      )}
     </main>
   );
 }

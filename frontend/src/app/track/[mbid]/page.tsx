@@ -30,56 +30,56 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
 
   return (
     <AppShell>
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <div className="mb-8 flex items-start gap-5">
-        <CoverArt src={track.cover_art_url} alt={track.album_title ?? track.title} size={80} />
-        <div className="min-w-0">
-          <h1 className="text-2xl font-light tracking-tight">{track.title}</h1>
+      <main className="mx-auto max-w-2xl px-4 py-10">
+        <div className="mb-8 flex items-start gap-5">
+          <CoverArt src={track.cover_art_url} alt={track.album_title ?? track.title} size={80} />
+          <div className="min-w-0">
+            <h1 className="text-2xl font-light tracking-tight">{track.title}</h1>
 
-          {track.artist_name && track.artist_mbid && (
-            <Link
-              href={`/artist/${track.artist_mbid}`}
-              className="mt-0.5 block text-sm text-secondary hover:text-primary"
-            >
-              {track.artist_name}
-            </Link>
-          )}
+            {track.artist_name && track.artist_mbid && (
+              <Link
+                href={`/artist/${track.artist_mbid}`}
+                className="text-secondary hover:text-primary mt-0.5 block text-sm"
+              >
+                {track.artist_name}
+              </Link>
+            )}
 
-          {track.album_mbid ? (
-            <Link
-              href={`/album/${track.album_mbid}`}
-              className="mt-0.5 block text-sm text-tertiary hover:text-secondary"
-            >
-              {track.album_title ?? "—"}
-            </Link>
-          ) : (
-            <p className="mt-0.5 text-sm text-tertiary">—</p>
-          )}
+            {track.album_mbid ? (
+              <Link
+                href={`/album/${track.album_mbid}`}
+                className="text-tertiary hover:text-secondary mt-0.5 block text-sm"
+              >
+                {track.album_title ?? "—"}
+              </Link>
+            ) : (
+              <p className="text-tertiary mt-0.5 text-sm">—</p>
+            )}
 
-          {track.duration_ms !== null && (
-            <p className="mt-1 text-xs text-tertiary tabular-nums">
-              {formatDuration(track.duration_ms)}
-            </p>
-          )}
+            {track.duration_ms !== null && (
+              <p className="text-tertiary mt-1 text-xs tabular-nums">
+                {formatDuration(track.duration_ms)}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
 
-      <SendMelodyPanel
-        track={{
-          mbid,
-          title: track.title,
-          artist_name: track.artist_name,
-          cover_art_url: track.cover_art_url,
-        }}
-      />
+        <SendMelodyPanel
+          track={{
+            mbid,
+            title: track.title,
+            artist_name: track.artist_name,
+            cover_art_url: track.cover_art_url,
+          }}
+        />
 
-      <RatingSection
-        entityType="track"
-        entityMbid={mbid}
-        initialReviews={track.reviews}
-        initialAggregate={track.aggregate_score}
-      />
-    </main>
+        <RatingSection
+          entityType="track"
+          entityMbid={mbid}
+          initialReviews={track.reviews}
+          initialAggregate={track.aggregate_score}
+        />
+      </main>
     </AppShell>
   );
 }

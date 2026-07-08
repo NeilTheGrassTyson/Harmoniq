@@ -19,41 +19,42 @@ The principles it strengthens are **Identity Before Engagement** (a rating with 
 
 ### In Scope
 
-* Rating submission: an integer score (1–10) paired with a review text (15–2000 characters). Both are required; neither can be submitted without the other.
-* Re-rating: submitting a new rating for an entity the user has already rated. The new rating becomes the user's current rating; the prior rating is preserved in history (not overwritten or deleted).
-* Aggregate score: the average of each user's most recent rating for an entity. Computed dynamically from the `ratings` table; not stored denormalized.
-* Visibility: `public` (default — intentional exception to the "default private" convention used by all other user-generated content), `friends`, or `private`. Per-rating, set at submission time and changeable afterwards.
-* Track detail page: shows aggregate score and list of visible reviews.
-* Album detail page: same as track.
-* User profile page: shows the user's review history (most recent rating per entity).
-* Report: any authenticated user can report a review. One report per (reporter, rating) pair, enforced at DB level.
-* Delete: a user can hard-delete any of their own ratings. Deletion is permanent — no soft delete in Phase 1.
-* Rate limiting: 10 submissions per minute per user; 20 reports per minute per user.
-* Observability: submit, delete, report, and unauthorized-action attempts are logged.
+- Rating submission: an integer score (1–10) paired with a review text (15–2000 characters). Both are required; neither can be submitted without the other.
+- Re-rating: submitting a new rating for an entity the user has already rated. The new rating becomes the user's current rating; the prior rating is preserved in history (not overwritten or deleted).
+- Aggregate score: the average of each user's most recent rating for an entity. Computed dynamically from the `ratings` table; not stored denormalized.
+- Visibility: `public` (default — intentional exception to the "default private" convention used by all other user-generated content), `friends`, or `private`. Per-rating, set at submission time and changeable afterwards.
+- Track detail page: shows aggregate score and list of visible reviews.
+- Album detail page: same as track.
+- User profile page: shows the user's review history (most recent rating per entity).
+- Report: any authenticated user can report a review. One report per (reporter, rating) pair, enforced at DB level.
+- Delete: a user can hard-delete any of their own ratings. Deletion is permanent — no soft delete in Phase 1.
+- Rate limiting: 10 submissions per minute per user; 20 reports per minute per user.
+- Observability: submit, delete, report, and unauthorized-action attempts are logged.
 
 ### Out of Scope
 
-* Soft delete / rating archival.
-* Moderation tooling or report queue (reports are stored; admin tooling is a later feature).
-* Separate "score only" ratings (score always requires review).
-* Likes, reactions, or comments on reviews.
-* Review pagination beyond the initial list.
-* Notifications triggered by reports or new reviews.
-* Friends-visibility enforcement (requires follows table — `_is_friend()` stubs to `False` until follows ships).
+- Soft delete / rating archival.
+- Moderation tooling or report queue (reports are stored; admin tooling is a later feature).
+- Separate "score only" ratings (score always requires review).
+- Likes, reactions, or comments on reviews.
+- Review pagination beyond the initial list.
+- Notifications triggered by reports or new reviews.
+- Friends-visibility enforcement (requires follows table — `_is_friend()` stubs to `False` until follows ships).
 
 ---
 
 # Non-Goals
 
-* This feature is not a recommendation engine. Ratings collected here will feed a future recommendation layer, deliberately deferred per HARMONIQ.md §2 and ROADMAP LATER tier.
-* This feature is not a content moderation system. Reports are stored for future tooling.
-* This feature does not surface trending or popular reviews algorithmically.
+- This feature is not a recommendation engine. Ratings collected here will feed a future recommendation layer, deliberately deferred per HARMONIQ.md §2 and ROADMAP LATER tier.
+- This feature is not a content moderation system. Reports are stored for future tooling.
+- This feature does not surface trending or popular reviews algorithmically.
 
 ---
 
 # User Experience
 
 **Rating on a track/album detail page:**
+
 1. Authenticated user navigates to a track or album detail page.
 2. Below the entity metadata, a "Your review" section is visible.
 3. User selects a score (1–10 button row) and writes a review (required, ≥ 15 characters).
@@ -76,37 +77,37 @@ On their own reviews, the owner sees a delete button. On others' reviews, authen
 
 # Functional Requirements
 
-* System must reject a score without review text, and review text without a score.
-* Score must be an integer in [1, 10] — enforced at DB level (CHECK constraint) and API level (Pydantic).
-* Review text must be between 15 and 2000 characters (trimmed) — enforced at API level.
-* Visibility must be one of `public`, `friends`, `private`. Default is `public`.
-* Submit endpoint must accept `entity_mbid` (MusicBrainz ID); the service layer resolves the MBID to an internal UUID. If the MBID is not in the local catalog, the endpoint returns 404.
-* Aggregate score must be computed from each user's most recent rating only — using a window function, not a denormalized column.
-* `DELETE /ratings/{id}` must return 204 and hard-delete the row. Unauthorized attempts must be logged at WARNING level.
-* `POST /ratings/{id}/report` must enforce uniqueness per (reporter, rating) pair — duplicates return 409.
-* Submit endpoint: 10 requests/minute rate limit per user.
-* Report endpoint: 20 requests/minute rate limit per user.
-* Visibility enforcement must happen in the service layer, not in route handlers or the frontend.
-* `friends` visibility stubs to `False` until the follows table ships.
-* Catalog detail endpoints must accept an optional viewer auth token so visibility is computed correctly for authenticated viewers.
+- System must reject a score without review text, and review text without a score.
+- Score must be an integer in [1, 10] — enforced at DB level (CHECK constraint) and API level (Pydantic).
+- Review text must be between 15 and 2000 characters (trimmed) — enforced at API level.
+- Visibility must be one of `public`, `friends`, `private`. Default is `public`.
+- Submit endpoint must accept `entity_mbid` (MusicBrainz ID); the service layer resolves the MBID to an internal UUID. If the MBID is not in the local catalog, the endpoint returns 404.
+- Aggregate score must be computed from each user's most recent rating only — using a window function, not a denormalized column.
+- `DELETE /ratings/{id}` must return 204 and hard-delete the row. Unauthorized attempts must be logged at WARNING level.
+- `POST /ratings/{id}/report` must enforce uniqueness per (reporter, rating) pair — duplicates return 409.
+- Submit endpoint: 10 requests/minute rate limit per user.
+- Report endpoint: 20 requests/minute rate limit per user.
+- Visibility enforcement must happen in the service layer, not in route handlers or the frontend.
+- `friends` visibility stubs to `False` until the follows table ships.
+- Catalog detail endpoints must accept an optional viewer auth token so visibility is computed correctly for authenticated viewers.
 
 ---
 
 # Acceptance Criteria
 
-* [ ] An authenticated user can submit a 1–10 score with a review ≥ 15 characters for a track or album.
-* [ ] Submitting without a score or without review text is rejected with a 422.
-* [ ] Submitting again for the same entity creates a new rating row; prior row is preserved.
-* [ ] Aggregate score on track/album detail page reflects the average of each user's most recent rating.
-* [ ] Ratings with `private` visibility are not visible to other users.
-* [ ] Ratings with `public` visibility appear on track/album detail pages for unauthenticated viewers.
-* [ ] Submit endpoint enforces a 10/min rate limit.
-* [ ] Report endpoint enforces a 20/min rate limit.
-* [ ] A user can delete their own rating (returns 204; row is removed).
-* [ ] A user cannot delete another user's rating (returns 403).
-* [ ] Reporting the same rating twice returns 409.
-* [ ] User profile page shows the user's review history.
-* [ ] All static analysis passes: ruff, mypy (backend); tsc, eslint, prettier (frontend).
+- [ ] An authenticated user can submit a 1–10 score with a review ≥ 15 characters for a track or album.
+- [ ] Submitting without a score or without review text is rejected with a 422.
+- [ ] Submitting again for the same entity creates a new rating row; prior row is preserved.
+- [ ] Aggregate score on track/album detail page reflects the average of each user's most recent rating.
+- [ ] Ratings with `private` visibility are not visible to other users.
+- [ ] Ratings with `public` visibility appear on track/album detail pages for unauthenticated viewers.
+- [ ] Submit endpoint enforces a 10/min rate limit.
+- [ ] Report endpoint enforces a 20/min rate limit.
+- [ ] A user can delete their own rating (returns 204; row is removed).
+- [ ] A user cannot delete another user's rating (returns 403).
+- [ ] Reporting the same rating twice returns 409.
+- [ ] User profile page shows the user's review history.
+- [ ] All static analysis passes: ruff, mypy (backend); tsc, eslint, prettier (frontend).
 
 ---
 
@@ -132,6 +133,7 @@ No likes, no upvotes, no "helpful review" ranking. Reviews are ordered by most r
 The `ratings` table uses `entity_type` (`"track"` or `"album"`) + `entity_id` (internal UUID). There is no DB-level FK constraint on `entity_id` since it references two different tables; referential integrity is enforced in the service layer via `resolve_entity()`.
 
 **Database schema:**
+
 ```
 ratings
   id            UUID PK
@@ -155,6 +157,7 @@ reports
 ```
 
 **Aggregate query pattern:**
+
 ```sql
 SELECT AVG(score) FROM (
   SELECT score,
@@ -173,11 +176,11 @@ SELECT AVG(score) FROM (
 
 # Observability
 
-* Rating submit, delete, and report events logged at INFO level (user_id, entity_type, entity_mbid).
-* Unauthorized delete attempts logged at WARNING level.
-* Duplicate report attempts logged at INFO level.
-* Service-level errors logged at ERROR level with context.
-* Review text must not appear in log output at INFO or above.
+- Rating submit, delete, and report events logged at INFO level (user_id, entity_type, entity_mbid).
+- Unauthorized delete attempts logged at WARNING level.
+- Duplicate report attempts logged at INFO level.
+- Service-level errors logged at ERROR level with context.
+- Review text must not appear in log output at INFO or above.
 
 ---
 
@@ -194,17 +197,18 @@ Deliberate exception to the "default private" convention used by all other user-
 
 ---
 
-*Approved 2026-06-20. Implementation proceeds under the standard Review Workflow in WORKFLOW.md.*
+_Approved 2026-06-20. Implementation proceeds under the standard Review Workflow in WORKFLOW.md._
 
 ---
 
 # Implementation Summary
 
-*Completed 2026-06-20 — branch `dev`.*
+_Completed 2026-06-20 — branch `dev`._
 
 ## Files changed
 
 **New — Backend**
+
 - `backend/app/models/rating.py` — Rating and Report ORM models with CheckConstraint on score
 - `backend/app/schemas/rating.py` — request/response schemas; VisibilityScope StrEnum; REVIEW_MIN_LENGTH, REVIEW_MAX_LENGTH, ENTITY_TYPES constants
 - `backend/app/services/rating.py` — submit, list_for_entity, list_for_user, count_for_user, get_aggregate, update_visibility, delete_rating, report_rating; resolve_entity MBID→UUID helper
@@ -212,6 +216,7 @@ Deliberate exception to the "default private" convention used by all other user-
 - `backend/alembic/versions/a1b2c3d4e5f6_add_ratings_table.py` — migration for both tables and all indexes
 
 **Modified — Backend**
+
 - `backend/app/models/__init__.py` — Rating, Report imports
 - `backend/app/api/v1/router.py` — registered ratings router
 - `backend/app/schemas/catalog.py` — added aggregate_score and reviews to AlbumDetail and TrackDetail
@@ -220,12 +225,14 @@ Deliberate exception to the "default private" convention used by all other user-
 - `backend/app/services/user.py` — ratings_count populated from rating_svc.count_for_user() (replaced hardcoded 0); viewer variable scoping bug fixed
 
 **New — Frontend**
+
 - `frontend/src/components/RatingComposer.tsx` — score selector, review textarea, visibility picker, submit
 - `frontend/src/components/ReviewList.tsx` — review items with delete/report/visibility controls
 - `frontend/src/components/RatingSection.tsx` — aggregate display + composer + review list; manages optimistic state
 - `frontend/src/lib/ratings.ts` — typed API client for all ratings endpoints
 
 **Modified — Frontend**
+
 - `frontend/src/types/index.ts` — added ReviewerInfo, RatingRead, EntityRatingListResponse, UserRatingRead, UserRatingListResponse; extended AlbumDetail and TrackDetail with aggregate_score and reviews; RatingSubmitRequest uses entity_mbid (not entity_id)
 - `frontend/src/lib/catalog.ts` — catalogGet, getAlbum, and getTrack accept optional auth token
 - `frontend/src/app/track/[mbid]/page.tsx` — passes auth token to getTrack; renders RatingSection
@@ -262,7 +269,7 @@ No duplication — the same enum used for profile visibility covers rating visib
 
 ## Known limitations
 
-- `friends` visibility always resolves to `False` until the follows table ships. Any rating set to `friends` visibility behaves like `private` until that feature lands. *(Resolved: follows shipped 2026-06-28; `_is_friend()` now performs a real mutual-follow check.)*
+- `friends` visibility always resolves to `False` until the follows table ships. Any rating set to `friends` visibility behaves like `private` until that feature lands. _(Resolved: follows shipped 2026-06-28; `_is_friend()` now performs a real mutual-follow check.)_
 - Review list is not paginated. All visible reviews for an entity are returned in a single response.
 - Report storage only — no admin interface or moderation queue exists yet.
 

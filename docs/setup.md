@@ -7,20 +7,22 @@ frontend locally. No Docker required.
 
 ## Prerequisites
 
-| Tool | Version | Install |
-|---|---|---|
-| Python | 3.12+ | [python.org](https://python.org) |
-| Poetry | 2.x | `pip install poetry` |
-| Node.js | 20+ | [nodejs.org](https://nodejs.org) |
-| npm | 10+ | included with Node.js |
-| Git | any | [git-scm.com](https://git-scm.com) |
+| Tool    | Version | Install                            |
+| ------- | ------- | ---------------------------------- |
+| Python  | 3.12+   | [python.org](https://python.org)   |
+| Poetry  | 2.x     | `pip install poetry`               |
+| Node.js | 20+     | [nodejs.org](https://nodejs.org)   |
+| npm     | 10+     | included with Node.js              |
+| Git     | any     | [git-scm.com](https://git-scm.com) |
 
 You also need accounts on:
+
 - **Neon** (neon.tech) — create a project, copy the connection string
 - **Clerk** (clerk.com) — create an application, copy the API keys
 
 The following are optional for local development (features degrade gracefully
 without them):
+
 - **Cloudflare** — R2 bucket for avatar uploads (avatar upload returns 503
   without it; all other features work)
 - **Clerk webhook** — for syncing Clerk profile changes to Harmoniq (only
@@ -209,6 +211,7 @@ ngrok http 8000
 ```
 
 Then in **Clerk Dashboard → Webhooks → Add Endpoint**:
+
 - URL: `https://<your-ngrok-id>.ngrok.io/api/v1/webhooks/clerk`
 - Events: `user.updated`
 - Copy the **Signing Secret** and add it to `backend/.env` as `CLERK_WEBHOOK_SECRET`.
@@ -238,8 +241,7 @@ If you want avatar uploads to work locally:
    R2_PUBLIC_URL=https://pub-xxxx.r2.dev
    ```
 
-Without R2 configured, the `POST /api/v1/users/me/avatar` endpoint returns
-503. All other endpoints work normally.
+Without R2 configured, the `POST /api/v1/users/me/avatar` endpoint returns 503. All other endpoints work normally.
 
 ---
 

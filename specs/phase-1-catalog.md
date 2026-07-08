@@ -28,24 +28,24 @@ across the product.
 
 ### In Scope
 
-* Artist entity: name, MusicBrainz Artist ID (MBID), sort name, disambiguation
+- Artist entity: name, MusicBrainz Artist ID (MBID), sort name, disambiguation
   string (e.g. "John Williams (guitarist)" vs "John Williams (conductor)"),
   cover image URL from Cover Art Archive or MusicBrainz artist image where
   available.
-* Album (Release Group) entity: title, MBID, primary artist, release year,
+- Album (Release Group) entity: title, MBID, primary artist, release year,
   album art URL from Cover Art Archive, album type (album / single / EP /
   compilation).
-* Track (Recording) entity: title, MBID, primary album, primary artist,
+- Track (Recording) entity: title, MBID, primary album, primary artist,
   duration in milliseconds, track number, disc number.
-* On-demand ingestion: when a search query is issued and MusicBrainz returns
+- On-demand ingestion: when a search query is issued and MusicBrainz returns
   results, those entities are written to the local DB before the response is
   returned to the client. Subsequent requests for the same entity are served
   from the local DB.
-* Deduplication: if an entity with the same MBID already exists in the DB,
+- Deduplication: if an entity with the same MBID already exists in the DB,
   the ingestion step updates it rather than inserting a duplicate.
-* Detail pages for artists, albums, and tracks — each displaying the entity's
+- Detail pages for artists, albums, and tracks — each displaying the entity's
   metadata and artwork.
-* Minimal search (this spec): a search input that queries MusicBrainz and
+- Minimal search (this spec): a search input that queries MusicBrainz and
   returns matching tracks, albums, and artists. This is the search surface
   described in the ROADMAP NOW tier — scoped here because catalog and minimal
   search are inseparable at this layer. Full cross-entity ranked search is a
@@ -53,18 +53,18 @@ across the product.
 
 ### Out of Scope
 
-* Audio playback or preview (deferred to Demo + Open, Phase NEXT, using
+- Audio playback or preview (deferred to Demo + Open, Phase NEXT, using
   Deezer API per Phase 0 decisions).
-* User-generated data attached to catalog entities (ratings, reviews, Melodies)
+- User-generated data attached to catalog entities (ratings, reviews, Melodies)
   — those are separate features that reference catalog entities by MBID.
-* Playlist entities — not in the NOW tier.
-* Multiple release versions of the same recording (e.g. remaster vs original) —
+- Playlist entities — not in the NOW tier.
+- Multiple release versions of the same recording (e.g. remaster vs original) —
   the canonical Release Group MBID is sufficient for Phase 1; per-release
   disambiguation is a future refinement.
-* Bulk import or pre-seeding of the catalog — the catalog grows on-demand only.
-* MusicBrainz relationship data (e.g. "this artist is a member of that band") —
+- Bulk import or pre-seeding of the catalog — the catalog grows on-demand only.
+- MusicBrainz relationship data (e.g. "this artist is a member of that band") —
   not needed for Phase 1.
-* Spotify metadata — per CLAUDE.md constraints, Spotify data may not feed the
+- Spotify metadata — per CLAUDE.md constraints, Spotify data may not feed the
   catalog or any downstream ML layer.
 
 ---
@@ -73,11 +73,11 @@ across the product.
 
 This feature is not intended to:
 
-* Recommend music or rank results by popularity within Harmoniq.
-* Mirror or replicate the complete MusicBrainz database.
-* Serve as a discovery surface — it is a lookup and reference layer only.
-* Support offline browsing.
-* Replace or compete with a streaming platform's catalog.
+- Recommend music or rank results by popularity within Harmoniq.
+- Mirror or replicate the complete MusicBrainz database.
+- Serve as a discovery surface — it is a lookup and reference layer only.
+- Support offline browsing.
+- Replace or compete with a streaming platform's catalog.
 
 ---
 
@@ -87,6 +87,7 @@ This feature is not intended to:
 the main navigation on every page.
 
 **Core flow (happy path):**
+
 1. User types a query (e.g. "Radiohead", "Kid A", "Creep").
 2. After a short debounce (~300ms), the frontend sends the query to the backend.
 3. The backend calls the MusicBrainz API, ingests any new entities, and returns
@@ -122,6 +123,7 @@ error server-side. Do not expose MusicBrainz error details to the client.
 results appearing is the success signal.
 
 **Edge cases:**
+
 - Query with only whitespace: trim and treat as empty; do not call the API.
 - Query shorter than 2 characters: do not call the API (wait for more input).
 - MBID collision across entity types is not possible by MusicBrainz design, but
@@ -137,80 +139,84 @@ results appearing is the success signal.
 # Functional Requirements
 
 **Search**
-* User can search for artists, albums, and tracks from the main navigation
+
+- User can search for artists, albums, and tracks from the main navigation
   search bar.
-* Search input is debounced at ~300ms before triggering an API call.
-* Search input shorter than 2 non-whitespace characters must not trigger a call.
-* System must query MusicBrainz and return results grouped into three sections:
+- Search input is debounced at ~300ms before triggering an API call.
+- Search input shorter than 2 non-whitespace characters must not trigger a call.
+- System must query MusicBrainz and return results grouped into three sections:
   Artists, Albums, Tracks — 5 results per section (15 total).
-* System must ensure all returned entities are persisted to the local DB before
+- System must ensure all returned entities are persisted to the local DB before
   the response is returned to the client. Whether persistence is implemented
   synchronously inline or via a fast background task is an engineering decision,
   provided the guarantee holds.
-* System must not call MusicBrainz more than once per second (rate limit
+- System must not call MusicBrainz more than once per second (rate limit
   compliance).
-* System should cache MusicBrainz responses for ~5 minutes so that rapid
+- System should cache MusicBrainz responses for ~5 minutes so that rapid
   repeated identical queries do not re-hit the API.
 
 **Ingestion & deduplication**
-* System must upsert on MBID — if an entity already exists, update its fields;
+
+- System must upsert on MBID — if an entity already exists, update its fields;
   do not create a duplicate row.
-* Data must store the MBID as the stable primary external identifier for every
+- Data must store the MBID as the stable primary external identifier for every
   entity. Internal Postgres UUIDs are the primary key; MBID is a unique index.
-* System must store Cover Art Archive URLs, not images themselves — artwork is
+- System must store Cover Art Archive URLs, not images themselves — artwork is
   served from Cover Art Archive's CDN, not proxied or stored in Harmoniq's
   infrastructure.
-* System must record a `last_fetched_at` timestamp on every ingested entity so
+- System must record a `last_fetched_at` timestamp on every ingested entity so
   stale records can be refreshed in a future pass.
 
 **Detail pages**
-* The frontend must provide an artist detail page, an album detail page, and a
+
+- The frontend must provide an artist detail page, an album detail page, and a
   track detail page, each reachable by MBID. Routing implementation is an
   engineering decision.
-* Each detail page must display the entity's stored metadata and artwork.
-* Artist detail page must list albums by that artist that exist in the local DB
+- Each detail page must display the entity's stored metadata and artwork.
+- Artist detail page must list albums by that artist that exist in the local DB
   (not a complete discography fetch — no additional MusicBrainz calls on artist
   detail pages in Phase 1).
-* Album detail page must list tracks on that album that exist in the local DB.
-* If an entity MBID is not in the local DB (e.g. direct URL navigation to an
+- Album detail page must list tracks on that album that exist in the local DB.
+- If an entity MBID is not in the local DB (e.g. direct URL navigation to an
   unseen entity), the system silently attempts a single MusicBrainz lookup,
   ingests the entity, and renders the page. If the lookup returns no result or
   fails, the page displays a standard "Not found" state.
-* A detail page load must not trigger more than one MusicBrainz API call.
+- A detail page load must not trigger more than one MusicBrainz API call.
 
 **General**
-* All catalog data is publicly readable — no authentication required to search
+
+- All catalog data is publicly readable — no authentication required to search
   or view catalog pages (auth is required for user-generated interactions, which
   are out of scope for this spec).
-* System must never expose MusicBrainz API errors or internal stack traces to
+- System must never expose MusicBrainz API errors or internal stack traces to
   the client.
 
 ---
 
 # Acceptance Criteria
 
-* [ ] Searching "Radiohead" returns at least one Artist result, multiple Album
+- [ ] Searching "Radiohead" returns at least one Artist result, multiple Album
       results, and multiple Track results without error.
-* [ ] Artist, album, and track entities returned by search are present in the
+- [ ] Artist, album, and track entities returned by search are present in the
       local Postgres DB after the search completes.
-* [ ] Searching the same query twice does not insert duplicate rows (upsert
+- [ ] Searching the same query twice does not insert duplicate rows (upsert
       behavior confirmed by DB inspection).
-* [ ] Navigating to an artist, album, and track detail page for an
+- [ ] Navigating to an artist, album, and track detail page for an
       already-ingested entity renders correctly with metadata and artwork.
-* [ ] Navigating directly to a detail page for an entity not yet in the DB
+- [ ] Navigating directly to a detail page for an entity not yet in the DB
       triggers a MusicBrainz lookup and renders the page correctly.
-* [ ] A search query of 1 character does not trigger a network request to the
+- [ ] A search query of 1 character does not trigger a network request to the
       backend (confirmed via browser dev tools).
-* [ ] Empty search results display the "No results" copy with the query echoed.
-* [ ] A simulated MusicBrainz failure returns the error copy to the client with
+- [ ] Empty search results display the "No results" copy with the query echoed.
+- [ ] A simulated MusicBrainz failure returns the error copy to the client with
       no stack trace or internal detail visible.
-* [ ] MusicBrainz rate limit (1 req/sec) is not exceeded under rapid repeated
+- [ ] MusicBrainz rate limit (1 req/sec) is not exceeded under rapid repeated
       searches (confirmed by request log inspection).
-* [ ] Cover Art Archive image URLs are stored in the DB; no artwork binary data
+- [ ] Cover Art Archive image URLs are stored in the DB; no artwork binary data
       is stored in Harmoniq's own infrastructure.
-* [ ] All new DB migrations run cleanly via Alembic on a fresh schema.
-* [ ] Backend static analysis (ruff, mypy) passes clean.
-* [ ] Frontend static analysis (tsc, eslint, prettier) passes clean.
+- [ ] All new DB migrations run cleanly via Alembic on a fresh schema.
+- [ ] Backend static analysis (ruff, mypy) passes clean.
+- [ ] Frontend static analysis (tsc, eslint, prettier) passes clean.
 
 ---
 
@@ -230,6 +236,7 @@ A cover that loads slowly should degrade to a neutral placeholder — never a
 broken image icon.
 
 **Typography and copy (BRAND_BIBLE §10):**
+
 - Disambiguation strings are displayed in a secondary/muted typographic weight
   directly beneath the artist name. Do not suppress or truncate them.
 - Duration on track results is formatted as `m:ss` (e.g. `4:02`), not raw
@@ -249,6 +256,7 @@ signal, not a social one.
 # Technical Notes
 
 **Data relationships:**
+
 - One artist may have many albums; one album may contain many tracks.
 - A recording may exist on multiple MusicBrainz releases, but Phase 1
   intentionally stores only the canonical Release Group relationship.
@@ -257,6 +265,7 @@ signal, not a social one.
   search result before its parent album has been ingested.
 
 **MusicBrainz API:**
+
 - Base URL: `https://musicbrainz.org/ws/2/`
 - Required header: `User-Agent: Harmoniq/0.1 (<MUSICBRAINZ_CONTACT_EMAIL>)` —
   MusicBrainz requires this; requests without it will be rejected. The contact
@@ -271,6 +280,7 @@ signal, not a social one.
   string queries fine for Phase 1.
 
 **Cover Art Archive:**
+
 - Artwork URL pattern: `https://coverartarchive.org/release-group/[mbid]/front`
 - This URL redirects to the actual image. Store the canonical CAA URL, not the
   redirect target (redirect targets are CDN-ephemeral).
@@ -278,6 +288,7 @@ signal, not a social one.
   neutral placeholder.
 
 **Database schema (new tables — Alembic migration required):**
+
 ```
 artists
   id            UUID PK
@@ -312,6 +323,7 @@ tracks (recordings)
 ```
 
 **Backend modules touched:**
+
 - New: `app/services/musicbrainz.py` — MusicBrainz API client + rate limiter.
 - New: `app/services/catalog.py` — ingestion + upsert logic.
 - New: `app/api/v1/catalog.py` — search and detail endpoints, registered on the
@@ -321,6 +333,7 @@ tracks (recordings)
 - New: `alembic/versions/[hash]_add_catalog_tables.py` — migration.
 
 **Frontend capabilities required:**
+
 - Search interface accessible from main navigation.
 - Artist detail page, reachable by MBID.
 - Album detail page, reachable by MBID.
@@ -336,14 +349,14 @@ Implementation location and file structure for the above is left to engineering.
 
 # Observability
 
-* MusicBrainz API requests and responses must be logged at debug level,
+- MusicBrainz API requests and responses must be logged at debug level,
   including endpoint, query, and response time.
-* Cache hits and cache misses on search queries must be logged at debug level.
-* Ingestion failures (upsert errors, malformed MusicBrainz responses) must be
+- Cache hits and cache misses on search queries must be logged at debug level.
+- Ingestion failures (upsert errors, malformed MusicBrainz responses) must be
   logged at error level with enough context to reproduce the failure.
-* Stack traces and internal error detail must never be logged in a way that
+- Stack traces and internal error detail must never be logged in a way that
   surfaces to the client.
-* User-sensitive data (search queries may be personal — treat them as such)
+- User-sensitive data (search queries may be personal — treat them as such)
   must not be logged at info level or above in production.
 
 ---
@@ -371,7 +384,7 @@ None.
 
 ---
 
-*Approved 2026-06-18. Implementation proceeds under the standard Review Workflow in WORKFLOW.md.*
+_Approved 2026-06-18. Implementation proceeds under the standard Review Workflow in WORKFLOW.md._
 
 ---
 
@@ -388,14 +401,14 @@ release credited to a housekeeping artist).
 
 `app/services/catalog.py` now applies, for all three categories:
 
-* A minimum relevance threshold on MusicBrainz's own `score` field
+- A minimum relevance threshold on MusicBrainz's own `score` field
   (0–100 Lucene relevance) — `_MIN_RELEVANCE_SCORE = 50`, a module
   constant, tunable later, not exposed via the API.
-* The housekeeping-name filter, extended to albums and tracks by checking
-  the *artist-credit* name (via the existing `_primary_artist_name`
+- The housekeeping-name filter, extended to albums and tracks by checking
+  the _artist-credit_ name (via the existing `_primary_artist_name`
   helper) rather than the release/recording title — the bracketed-name
   problem lives on the artist, not the album/track title.
-* Results sorted by score descending and capped at
+- Results sorted by score descending and capped at
   `_MAX_RESULTS_PER_CATEGORY = 5` (matching the prior de facto count, now
   chosen deliberately from a larger, ranked pool rather than incidentally
   from an unranked one).

@@ -36,9 +36,7 @@ vi.mock("@/components/AppShell", () => ({
 }));
 
 vi.mock("@/components/AvatarImage", () => ({
-  default: ({ username }: { username: string }) => (
-    <span data-testid={`avatar-${username}`} />
-  ),
+  default: ({ username }: { username: string }) => <span data-testid={`avatar-${username}`} />,
 }));
 
 vi.mock("@/components/EqualizerGlyph", () => ({
@@ -99,9 +97,7 @@ describe("SearchPage", () => {
   it("renders Music results when q >= 2 chars and catalog results are returned", async () => {
     mockQ = "beatles";
     mockSearchCatalog.mockResolvedValue({
-      artists: [
-        { mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null },
-      ],
+      artists: [{ mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null }],
       albums: [],
       tracks: [],
     });
@@ -131,9 +127,7 @@ describe("SearchPage", () => {
   it("does not render People section when user results are empty", async () => {
     mockQ = "beatles";
     mockSearchCatalog.mockResolvedValue({
-      artists: [
-        { mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null },
-      ],
+      artists: [{ mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null }],
       albums: [],
       tracks: [],
     });

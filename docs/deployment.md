@@ -1,6 +1,7 @@
 # Deployment Guide
 
 Harmoniq uses a split deployment:
+
 - **Frontend** → Vercel (automatic from `main`)
 - **Backend** → Railway (automatic from `main`, with migration release command)
 - **Database** → Neon (managed PostgreSQL, always on)
@@ -72,6 +73,7 @@ manually from the Railway shell before redeploying.
 ### Connection strings
 
 Neon provides two connection string types:
+
 - **Direct** — for migration runs and admin operations
 - **Pooled** (PgBouncer) — for the live application (`DATABASE_URL` in Railway)
 
@@ -81,11 +83,11 @@ support the `SET` commands Alembic uses for advisory locks).
 
 ### Branches
 
-| Branch | Purpose |
-|---|---|
-| `main` | Production database |
-| `staging` | Staging environment (create manually if needed) |
-| `feature/*` | Ephemeral per-feature branches |
+| Branch      | Purpose                                         |
+| ----------- | ----------------------------------------------- |
+| `main`      | Production database                             |
+| `staging`   | Staging environment (create manually if needed) |
+| `feature/*` | Ephemeral per-feature branches                  |
 
 Feature branches are deleted after the PR merges.
 
@@ -93,11 +95,11 @@ Feature branches are deleted after the PR merges.
 
 ## Environment separation
 
-| Environment | Frontend | Backend | Database |
-|---|---|---|---|
-| Development | `localhost:3000` | `localhost:8000` | Neon dev branch |
-| Staging | Vercel preview URL | Railway staging service | Neon staging branch |
-| Production | Vercel production | Railway production | Neon main branch |
+| Environment | Frontend           | Backend                 | Database            |
+| ----------- | ------------------ | ----------------------- | ------------------- |
+| Development | `localhost:3000`   | `localhost:8000`        | Neon dev branch     |
+| Staging     | Vercel preview URL | Railway staging service | Neon staging branch |
+| Production  | Vercel production  | Railway production      | Neon main branch    |
 
 ---
 

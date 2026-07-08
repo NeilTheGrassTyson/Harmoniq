@@ -4,26 +4,26 @@
 
 @theme {
   /* Color palette */
-  --color-canvas:        #0b0d12;
-  --color-sidebar:       #0e1015;
-  --color-tile:          #151821;
-  --color-tile-friend:   #121a2a;
-  --color-hairline:      rgba(255,255,255,0.07);
-  --color-primary:       #f2f3f5;
-  --color-secondary:     #8b93a3;
-  --color-tertiary:      #757c8c;
-  --color-accent:        #2f8cff;
-  --color-icon-trend:    #343b4d;
-  --color-icon-friend:   #34507c;
-  --color-friend-dot:    #5a8fd6;
-  --color-nav-active:    rgba(255,255,255,0.06);
-  --color-nav-hover:     rgba(255,255,255,0.04);
-  --color-control:       rgba(255,255,255,0.05);
+  --color-canvas: #0b0d12;
+  --color-sidebar: #0e1015;
+  --color-tile: #151821;
+  --color-tile-friend: #121a2a;
+  --color-hairline: rgba(255, 255, 255, 0.07);
+  --color-primary: #f2f3f5;
+  --color-secondary: #8b93a3;
+  --color-tertiary: #757c8c;
+  --color-accent: #2f8cff;
+  --color-icon-trend: #343b4d;
+  --color-icon-friend: #34507c;
+  --color-friend-dot: #5a8fd6;
+  --color-nav-active: rgba(255, 255, 255, 0.06);
+  --color-nav-hover: rgba(255, 255, 255, 0.04);
+  --color-control: rgba(255, 255, 255, 0.05);
 
   /* Radius scale */
-  --radius-frame:   14px;
+  --radius-frame: 14px;
   --radius-control: 8px;
-  --radius-nav:     6px;
+  --radius-nav: 6px;
 }
 
 /* Display font references the CSS var injected by next/font */

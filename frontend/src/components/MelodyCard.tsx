@@ -70,10 +70,7 @@ export default function MelodyCard({
         )}
         <p className="text-tertiary truncate" style={{ fontSize: 12, marginTop: 4 }}>
           {direction === "from" ? "From " : "To "}
-          <Link
-            href={`/u/${person.username}`}
-            className="hover:text-secondary"
-          >
+          <Link href={`/u/${person.username}`} className="hover:text-secondary">
             {person.display_name}
           </Link>
           {/* Skip the handle when it adds nothing (e.g. send-preview placeholder). */}

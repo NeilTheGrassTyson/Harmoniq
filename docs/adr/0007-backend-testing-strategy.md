@@ -84,9 +84,9 @@ by the Founder.
   semantics, and does not exercise the migrations. Would require
   monkeypatching column types, at which point the schema under test is no
   longer the real schema.
-- **Neon database branch per CI run.** Faithful (it *is* Neon Postgres) and
+- **Neon database branch per CI run.** Faithful (it _is_ Neon Postgres) and
   already supported by our tooling (see ADR 0003, which cites branching as
-  a workflow benefit). Rejected as the *primary* mechanism because it
+  a workflow benefit). Rejected as the _primary_ mechanism because it
   requires network access and Neon API credentials inside CI and local
   runs, ties the test loop to an external service's availability, and
   complicates parallelism. Retained as a documented fallback for

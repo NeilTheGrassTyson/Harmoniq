@@ -72,8 +72,16 @@ function makeReview(overrides: Partial<RatingRead> & { id: string }): RatingRead
   };
 }
 
-const reviewA = makeReview({ id: "r-a", reviewer: { username: "alice", display_name: "Alice", avatar_url: null }, score: 8 });
-const reviewB = makeReview({ id: "r-b", reviewer: { username: "bob", display_name: "Bob", avatar_url: null }, score: 6 });
+const reviewA = makeReview({
+  id: "r-a",
+  reviewer: { username: "alice", display_name: "Alice", avatar_url: null },
+  score: 8,
+});
+const reviewB = makeReview({
+  id: "r-b",
+  reviewer: { username: "bob", display_name: "Bob", avatar_url: null },
+  score: 6,
+});
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

@@ -109,41 +109,38 @@ export default function ProfileHeader({ profile, autoOpenEdit = false }: Profile
 
       {/* ── Actions ────────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
-        {profile.is_own_profile ? (
-          !editOpen && (
-            <button
-              type="button"
-              onClick={() => setEditOpen(true)}
-              style={{
-                display: "inline-block",
-                padding: "5px 14px",
-                fontSize: 12,
-                fontWeight: 500,
-                color: "#8b93a3",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: 8,
-                background: "none",
-                cursor: "pointer",
-              }}
-            >
-              Edit profile
-            </button>
-          )
-        ) : (
-          profile.follow !== undefined && (
-            <FollowButton
-              username={profile.username}
-              initialIsFollowing={profile.follow.is_following}
-              onChange={(isFollowing) => {
-                // Server count minus the viewer's original edge, plus their
-                // current one — idempotent under optimistic flips/rollbacks.
-                const base =
-                  profile.follower_count - (profile.follow?.is_following ? 1 : 0);
-                setFollowerCount(base + (isFollowing ? 1 : 0));
-              }}
-            />
-          )
-        )}
+        {profile.is_own_profile
+          ? !editOpen && (
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                style={{
+                  display: "inline-block",
+                  padding: "5px 14px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#8b93a3",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 8,
+                  background: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Edit profile
+              </button>
+            )
+          : profile.follow !== undefined && (
+              <FollowButton
+                username={profile.username}
+                initialIsFollowing={profile.follow.is_following}
+                onChange={(isFollowing) => {
+                  // Server count minus the viewer's original edge, plus their
+                  // current one — idempotent under optimistic flips/rollbacks.
+                  const base = profile.follower_count - (profile.follow?.is_following ? 1 : 0);
+                  setFollowerCount(base + (isFollowing ? 1 : 0));
+                }}
+              />
+            )}
 
         {profile.is_own_profile && editOpen && (
           <ProfileEditPanel

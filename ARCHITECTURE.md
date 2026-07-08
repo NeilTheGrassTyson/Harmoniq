@@ -6,7 +6,7 @@
 > before Phase 1 fully closes: a full visibility audit and deployment
 > verification (no staging/production instance stood up yet) — see
 > `ROADMAP.md` for the sequenced list and gating rule.
-> This document describes what the system *is* today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
+> This document describes what the system _is_ today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---
 
@@ -111,6 +111,7 @@ its output in `AppShell`. The onboarding and auth pages (`/onboarding`,
 render without a shell.
 
 AppShell owns:
+
 - The collapsible sidebar (220px open, 0px collapsed, 200ms transition).
 - The 3-column header grid (toggle + logo / search / NavAuth).
 - The global sidebar navigation links: **Home** (`/`), **Search** (`/search`),
@@ -178,20 +179,20 @@ The backend is divided into logical service modules. They are co-deployed
 but have explicit boundaries — no service imports from another's internal
 modules, only from shared `models/` and `schemas/`.
 
-| Service | Status | Responsibility |
-|---|---|---|
-| `identity` (user.py) | ✅ Phase 1 | User records, profile, visibility settings, avatar, user search |
-| `catalog` | ✅ Phase 1 | Music ingestion from MusicBrainz; track/album/artist entities |
-| `storage` | ✅ Phase 1 | Cloudflare R2 avatar upload |
-| `rating` | ✅ Phase 1 | Ratings and reviews; aggregate scores; reports |
-| `follow` | ✅ Phase 1 | Follow graph (follower/followed relationships) |
-| `home` | ✅ Phase 1 | Home surface: trending + friends' top songs |
-| `spotify` | ✅ Phase 1 | Spotify OAuth linking; display-only listening data (never persisted, never feeds other systems) |
-| `melody` | ✅ Phase 1 | Melody lifecycle state machine (sent → received → accepted/opened/rejected) |
-| `notifications` | ✅ Phase 1 | In-app notification center (Melody received, new follower) |
-| `moderation` | ✅ Phase 1 | Report review/action: dismiss, hide rating, suspend user |
-| `harmony` | Planned | Harmony score computation |
-| `discovery` | Planned | Discovery surface (Harmonic Feed) composition |
+| Service              | Status     | Responsibility                                                                                  |
+| -------------------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| `identity` (user.py) | ✅ Phase 1 | User records, profile, visibility settings, avatar, user search                                 |
+| `catalog`            | ✅ Phase 1 | Music ingestion from MusicBrainz; track/album/artist entities                                   |
+| `storage`            | ✅ Phase 1 | Cloudflare R2 avatar upload                                                                     |
+| `rating`             | ✅ Phase 1 | Ratings and reviews; aggregate scores; reports                                                  |
+| `follow`             | ✅ Phase 1 | Follow graph (follower/followed relationships)                                                  |
+| `home`               | ✅ Phase 1 | Home surface: trending + friends' top songs                                                     |
+| `spotify`            | ✅ Phase 1 | Spotify OAuth linking; display-only listening data (never persisted, never feeds other systems) |
+| `melody`             | ✅ Phase 1 | Melody lifecycle state machine (sent → received → accepted/opened/rejected)                     |
+| `notifications`      | ✅ Phase 1 | In-app notification center (Melody received, new follower)                                      |
+| `moderation`         | ✅ Phase 1 | Report review/action: dismiss, hide rating, suspend user                                        |
+| `harmony`            | Planned    | Harmony score computation                                                                       |
+| `discovery`          | Planned    | Discovery surface (Harmonic Feed) composition                                                   |
 
 ---
 
@@ -402,7 +403,7 @@ SELECT AVG(score) FROM (
 ) sub WHERE rn = 1
 ```
 
-This correctly handles re-ratings (only the most recent counts) without requiring an `is_current` flag to be maintained across inserts and deletes. Only *effectively public* ratings (public at both the per-rating and profile level) ever move an aggregate — a private rating must never shift a public number.
+This correctly handles re-ratings (only the most recent counts) without requiring an `is_current` flag to be maintained across inserts and deletes. Only _effectively public_ ratings (public at both the per-rating and profile level) ever move an aggregate — a private rating must never shift a public number.
 
 ### Visibility Default Exception
 
@@ -420,23 +421,23 @@ Three environments: `development`, `staging`, `production`. Secrets are
 never committed — `.env.example` files document every required variable with
 placeholder values.
 
-| Variable | Where it lives | Required for |
-|---|---|---|
-| `DATABASE_URL` | Railway / Neon dashboard | All server ops |
-| `CLERK_JWKS_URL` | Railway env var | JWT verification |
-| `CLERK_SECRET_KEY` | Railway env var | Onboarding flag sync |
-| `CLERK_WEBHOOK_SECRET` | Railway env var | Webhook signature verification |
-| `CLERK_PUBLISHABLE_KEY` | Vercel env var (public) | Frontend Clerk UI |
-| `MUSICBRAINZ_USER_AGENT` | Railway env var | MusicBrainz API |
-| `R2_ACCOUNT_ID` | Railway env var | Avatar upload |
-| `R2_ACCESS_KEY_ID` | Railway env var | Avatar upload |
-| `R2_SECRET_ACCESS_KEY` | Railway env var | Avatar upload |
-| `R2_BUCKET_NAME` | Railway env var | Avatar upload |
-| `R2_PUBLIC_URL` | Railway env var | Avatar URL generation |
-| `SPOTIFY_CLIENT_ID` | Railway env var | Spotify account linking |
-| `SPOTIFY_CLIENT_SECRET` | Railway env var | Spotify token exchange |
-| `SPOTIFY_REDIRECT_URI` | Railway env var | OAuth redirect (must match dashboard exactly) |
-| `TOKEN_ENCRYPTION_KEY` | Railway env var | Refresh-token encryption + OAuth state signing |
+| Variable                 | Where it lives           | Required for                                   |
+| ------------------------ | ------------------------ | ---------------------------------------------- |
+| `DATABASE_URL`           | Railway / Neon dashboard | All server ops                                 |
+| `CLERK_JWKS_URL`         | Railway env var          | JWT verification                               |
+| `CLERK_SECRET_KEY`       | Railway env var          | Onboarding flag sync                           |
+| `CLERK_WEBHOOK_SECRET`   | Railway env var          | Webhook signature verification                 |
+| `CLERK_PUBLISHABLE_KEY`  | Vercel env var (public)  | Frontend Clerk UI                              |
+| `MUSICBRAINZ_USER_AGENT` | Railway env var          | MusicBrainz API                                |
+| `R2_ACCOUNT_ID`          | Railway env var          | Avatar upload                                  |
+| `R2_ACCESS_KEY_ID`       | Railway env var          | Avatar upload                                  |
+| `R2_SECRET_ACCESS_KEY`   | Railway env var          | Avatar upload                                  |
+| `R2_BUCKET_NAME`         | Railway env var          | Avatar upload                                  |
+| `R2_PUBLIC_URL`          | Railway env var          | Avatar URL generation                          |
+| `SPOTIFY_CLIENT_ID`      | Railway env var          | Spotify account linking                        |
+| `SPOTIFY_CLIENT_SECRET`  | Railway env var          | Spotify token exchange                         |
+| `SPOTIFY_REDIRECT_URI`   | Railway env var          | OAuth redirect (must match dashboard exactly)  |
+| `TOKEN_ENCRYPTION_KEY`   | Railway env var          | Refresh-token encryption + OAuth state signing |
 
 R2, Clerk SK/webhook, and Spotify credentials are optional at import time
 and validated at their call sites — Alembic migrations can run with only
@@ -507,14 +508,14 @@ spacing, motion, and component patterns.
 has not yet been configured. The pages use Clerk's default dark theme until
 this is wired up.
 
-| # | Title |
-|---|---|
-| [0001](docs/adr/0001-backend-framework.md) | Backend framework: FastAPI |
-| [0002](docs/adr/0002-frontend-framework.md) | Frontend framework: Next.js 16 |
-| [0003](docs/adr/0003-database.md) | Database: PostgreSQL via Neon |
-| [0004](docs/adr/0004-authentication.md) | Authentication: Clerk |
-| [0005](docs/adr/0005-hosting.md) | Hosting: Vercel + Railway |
-| [0006](docs/adr/0006-music-database.md) | Music catalog: MusicBrainz |
-| [0007](docs/adr/0007-backend-testing-strategy.md) | Backend testing strategy |
-| [0008](docs/adr/0008-profile-discoverability.md) | Profile discoverability: every profile findable, content private |
-| [0009](docs/adr/0009-melody-no-message-embed-card.md) | Melody carries no message; renders as an embed card |
+| #                                                     | Title                                                            |
+| ----------------------------------------------------- | ---------------------------------------------------------------- |
+| [0001](docs/adr/0001-backend-framework.md)            | Backend framework: FastAPI                                       |
+| [0002](docs/adr/0002-frontend-framework.md)           | Frontend framework: Next.js 16                                   |
+| [0003](docs/adr/0003-database.md)                     | Database: PostgreSQL via Neon                                    |
+| [0004](docs/adr/0004-authentication.md)               | Authentication: Clerk                                            |
+| [0005](docs/adr/0005-hosting.md)                      | Hosting: Vercel + Railway                                        |
+| [0006](docs/adr/0006-music-database.md)               | Music catalog: MusicBrainz                                       |
+| [0007](docs/adr/0007-backend-testing-strategy.md)     | Backend testing strategy                                         |
+| [0008](docs/adr/0008-profile-discoverability.md)      | Profile discoverability: every profile findable, content private |
+| [0009](docs/adr/0009-melody-no-message-embed-card.md) | Melody carries no message; renders as an embed card              |

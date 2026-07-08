@@ -32,10 +32,7 @@ function QueueAction({
   );
 }
 
-export default function ModerationQueue({
-  initialItems,
-  initialCursor,
-}: ModerationQueueProps) {
+export default function ModerationQueue({ initialItems, initialCursor }: ModerationQueueProps) {
   const { getToken } = useAuth();
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
@@ -105,10 +102,7 @@ export default function ModerationQueue({
             <header className="flex items-center justify-between" style={{ fontSize: 12 }}>
               <span className="text-tertiary">
                 Reported by{" "}
-                <Link
-                  href={`/u/${report.reporter.username}`}
-                  className="hover:text-secondary"
-                >
+                <Link href={`/u/${report.reporter.username}`} className="hover:text-secondary">
                   @{report.reporter.username}
                 </Link>
                 {report.open_report_count > 1 &&
@@ -149,9 +143,7 @@ export default function ModerationQueue({
               <QueueAction
                 label="Dismiss report"
                 disabled={busy}
-                onClick={() =>
-                  void run(report.id, (token) => dismissReport(token, report.id))
-                }
+                onClick={() => void run(report.id, (token) => dismissReport(token, report.id))}
               />
               {!report.rating.author_suspended &&
                 (confirming ? (

@@ -45,13 +45,14 @@ Derived from mockup iteration (chat, June 2026), checked against BRAND_BIBLE.md 
 | `--surface-control`            | `rgba(255,255,255,0.05)` | Search field, profile button background                 |
 
 **Contrast ratios (WCAG AA, verified June 2026):**
+
 - `--color-text-primary` (`#f2f3f5`) on `--color-bg` (`#0b0d12`): ~18:1 ✓
 - `--color-text-secondary` (`#8b93a3`) on `--color-bg` (`#0b0d12`): ~6.3:1 ✓
 - `--color-text-tertiary` (`#757c8c`) on `--color-bg` (`#0b0d12`): ~4.65:1 ✓ (minimum 4.5:1 for normal text)
   - Previous value `#6b7385` measured 4.08:1 and failed; adjusted to `#757c8c`.
 
 **Forbidden, without an explicit stated exception:** gradients; glow, blur, or drop
-shadows (the *only* permitted shadow is a 1.5px focus ring — see Motion); purple,
+shadows (the _only_ permitted shadow is a 1.5px focus ring — see Motion); purple,
 indigo, or violet as any UI color; cream/beige backgrounds; any "neon" effect achieved
 through blur/glow rather than flat saturated color.
 
@@ -109,8 +110,8 @@ No pill-shaped elements. No single uniform radius applied to everything — this
 
 ## 6. Iconography
 
-- **UI chrome** (menu, search, profile, sidebar nav): Tabler Icons, outline style. Generic is fine here — navigation icons aren't a branding opportunity, and forcing   originality onto them adds noise without adding meaning.
-- **Music / brand glyph**: a custom three-bar equalizer mark (flat SVG fill, no   gradient), in two tonal variants — neutral gray (`--color-accent-icon-trending`) and   blue-tinted (`--color-accent-icon-friend`). This is the one recurring original visual   signature. Reuse it as the logomark, the album-art placeholder before real artwork   loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself.
+- **UI chrome** (menu, search, profile, sidebar nav): Tabler Icons, outline style. Generic is fine here — navigation icons aren't a branding opportunity, and forcing originality onto them adds noise without adding meaning.
+- **Music / brand glyph**: a custom three-bar equalizer mark (flat SVG fill, no gradient), in two tonal variants — neutral gray (`--color-accent-icon-trending`) and blue-tinted (`--color-accent-icon-friend`). This is the one recurring original visual signature. Reuse it as the logomark, the album-art placeholder before real artwork loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself.
 
 ---
 
@@ -125,6 +126,7 @@ No pill-shaped elements. No single uniform radius applied to everything — this
 **Primary action button** — `bg-accent text-canvas` background (`#2f8cff` / `#0b0d12`), `rounded-control` radius (8px), 14px / weight 500, no border, no shadow (the focus ring in §8 is the only permitted shadow). The accent color is used here because the action is the point — this is not a nav element, not a secondary affordance. Secondary actions use a surface control background (`bg-control`) with `text-primary`.
 
 **CoverArt component** (`components/CoverArt.tsx`) — two modes:
+
 - **Fixed-size** (default, `fill={false}`): renders a sized `<div>` wrapper with `object-cover` inside. Pass `size` in px (default 48). Fallback on missing or failed src: a `bg-tile` placeholder div, no glyph.
 - **Fill mode** (`fill={true}`): renders via Next.js `<Image fill>` inside an `absolute inset-0` wrapper. **Requires** the parent to be `position: relative` with explicit pixel dimensions. Fallback: returns `null` — the parent's background and any sibling placeholder glyph show through. Use this mode for tile artwork that must fill an arbitrary parent area.
 
@@ -134,7 +136,7 @@ No pill-shaped elements. No single uniform radius applied to everything — this
 
 - Tile hover: `transform: translateY(-2px)`, ~150ms ease. That's it.
 - Sidebar open/close: width transition, ~200ms ease.
-- The *only* permitted shadow anywhere: a 1.5px solid focus ring   (`box-shadow: 0 0 0 1.5px rgba(47,140,255,.6)`).
+- The _only_ permitted shadow anywhere: a 1.5px solid focus ring (`box-shadow: 0 0 0 1.5px rgba(47,140,255,.6)`).
 - Focus ring is applied **globally** via `:focus-visible` in `globals.css` so every
   interactive element (buttons, links, inputs, selects) gets a consistent ring on
   keyboard navigation. Mouse clicks suppress it (`:focus-visible` vs `:focus`).
@@ -167,12 +169,12 @@ Check against these before calling any screen done — see `unslop-ui`'s
 
 Four fixed links rendered inside `AppShell`'s collapsible sidebar. Implemented in `frontend/src/components/AppShell.tsx`.
 
-| Link     | Route           | Icon      | Visibility                          |
-|----------|-----------------|-----------|-------------------------------------|
-| Home     | `/`             | House     | Always visible                      |
-| Search   | `/search`       | Magnifier | Always visible                      |
-| Profile  | `/u/[username]` | Person    | Signed-in only                      |
-| Settings | `/settings`     | Gear      | Always visible                      |
+| Link     | Route           | Icon      | Visibility     |
+| -------- | --------------- | --------- | -------------- |
+| Home     | `/`             | House     | Always visible |
+| Search   | `/search`       | Magnifier | Always visible |
+| Profile  | `/u/[username]` | Person    | Signed-in only |
+| Settings | `/settings`     | Gear      | Always visible |
 
 **Active state:** `background: rgba(255,255,255,0.06)` (`--color-nav-active`) set via inline style when the link is active. Active links also carry `aria-current="page"` for accessibility. Inactive links show `rgba(255,255,255,0.04)` (`--color-nav-hover`) on hover, suppressed when the link is already active.
 
@@ -197,12 +199,12 @@ without suppressing the other.
 
 **Section order** (top to bottom, each section omitted if empty):
 
-| Section | Contents | Item layout |
-| ------- | -------- | ----------- |
-| People | User search results | AvatarImage (28px, circular) · display_name (primary, 500wt) · @username (11px, `--color-text-tertiary`) |
-| Artists | Catalog artists | ArtworkThumb (32px, circular) · name · disambiguation (11px, tertiary) |
-| Albums | Catalog albums | ArtworkThumb (32px, 6px radius) · title · artist · year (tertiary) |
-| Tracks | Catalog tracks | Music-note icon box (32px) · title · artist · album · duration (right, tabular) |
+| Section | Contents            | Item layout                                                                                              |
+| ------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+| People  | User search results | AvatarImage (28px, circular) · display_name (primary, 500wt) · @username (11px, `--color-text-tertiary`) |
+| Artists | Catalog artists     | ArtworkThumb (32px, circular) · name · disambiguation (11px, tertiary)                                   |
+| Albums  | Catalog albums      | ArtworkThumb (32px, 6px radius) · title · artist · year (tertiary)                                       |
+| Tracks  | Catalog tracks      | Music-note icon box (32px) · title · artist · album · duration (right, tabular)                          |
 
 Section dividers: `1px solid rgba(255,255,255,0.07)` between sections when more than
 one is visible. No divider above the first section.
@@ -260,7 +262,7 @@ After a successful submit, `RatingSection` updates its `ownReview` state and pas
 `components/RatingSection.tsx` finds the signed-in user's existing review on mount:
 
 ```ts
-initialReviews.find(r => r.reviewer.username === ownUsername)
+initialReviews.find((r) => r.reviewer.username === ownUsername);
 ```
 
 On submit (`handleSubmitted`), the reviews list is updated by:

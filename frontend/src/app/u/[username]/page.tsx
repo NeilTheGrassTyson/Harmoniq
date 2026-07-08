@@ -60,7 +60,11 @@ export default async function ProfilePage(props: {
         {listening !== null && (
           <section style={{ marginBottom: 32 }}>
             <SectionLabel>Listening</SectionLabel>
-            <ListeningSection username={profile.username} token={token ?? undefined} initial={listening} />
+            <ListeningSection
+              username={profile.username}
+              token={token ?? undefined}
+              initial={listening}
+            />
           </section>
         )}
 

@@ -272,7 +272,9 @@ describe("ProfileEditPanel — Spotify connect/disconnect", () => {
     await renderPanel();
     fireEvent.click(await screen.findByRole("button", { name: "Connect Spotify" }));
 
-    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith("https://accounts.spotify.com/authorize"));
+    await waitFor(() =>
+      expect(assignSpy).toHaveBeenCalledWith("https://accounts.spotify.com/authorize")
+    );
   });
 
   it("Disconnect calls disconnectSpotify and updates the section", async () => {

@@ -28,38 +28,38 @@ chose to share.
 
 ### In Scope
 
-* Clerk authentication integration: users authenticated by Clerk receive a
+- Clerk authentication integration: users authenticated by Clerk receive a
   Harmoniq user record on first sign-in.
-* Onboarding flow: new users must choose a username and confirm a display name
+- Onboarding flow: new users must choose a username and confirm a display name
   before accessing the app. The gate enforces this via JWT public metadata.
-* User record: `username`, `display_name`, `avatar_url`, `bio`, three
+- User record: `username`, `display_name`, `avatar_url`, `bio`, three
   `visibility_*` fields, `created_at`, `updated_at`.
-* Public profile page (`/u/<username>`): displays fields based on the viewer's
+- Public profile page (`/u/<username>`): displays fields based on the viewer's
   visibility permissions.
-* Settings page: edit display name, username, bio, avatar, and all three
+- Settings page: edit display name, username, bio, avatar, and all three
   visibility scopes.
-* Avatar upload: JPEG/PNG/WebP up to 5 MB, stored in Cloudflare R2, served
+- Avatar upload: JPEG/PNG/WebP up to 5 MB, stored in Cloudflare R2, served
   from a public CDN URL.
-* Visibility scopes: `private` (owner only), `friends` (mutual followers —
+- Visibility scopes: `private` (owner only), `friends` (mutual followers —
   stub returning false until follows ships), `public` (everyone).
   Applied per-field for bio, listening activity, and ratings count.
-* Username availability check endpoint (debounced in the UI).
-* Clerk webhook handler: syncs `display_name` and `avatar_url` from `user.updated`
+- Username availability check endpoint (debounced in the UI).
+- Clerk webhook handler: syncs `display_name` and `avatar_url` from `user.updated`
   events.
-* Reserved username list: `me`, `admin`, `api`, `settings`, `onboarding`,
+- Reserved username list: `me`, `admin`, `api`, `settings`, `onboarding`,
   `check-username`, `staff`, `support`, `help`, `about`, `terms`, `privacy`.
 
 ### Out of Scope
 
-* Account deletion — `user.deleted` webhook handling deferred. See Known
+- Account deletion — `user.deleted` webhook handling deferred. See Known
   Limitations.
-* Follows / friends graph — the `_is_friend` stub always returns `False` until
+- Follows / friends graph — the `_is_friend` stub always returns `False` until
   the follows table ships. FRIENDS-scoped fields behave as PRIVATE for
   non-owners in the interim.
-* User search / discovery of other users.
-* Email or notification preferences.
-* Blocking or muting other users.
-* OAuth social login beyond Clerk (Spotify, Google, etc.).
+- User search / discovery of other users.
+- Email or notification preferences.
+- Blocking or muting other users.
+- OAuth social login beyond Clerk (Spotify, Google, etc.).
 
 ---
 
@@ -67,9 +67,9 @@ chose to share.
 
 This feature is not intended to:
 
-* Build the social graph (follows, trust scores, mutual connections).
-* Implement any recommendation or discovery surface.
-* Collect or store listening history (the `activity_placeholder` field is a
+- Build the social graph (follows, trust scores, mutual connections).
+- Implement any recommendation or discovery surface.
+- Collect or store listening history (the `activity_placeholder` field is a
   sentinel; real data comes in a later feature).
 
 ---
@@ -128,42 +128,48 @@ not ready.
 # Functional Requirements
 
 **User creation**
-* `POST /api/v1/users` creates a user record, enforcing username format
+
+- `POST /api/v1/users` creates a user record, enforcing username format
   (`[a-zA-Z0-9_-]{3,30}`) and reserved-name list server-side.
-* On successful creation, the backend sets `publicMetadata.onboarded = true`
+- On successful creation, the backend sets `publicMetadata.onboarded = true`
   in Clerk via the Management API. This is non-fatal: if it fails, the user
   record still exists; the flag will be set on the next Clerk token refresh or
   can be retried manually.
-* A race condition on duplicate username (between check and write) is handled
+- A race condition on duplicate username (between check and write) is handled
   with an `IntegrityError` catch on commit, returning a 409.
 
 **Username check**
-* `GET /api/v1/users/check-username?q=<value>` returns `{"available": bool}`.
-* Rate-limited to 20 requests/minute per IP to limit enumeration.
-* Returns `available: false` for invalid format or reserved names without
+
+- `GET /api/v1/users/check-username?q=<value>` returns `{"available": bool}`.
+- Rate-limited to 20 requests/minute per IP to limit enumeration.
+- Returns `available: false` for invalid format or reserved names without
   querying the DB.
 
 **Profile retrieval**
-* `GET /api/v1/users/me` — always returns full own profile including visibility
+
+- `GET /api/v1/users/me` — always returns full own profile including visibility
   settings (`OwnProfileResponse`).
-* `GET /api/v1/users/<username>` — returns `ProfileResponse`. Fields gated by
+- `GET /api/v1/users/<username>` — returns `ProfileResponse`. Fields gated by
   visibility are **absent** from the JSON (not null). Enforced at the service
   layer; route handler uses `JSONResponse(model.model_dump(exclude_unset=True))`.
 
 **Profile update**
-* `PATCH /api/v1/users/me` — rate-limited to 10/minute. Distinguishes `bio`
+
+- `PATCH /api/v1/users/me` — rate-limited to 10/minute. Distinguishes `bio`
   explicitly set to `null` (clear it) from `bio` absent from payload (leave
   unchanged) via `model_fields_set`.
 
 **Avatar upload**
-* `POST /api/v1/users/me/avatar` — multipart/form-data. Rate-limited to 5/minute.
-* Server-side magic byte validation: JPEG (`\xff\xd8\xff`), PNG
+
+- `POST /api/v1/users/me/avatar` — multipart/form-data. Rate-limited to 5/minute.
+- Server-side magic byte validation: JPEG (`\xff\xd8\xff`), PNG
   (`\x89PNG\r\n\x1a\n`), WebP (`RIFF…WEBP`). Content-Type header not trusted.
-* Maximum: 5 MB. Returns 413 if exceeded.
-* Uploads via boto3 in `run_in_executor` (non-blocking).
+- Maximum: 5 MB. Returns 413 if exceeded.
+- Uploads via boto3 in `run_in_executor` (non-blocking).
 
 **Webhook**
-* `POST /api/v1/webhooks/clerk` — validates Svix HMAC-SHA256 signature with
+
+- `POST /api/v1/webhooks/clerk` — validates Svix HMAC-SHA256 signature with
   5-minute timestamp tolerance. Handles `user.updated` → sync `display_name`
   and `avatar_url`. Unknown event types are silently accepted (200) without
   processing.
@@ -172,26 +178,26 @@ not ready.
 
 # Acceptance Criteria
 
-* [ ] New Clerk user is redirected to `/onboarding` on first sign-in.
-* [ ] Onboarding form rejects reserved usernames and invalid formats inline.
-* [ ] On submit, a user record is created in the DB and the user lands on
+- [ ] New Clerk user is redirected to `/onboarding` on first sign-in.
+- [ ] Onboarding form rejects reserved usernames and invalid formats inline.
+- [ ] On submit, a user record is created in the DB and the user lands on
       their profile page.
-* [ ] Returning user on a new device is not re-onboarded; they are redirected
+- [ ] Returning user on a new device is not re-onboarded; they are redirected
       from `/onboarding` to their profile.
-* [ ] `GET /api/v1/users/<username>` returns bio only when `visibility_bio` is
+- [ ] `GET /api/v1/users/<username>` returns bio only when `visibility_bio` is
       `public` (or `friends` if viewer is a friend, or owner). Bio is absent
       (not null) when not visible.
-* [ ] Changing `visibility_bio` to `private` on settings page causes bio to
+- [ ] Changing `visibility_bio` to `private` on settings page causes bio to
       disappear from a different-user's profile view.
-* [ ] Avatar upload with a valid JPEG/PNG/WebP under 5 MB succeeds and the
+- [ ] Avatar upload with a valid JPEG/PNG/WebP under 5 MB succeeds and the
       new avatar appears on the profile.
-* [ ] Avatar upload with an oversized file returns a clear error message.
-* [ ] Avatar upload with a file whose extension was renamed but content is not
+- [ ] Avatar upload with an oversized file returns a clear error message.
+- [ ] Avatar upload with a file whose extension was renamed but content is not
       an image returns a clear error message (magic-byte enforcement).
-* [ ] Webhook with invalid signature returns 400.
-* [ ] All backend static analysis passes (ruff, mypy).
-* [ ] All frontend static analysis passes (tsc, eslint).
-* [ ] Migration applies cleanly via `alembic upgrade head` on a fresh schema.
+- [ ] Webhook with invalid signature returns 400.
+- [ ] All backend static analysis passes (ruff, mypy).
+- [ ] All frontend static analysis passes (tsc, eslint).
+- [ ] Migration applies cleanly via `alembic upgrade head` on a fresh schema.
 
 ---
 
@@ -247,16 +253,16 @@ async context and the explicit call is more readable.
 
 # Observability
 
-* User creation logged at info level with internal UUID only (never `clerk_id`
+- User creation logged at info level with internal UUID only (never `clerk_id`
   or username in info-level logs in production).
-* Visibility scope changes logged at info level with internal UUID and
+- Visibility scope changes logged at info level with internal UUID and
   before/after values.
-* Username changes logged at info level with internal UUID.
-* Avatar upload failures logged at error level with internal UUID and exception.
-* Clerk Management API failures (onboarding flag) logged at error level; not
+- Username changes logged at info level with internal UUID.
+- Avatar upload failures logged at error level with internal UUID and exception.
+- Clerk Management API failures (onboarding flag) logged at error level; not
   re-raised.
-* Webhook events logged at info level with `event_type` only.
-* Webhook signature failures logged at warning level with reason.
+- Webhook events logged at info level with `event_type` only.
+- Webhook signature failures logged at warning level with reason.
 
 ---
 
@@ -279,7 +285,7 @@ fail for that `clerk_id` (Clerk rejects the JWT). This is acceptable for Phase 1
 because account deletion is explicitly out of scope, but the behaviour must be
 understood before any feature starts listing or searching users at scale.
 
-*Decision required before account deletion ships:* soft-delete (set a
+_Decision required before account deletion ships:_ soft-delete (set a
 `deleted_at` column and exclude from queries) vs hard-delete (cascade and purge
 user-generated content). This decision should be made as a spec, not ad hoc,
 because it affects ratings, reviews, and any future content the user created.
@@ -310,11 +316,12 @@ by calling the endpoint again, or set the flag manually in the Clerk dashboard.
 
 # Implementation Summary
 
-*Completed 2026-06-18 — commit `6ebe954` on branch `dev`.*
+_Completed 2026-06-18 — commit `6ebe954` on branch `dev`._
 
 ## Files changed
 
 **New — Backend**
+
 - `backend/app/core/enums.py` — VisibilityScope StrEnum
 - `backend/app/models/user.py` — User ORM model
 - `backend/app/schemas/user.py` — request/response schemas with validators
@@ -326,6 +333,7 @@ by calling the endpoint again, or set the flag manually in the Clerk dashboard.
 - `backend/alembic/versions/e5f6a7b8c9d0_add_users_table.py` — migration
 
 **New — Frontend**
+
 - `frontend/src/lib/users.ts` — typed API client
 - `frontend/src/components/AvatarImage.tsx` — initials placeholder
 - `frontend/src/components/VisibilitySelect.tsx` — visibility dropdown
@@ -334,6 +342,7 @@ by calling the endpoint again, or set the flag manually in the Clerk dashboard.
 - `frontend/src/app/settings/page.tsx`
 
 **Modified**
+
 - `backend/app/config.py` — R2 + Clerk SK/webhook fields (optional with None default)
 - `backend/app/auth.py` — added `get_optional_clerk_id`
 - `backend/app/models/__init__.py` — added User import
@@ -387,15 +396,15 @@ gates render output.
 A fourth visibility scope joins `visibility_bio` / `visibility_activity` /
 `visibility_ratings`:
 
-* `visibility_follows` — governs who may view the user's **follower and
+- `visibility_follows` — governs who may view the user's **follower and
   following lists** (`GET /api/v1/follows/{username}/followers` and
   `/following`). Scope values are the standard `public` / `friends` /
   `private`. The owner always sees their own lists. Denied viewers receive
   403 ("This list is private."), not an empty list.
-* **Follower/following counts remain always-visible** on the profile
+- **Follower/following counts remain always-visible** on the profile
   (Instagram model — the numbers are identity-card facts; the names are
   the shareable content).
-* `GET /api/v1/follows/{username}/state` (the viewer's own relationship to
+- `GET /api/v1/follows/{username}/state` (the viewer's own relationship to
   the profile) is unaffected — it reveals only the viewer's own edges.
 
 ## A2. Default is `public` — a documented constitutional exception

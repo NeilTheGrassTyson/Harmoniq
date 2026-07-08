@@ -22,7 +22,7 @@ product's intent, or an interim gap?
 ## Decision
 
 **Every profile is discoverable.** Search may return any account's
-username, display name, and avatar. Privacy applies to the *content* of a
+username, display name, and avatar. Privacy applies to the _content_ of a
 profile page — follow lists, reviews, ratings counts, listening activity —
 each governed by its own owner-set visibility scope, not to the profile's
 existence.
@@ -41,7 +41,7 @@ point should this decision ever be reversed.
   avatar) that are already visible on every profile page unconditionally.
   No visibility-scoped data leaks through search.
 - Consent (HARMONIQ.md §6) is preserved where it matters: every piece of
-  profile *content* carries an owner-controlled scope, enforced at the
+  profile _content_ carries an owner-controlled scope, enforced at the
   data-access layer per ENGINEERING_BIBLE.md §8.1.
 
 ## Consequences

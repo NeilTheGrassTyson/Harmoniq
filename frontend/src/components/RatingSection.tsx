@@ -52,9 +52,7 @@ export default function RatingSection({
     // any edge-case where a stale list held a row with a different ID.
     setReviews((prev) => [
       rating,
-      ...prev.filter(
-        (r) => r.id !== rating.id && r.reviewer.username !== rating.reviewer.username
-      ),
+      ...prev.filter((r) => r.id !== rating.id && r.reviewer.username !== rating.reviewer.username),
     ]);
     void refreshAggregate();
   }

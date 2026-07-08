@@ -140,9 +140,9 @@ convenience.
 
 **Harmony** is a profile-level signal, not a raw entity in the same sense
 as the others. It has two parts that should be kept architecturally
-separate: a *computed* component (derived from Melody acceptance rate and
+separate: a _computed_ component (derived from Melody acceptance rate and
 sustained positive reception over time, owned by the recommendation
-service) and a *cosmetic* component (theme, theme song — owned by the
+service) and a _cosmetic_ component (theme, theme song — owned by the
 profile/presentation layer, not the scoring engine). Conflating these would
 make the score easy to game through unrelated profile customization.
 

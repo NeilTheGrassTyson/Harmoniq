@@ -19,10 +19,7 @@ const SENT_LABELS: Record<string, string> = {
   rejected: "Passed",
 };
 
-export default function MelodySentList({
-  initialItems,
-  initialCursor,
-}: MelodySentListProps) {
+export default function MelodySentList({ initialItems, initialCursor }: MelodySentListProps) {
   const { getToken } = useAuth();
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);

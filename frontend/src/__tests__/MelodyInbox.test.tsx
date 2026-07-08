@@ -112,10 +112,7 @@ describe("MelodyInbox — quick actions", () => {
 
   it("terminal statuses render no actions", () => {
     render(
-      <MelodyInbox
-        initialItems={[makeItem({ id: "m1", status: "opened" })]}
-        initialCursor={null}
-      />
+      <MelodyInbox initialItems={[makeItem({ id: "m1", status: "opened" })]} initialCursor={null} />
     );
     expect(screen.queryByText("Listen")).toBeNull();
     expect(screen.queryByText("Take it")).toBeNull();

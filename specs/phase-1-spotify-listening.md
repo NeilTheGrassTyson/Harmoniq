@@ -19,7 +19,7 @@ Core principle strengthened: **Musical Identity** (BRAND_BIBLE §3.1). What
 a user listens to, surfaced on their own profile under their own
 visibility control, is identity expression — not content, not a feed.
 
-This is a *supplementary display integration*, per ENGINEERING_BIBLE §11
+This is a _supplementary display integration_, per ENGINEERING_BIBLE §11
 and the Spotify API constraints in CLAUDE.md. Spotify is not the data
 backbone and never feeds the future recommendation layer.
 
@@ -29,42 +29,42 @@ backbone and never feeds the future recommendation layer.
 
 ### In Scope
 
-* OAuth account linking (Authorization Code flow) from the settings page:
+- OAuth account linking (Authorization Code flow) from the settings page:
   Connect, connection status, Disconnect.
-* Encrypted-at-rest storage of the Spotify refresh token (Fernet; key from
+- Encrypted-at-rest storage of the Spotify refresh token (Fernet; key from
   env). The only Spotify data persisted is the connection record itself
   (spotify user id, encrypted refresh token, granted scopes, connected_at).
-* Display-only listening data on the profile page: current track (when
+- Display-only listening data on the profile page: current track (when
   playing) + up to 20 recently-played tracks, fetched live from Spotify
   with a short (60s) in-process cache of the raw payload.
-* Visibility enforcement at the service layer using the **existing**
+- Visibility enforcement at the service layer using the **existing**
   `visibility_activity` profile setting (default private): owner always
   sees their own listening; others per scope.
-* Spotify Development Mode app (5-user allowlist) — sufficient for the
+- Spotify Development Mode app (5-user allowlist) — sufficient for the
   Founder's personal account at this stage.
 
 ### Out of Scope
 
-* Persisting listens (no `listens` table; no scrobbling). Listening-history
+- Persisting listens (no `listens` table; no scrobbling). Listening-history
   persistence is the recommendation pipeline's front door and requires its
   own Tier 1 spec (WORKFLOW.md §1, CLAUDE.md data-pipeline rule).
-* Any use of Spotify data beyond display: no recommendation input, no
+- Any use of Spotify data beyond display: no recommendation input, no
   similarity modeling, no training data (Spotify ToS; ENGINEERING_BIBLE
   §13).
-* Starter-library import, playlists, playback control.
-* Multiple provider abstraction (provider interface arrives with a second
+- Starter-library import, playlists, playback control.
+- Multiple provider abstraction (provider interface arrives with a second
   provider, not before — Simplicity Before Complexity).
-* Extended-quota access / production Spotify app.
+- Extended-quota access / production Spotify app.
 
 ---
 
 # Non-Goals
 
-* This does not make Spotify the canonical music source — MusicBrainz
+- This does not make Spotify the canonical music source — MusicBrainz
   remains canonical (ADR 0006). Listening rows are rendered from Spotify
   metadata directly and are not matched into the local catalog in this
   phase.
-* This does not implement real-time push; "now playing" is fetch-on-view
+- This does not implement real-time push; "now playing" is fetch-on-view
   with a short cache (ENGINEERING_BIBLE §9's calm-behavior constraint).
 
 ---
@@ -72,6 +72,7 @@ backbone and never feeds the future recommendation layer.
 # User Experience
 
 **Connecting (settings page):**
+
 1. Settings shows a "Connected accounts" section. Not connected → a
    "Connect Spotify" button.
 2. Click → redirect to Spotify's consent screen → approve → return to
@@ -82,11 +83,12 @@ backbone and never feeds the future recommendation layer.
    according to the existing "Listening activity" visibility setting.
 
 **Viewing (profile page):**
-* The Listening section (visible per `visibility_activity`) shows a "Now
+
+- The Listening section (visible per `visibility_activity`) shows a "Now
   playing" row when a track is playing, and a recently-played list (album
   art, title, artist, relative time).
-* Owner not connected → quiet empty state: "No listening activity yet."
-* Denied by visibility → the section is absent entirely (existing
+- Owner not connected → quiet empty state: "No listening activity yet."
+- Denied by visibility → the section is absent entirely (existing
   key-omission pattern).
 
 **Error states:** Spotify unreachable → section renders nothing (section
@@ -101,89 +103,89 @@ connection (upsert).
 
 # Functional Requirements
 
-* User can initiate Spotify OAuth from settings; the authorize URL is
+- User can initiate Spotify OAuth from settings; the authorize URL is
   built server-side (client id/secret never reach the frontend).
-* The OAuth `state` parameter must be HMAC-signed, time-limited (10 min),
+- The OAuth `state` parameter must be HMAC-signed, time-limited (10 min),
   and bound to the initiating Harmoniq user; the callback must reject a
   state whose signature, expiry, or user binding fails.
-* System must store the refresh token encrypted (Fernet). The plaintext
+- System must store the refresh token encrypted (Fernet). The plaintext
   token must never be logged or returned by any API.
-* Access tokens live only in process memory, refreshed ~60s before expiry;
+- Access tokens live only in process memory, refreshed ~60s before expiry;
   a rotated refresh token returned by Spotify must be persisted.
-* A refresh failure with `invalid_grant` (revoked) must delete the
+- A refresh failure with `invalid_grant` (revoked) must delete the
   connection and surface "not connected."
-* Listening data must be fetched live (60s payload cache) and never
+- Listening data must be fetched live (60s payload cache) and never
   written to the database.
-* Visibility must be enforced in the service layer on every request; the
+- Visibility must be enforced in the service layer on every request; the
   cache stores the raw Spotify payload per user, and the visibility
   decision is applied after cache retrieval, never cached itself.
-* Feature should never send Spotify data to any other subsystem.
-* Disconnect must delete the connection row and drop in-memory tokens and
+- Feature should never send Spotify data to any other subsystem.
+- Disconnect must delete the connection row and drop in-memory tokens and
   cached payloads immediately (revocable consent, ENGINEERING_BIBLE §8.1).
 
 ---
 
 # Acceptance Criteria
 
-* [ ] Founder can connect their personal Spotify account from settings and
+- [ ] Founder can connect their personal Spotify account from settings and
       see "Connected as …".
-* [ ] With a track playing on Spotify, the Founder's profile shows Now
+- [ ] With a track playing on Spotify, the Founder's profile shows Now
       playing + recently played within ~60s.
-* [ ] With `visibility_activity=private`, a signed-out viewer sees no
+- [ ] With `visibility_activity=private`, a signed-out viewer sees no
       Listening section; the owner still sees it. Setting it to `public`
       makes it visible; the change takes effect immediately.
-* [ ] `spotify_connections.refresh_token_encrypted` contains Fernet
+- [ ] `spotify_connections.refresh_token_encrypted` contains Fernet
       ciphertext, not a plaintext token.
-* [ ] Callback with a tampered/expired/foreign `state` returns 400 and
+- [ ] Callback with a tampered/expired/foreign `state` returns 400 and
       creates no connection.
-* [ ] Disconnect removes the row; the profile shows the quiet empty state.
-* [ ] No new table stores track/listen data; grep confirms Spotify data
+- [ ] Disconnect removes the row; the profile shows the quiet empty state.
+- [ ] No new table stores track/listen data; grep confirms Spotify data
       flows only to the listening response schema.
-* [ ] Static analysis passes: ruff, mypy (backend); tsc, eslint (frontend).
+- [ ] Static analysis passes: ruff, mypy (backend); tsc, eslint (frontend).
 
 ---
 
 # Design Requirements
 
-* Calm and minimal per BRAND_BIBLE §7/§8: the Listening section uses the
+- Calm and minimal per BRAND_BIBLE §7/§8: the Listening section uses the
   existing SectionLabel style; "Now playing" is a quiet row, not a badge or
   animation. No prompts to connect on other users' profiles.
-* Copy follows §10: "No listening activity yet.", "Connected as …",
+- Copy follows §10: "No listening activity yet.", "Connected as …",
   "Listening activity is shown on your profile according to your Listening
   activity visibility setting." No hype, no exclamation marks.
-* Spotify branding kept minimal (name only) — this is Harmoniq's surface.
+- Spotify branding kept minimal (name only) — this is Harmoniq's surface.
 
 ---
 
 # Technical Notes
 
-* **New backend modules:** `app/core/crypto.py` (Fernet helpers),
+- **New backend modules:** `app/core/crypto.py` (Fernet helpers),
   `app/models/spotify.py` (`SpotifyConnection`), `app/schemas/spotify.py`,
   `app/services/spotify.py`, `app/api/v1/spotify.py`.
-* **Endpoints:** `GET /api/v1/spotify/connect-url` (auth),
+- **Endpoints:** `GET /api/v1/spotify/connect-url` (auth),
   `POST /api/v1/spotify/callback` (auth, 10/min),
   `GET|DELETE /api/v1/spotify/connection` (auth),
   `GET /api/v1/spotify/listening/{username}` (optional auth).
-* **Schema:** `spotify_connections(id, user_id unique FK CASCADE,
-  spotify_user_id, refresh_token_encrypted, scopes, connected_at)` —
+- **Schema:** `spotify_connections(id, user_id unique FK CASCADE,
+spotify_user_id, refresh_token_encrypted, scopes, connected_at)` —
   additive migration.
-* **Config:** `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`,
+- **Config:** `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`,
   `SPOTIFY_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` — all optional-at-import,
   validated at call site (house pattern). `TOKEN_ENCRYPTION_KEY` doubles as
   the OAuth-state HMAC key (documented dual use).
-* **New dependency:** `cryptography` (direct); `respx` (dev, httpx
+- **New dependency:** `cryptography` (direct); `respx` (dev, httpx
   mocking).
-* **Spotify endpoints used:** `/authorize`, `/api/token`, `/v1/me`,
+- **Spotify endpoints used:** `/authorize`, `/api/token`, `/v1/me`,
   `/v1/me/player/currently-playing`, `/v1/me/player/recently-played`.
   Scopes: `user-read-recently-played user-read-currently-playing`.
-* **Redirect URI:** loopback IP literal `http://127.0.0.1:3000/spotify-callback`
+- **Redirect URI:** loopback IP literal `http://127.0.0.1:3000/spotify-callback`
   (Spotify's 2025 policy rejects `localhost` for new apps). Clerk dev
   sessions are pinned to the `localhost` origin, so the callback page is
   public in the route proxy and forwards itself from 127.0.0.1 to
   localhost (query string intact) before performing the authed exchange —
   users browse on localhost throughout. Security is unaffected: the
   exchange endpoint requires auth plus the user-bound signed state.
-* **Known limitation (accepted):** the 60s payload cache and access-token
+- **Known limitation (accepted):** the 60s payload cache and access-token
   cache are in-process — correct for single-worker local dev; a shared
   cache is required before multi-worker deployment. Losing/rotating
   `TOKEN_ENCRYPTION_KEY` orphans stored refresh tokens (users reconnect).
@@ -192,10 +194,10 @@ connection (upsert).
 
 # Rollback Plan
 
-* Feature is disabled by removing the spotify router from
+- Feature is disabled by removing the spotify router from
   `app/api/v1/router.py` (frontend degrades to the quiet empty state) or
   simply by unsetting the Spotify env vars (endpoints return 503).
-* The `spotify_connections` table is additive; the migration is reversible
+- The `spotify_connections` table is additive; the migration is reversible
   via `alembic downgrade`. Dropping it destroys only connection records —
   users reconnect; no user content is lost.
 
@@ -209,8 +211,8 @@ connection (upsert).
 
 ---
 
-*Approved 2026-07-04. Implementation proceeds under the standard Review
-Workflow in WORKFLOW.md.*
+_Approved 2026-07-04. Implementation proceeds under the standard Review
+Workflow in WORKFLOW.md._
 
 ---
 

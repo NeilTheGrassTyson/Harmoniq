@@ -91,9 +91,7 @@ describe("SendMelodyPanel", () => {
     fireEvent.click(screen.getByText("Send"));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("This member isn't receiving Melodies right now.")
-      ).toBeDefined();
+      expect(screen.getByText("This member isn't receiving Melodies right now.")).toBeDefined();
     });
   });
 

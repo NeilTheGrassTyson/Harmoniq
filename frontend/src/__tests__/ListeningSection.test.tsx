@@ -23,9 +23,7 @@ function makeItem(overrides: Partial<RecentlyPlayedItem> = {}): RecentlyPlayedIt
 }
 
 function renderSection(listening: ListeningResponse) {
-  return render(
-    <ListeningSection username="testuser" token="tok" initial={listening} />
-  );
+  return render(<ListeningSection username="testuser" token="tok" initial={listening} />);
 }
 
 describe("ListeningSection", () => {

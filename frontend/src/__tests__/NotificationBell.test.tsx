@@ -41,9 +41,7 @@ import NotificationBell from "@/components/NotificationBell";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeNotification(
-  overrides: Partial<NotificationItem> & { id: string }
-): NotificationItem {
+function makeNotification(overrides: Partial<NotificationItem> & { id: string }): NotificationItem {
   return {
     type: "melody_received",
     actor: { id: "u1", username: "alice", display_name: "Alice", avatar_url: null },

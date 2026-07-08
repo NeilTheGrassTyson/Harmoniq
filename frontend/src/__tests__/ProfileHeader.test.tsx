@@ -89,9 +89,7 @@ function makeOtherProfile(overrides: Partial<ProfileResponse> = {}): ProfileResp
   };
 }
 
-function makeOwnProfileUpdate(
-  overrides: Partial<OwnProfileResponse> = {}
-): OwnProfileResponse {
+function makeOwnProfileUpdate(overrides: Partial<OwnProfileResponse> = {}): OwnProfileResponse {
   return {
     username: "alice",
     display_name: "Alice",

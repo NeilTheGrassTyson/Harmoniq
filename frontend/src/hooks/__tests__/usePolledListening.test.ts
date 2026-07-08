@@ -79,9 +79,7 @@ describe("usePolledListening", () => {
 
   it("stops polling while the tab is hidden and resumes with an immediate poll when visible", async () => {
     mockGetListening.mockResolvedValue(UPDATED);
-    renderHook(() =>
-      usePolledListening({ username: "alice", initial: INITIAL, intervalMs: 1000 })
-    );
+    renderHook(() => usePolledListening({ username: "alice", initial: INITIAL, intervalMs: 1000 }));
 
     Object.defineProperty(document, "hidden", { value: true, configurable: true });
     document.dispatchEvent(new Event("visibilitychange"));

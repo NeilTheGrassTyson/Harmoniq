@@ -229,10 +229,10 @@ export default function ProfileEditPanel({
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-4 border-hairline mt-4 border-t pt-6">
-        <div className="h-16 w-16 rounded-full bg-tile" />
-        <div className="h-4 w-48 rounded bg-tile" />
-        <div className="h-4 w-32 rounded bg-tile" />
+      <div className="border-hairline mt-4 animate-pulse space-y-4 border-t pt-6">
+        <div className="bg-tile h-16 w-16 rounded-full" />
+        <div className="bg-tile h-4 w-48 rounded" />
+        <div className="bg-tile h-4 w-32 rounded" />
       </div>
     );
   }
@@ -244,15 +244,10 @@ export default function ProfileEditPanel({
     (username === originalUsername || availability.kind === "available");
 
   return (
-    <form
-      onSubmit={handleSave}
-      className="border-hairline mt-4 space-y-8 border-t pt-6"
-    >
+    <form onSubmit={handleSave} className="border-hairline mt-4 space-y-8 border-t pt-6">
       {/* Avatar */}
       <div>
-        <p className="mb-3 text-xs font-medium tracking-widest text-tertiary uppercase">
-          Avatar
-        </p>
+        <p className="text-tertiary mb-3 text-xs font-medium tracking-widest uppercase">Avatar</p>
         <div className="flex items-center gap-4">
           <AvatarImage src={avatarUrl} username={username} size={64} />
           <div>
@@ -260,7 +255,7 @@ export default function ProfileEditPanel({
               type="button"
               onClick={handleAvatarClick}
               disabled={avatarUploading}
-              className="rounded-control border border-hairline px-3 py-1.5 text-xs font-medium text-secondary hover:text-primary disabled:opacity-50"
+              className="rounded-control border-hairline text-secondary hover:text-primary border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
             >
               {avatarUploading ? "Uploading…" : "Change photo"}
             </button>
@@ -280,7 +275,7 @@ export default function ProfileEditPanel({
       <div>
         <label
           htmlFor="display-name"
-          className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
+          className="text-tertiary mb-1.5 block text-xs font-medium tracking-widest uppercase"
         >
           Display name
         </label>
@@ -290,7 +285,7 @@ export default function ProfileEditPanel({
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           maxLength={50}
-          className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
+          className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
         />
       </div>
 
@@ -298,7 +293,7 @@ export default function ProfileEditPanel({
       <div>
         <label
           htmlFor="username"
-          className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
+          className="text-tertiary mb-1.5 block text-xs font-medium tracking-widest uppercase"
         >
           Username
         </label>
@@ -310,7 +305,7 @@ export default function ProfileEditPanel({
           autoCapitalize="none"
           spellCheck={false}
           maxLength={30}
-          className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
+          className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
         />
         <div className="mt-1 min-h-[1.25rem] text-xs">
           {availability.kind === "invalid" && (
@@ -319,14 +314,12 @@ export default function ProfileEditPanel({
             </span>
           )}
           {availability.kind === "taken" && (
-            <span role="alert" style={{ color: "#f87171" }}>That username is taken.</span>
+            <span role="alert" style={{ color: "#f87171" }}>
+              That username is taken.
+            </span>
           )}
-          {availability.kind === "available" && (
-            <span className="text-accent">Available.</span>
-          )}
-          {availability.kind === "checking" && (
-            <span className="text-tertiary">Checking…</span>
-          )}
+          {availability.kind === "available" && <span className="text-accent">Available.</span>}
+          {availability.kind === "checking" && <span className="text-tertiary">Checking…</span>}
         </div>
       </div>
 
@@ -334,7 +327,7 @@ export default function ProfileEditPanel({
       <div>
         <label
           htmlFor="bio"
-          className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
+          className="text-tertiary mb-1.5 block text-xs font-medium tracking-widest uppercase"
         >
           Bio
         </label>
@@ -345,16 +338,14 @@ export default function ProfileEditPanel({
           maxLength={280}
           rows={3}
           placeholder="A few words about your taste…"
-          className="w-full resize-none rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
+          className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full resize-none border px-3 py-2 text-sm"
         />
-        <p className="mt-1 text-right text-xs text-tertiary">{bio.length}/280</p>
+        <p className="text-tertiary mt-1 text-right text-xs">{bio.length}/280</p>
       </div>
 
       {/* Visibility controls */}
       <div className="space-y-3">
-        <p className="text-xs font-medium tracking-widest text-tertiary uppercase">
-          Visibility
-        </p>
+        <p className="text-tertiary text-xs font-medium tracking-widest uppercase">Visibility</p>
 
         {(
           [
@@ -380,26 +371,25 @@ export default function ProfileEditPanel({
           ] as const
         ).map(({ field, label, value, setter }) => (
           <div key={field} className="flex items-center justify-between gap-4">
-            <label htmlFor={`vis-${field}`} className="text-sm text-secondary">
+            <label htmlFor={`vis-${field}`} className="text-secondary text-sm">
               {label}
             </label>
             <VisibilitySelect id={`vis-${field}`} value={value} onChange={setter} />
           </div>
         ))}
 
-        <p className="text-xs text-tertiary">Friends means people you both follow.</p>
+        <p className="text-tertiary text-xs">Friends means people you both follow.</p>
       </div>
 
       {/* Connected accounts */}
       <div>
-        <p className="mb-3 text-xs font-medium tracking-widest text-tertiary uppercase">
+        <p className="text-tertiary mb-3 text-xs font-medium tracking-widest uppercase">
           Connected accounts
         </p>
         {spotify?.connected ? (
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-secondary">
-              Spotify — connected as{" "}
-              <span className="text-primary">{spotify.spotify_user_id}</span>
+            <p className="text-secondary text-sm">
+              Spotify — connected as <span className="text-primary">{spotify.spotify_user_id}</span>
               {spotify.connected_at && (
                 <span className="text-tertiary">
                   {" "}
@@ -416,25 +406,25 @@ export default function ProfileEditPanel({
               type="button"
               onClick={handleSpotifyDisconnect}
               disabled={spotifyBusy}
-              className="rounded-control border border-hairline px-3 py-1.5 text-xs font-medium text-secondary hover:text-primary disabled:opacity-50"
+              className="rounded-control border-hairline text-secondary hover:text-primary border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
             >
               {spotifyBusy ? "Working…" : "Disconnect"}
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-secondary">Spotify</p>
+            <p className="text-secondary text-sm">Spotify</p>
             <button
               type="button"
               onClick={handleSpotifyConnect}
               disabled={spotifyBusy}
-              className="rounded-control border border-hairline px-3 py-1.5 text-xs font-medium text-secondary hover:text-primary disabled:opacity-50"
+              className="rounded-control border-hairline text-secondary hover:text-primary border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
             >
               {spotifyBusy ? "Working…" : "Connect Spotify"}
             </button>
           </div>
         )}
-        <p className="mt-2 text-xs text-tertiary">
+        <p className="text-tertiary mt-2 text-xs">
           Listening activity is shown on your profile according to your Listening activity
           visibility setting.
         </p>
@@ -451,20 +441,24 @@ export default function ProfileEditPanel({
       </div>
 
       {/* Save / Cancel */}
-      {saveError && <p role="alert" className="text-sm text-red-500">{saveError}</p>}
+      {saveError && (
+        <p role="alert" className="text-sm text-red-500">
+          {saveError}
+        </p>
+      )}
 
       <div className="flex items-center gap-4">
         <button
           type="submit"
           disabled={!canSave}
-          className="rounded-control bg-primary px-5 py-2 text-sm font-medium text-canvas transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-control bg-primary text-canvas px-5 py-2 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="text-sm text-tertiary hover:text-secondary"
+          className="text-tertiary hover:text-secondary text-sm"
         >
           Cancel
         </button>

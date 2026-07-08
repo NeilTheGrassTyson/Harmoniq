@@ -140,7 +140,7 @@ export default function NotificationBell() {
         onClick={() => void toggle()}
         aria-label={unread > 0 ? "Notifications — new activity" : "Notifications"}
         aria-expanded={open}
-        className="flex items-center justify-center rounded-nav text-secondary hover:text-primary"
+        className="rounded-nav text-secondary hover:text-primary flex items-center justify-center"
         style={{ width: 30, height: 30, position: "relative" }}
         data-testid="notification-bell"
       >
@@ -234,7 +234,10 @@ export default function NotificationBell() {
                             <>{item.actor.display_name} followed you</>
                           )}
                         </span>
-                        <span className="text-tertiary block" style={{ fontSize: 11, marginTop: 2 }}>
+                        <span
+                          className="text-tertiary block"
+                          style={{ fontSize: 11, marginTop: 2 }}
+                        >
                           {timeAgo(item.created_at)}
                         </span>
                       </span>

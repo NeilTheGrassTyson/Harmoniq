@@ -60,21 +60,22 @@ referencing the file by name in your prompt:
 
 ### Stack
 
-| Layer | Choice |
-|---|---|
-| Backend | FastAPI, Python 3.12+ |
-| Database | PostgreSQL (Neon serverless) + asyncpg + SQLAlchemy 2.0 async + Alembic |
-| Auth | Clerk — `proxy.ts` gate in Next.js; Clerk Management API for `publicMetadata.onboarded` |
-| Frontend | Next.js 16 (App Router, RSC, TypeScript) |
-| Styling | Tailwind v4 — `@theme` block in `globals.css`, no `tailwind.config.js` |
-| Typography | Space Grotesk (display) via `next/font/google`; system font stack (body) |
-| File storage | Cloudflare R2 (S3-compatible via boto3) |
-| Music database | MusicBrainz + Cover Art Archive — on-demand ingestion |
-| Hosting | Frontend: Vercel; Backend: Railway |
-| Mobile dev | Tailscale + Windows OpenSSH Server + Tailscale Serve |
-| IDE | VSCode + Claude Code extension |
+| Layer          | Choice                                                                                  |
+| -------------- | --------------------------------------------------------------------------------------- |
+| Backend        | FastAPI, Python 3.12+                                                                   |
+| Database       | PostgreSQL (Neon serverless) + asyncpg + SQLAlchemy 2.0 async + Alembic                 |
+| Auth           | Clerk — `proxy.ts` gate in Next.js; Clerk Management API for `publicMetadata.onboarded` |
+| Frontend       | Next.js 16 (App Router, RSC, TypeScript)                                                |
+| Styling        | Tailwind v4 — `@theme` block in `globals.css`, no `tailwind.config.js`                  |
+| Typography     | Space Grotesk (display) via `next/font/google`; system font stack (body)                |
+| File storage   | Cloudflare R2 (S3-compatible via boto3)                                                 |
+| Music database | MusicBrainz + Cover Art Archive — on-demand ingestion                                   |
+| Hosting        | Frontend: Vercel; Backend: Railway                                                      |
+| Mobile dev     | Tailscale + Windows OpenSSH Server + Tailscale Serve                                    |
+| IDE            | VSCode + Claude Code extension                                                          |
 
 ### Backend tooling
+
 - **Dependency management:** Poetry (`pyproject.toml`). Poetry not on PATH on Windows — invoke via `py -m poetry` or the full `.venv` path.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
 - **Type check:** `mypy` (or pyright — check `pyproject.toml`).
@@ -84,12 +85,14 @@ referencing the file by name in your prompt:
 - **Migrations:** `cd backend && alembic upgrade head`
 
 ### Frontend tooling
+
 - **Lint:** ESLint (`npm run lint`). Two Dependabot PRs held pending `eslint-config-next` peer dep support for TypeScript 5→6 and ESLint 9→10.
 - **Type check:** `npm run typecheck`
 - **Format:** Prettier with `prettier-plugin-tailwindcss`
 - **Run dev server:** `cd frontend && npm run dev`
 
 ### Skills
+
 - `unslop-ui` at `.claude/skills/unslop-ui/` — `SKILL.md`, `references/`, and `scripts/devibe_scan.py` must be direct children of that folder.
 
 ### Folder structure

@@ -58,14 +58,12 @@ function makeReturnedRating(overrides: Partial<RatingRead> = {}): RatingRead {
 
 describe("RatingComposer — blank state (no initialRating)", () => {
   it('shows "Submit review" label and blank form when no initialRating is provided', () => {
-    render(
-      <RatingComposer entityType="album" entityMbid="mbid-1" />
-    );
+    render(<RatingComposer entityType="album" entityMbid="mbid-1" />);
 
     // No score selected
-    const scoreButtons = screen.getAllByRole("button").filter(
-      (b) => b.getAttribute("aria-pressed") === "true"
-    );
+    const scoreButtons = screen
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("aria-pressed") === "true");
     expect(scoreButtons).toHaveLength(0);
 
     // Textarea is empty
@@ -81,41 +79,21 @@ describe("RatingComposer — pre-fill from initialRating", () => {
   const initialRating = { score: 7, review_text: LONG_ENOUGH_TEXT, visibility: "friends" };
 
   it("pre-selects the correct score button", () => {
-    render(
-      <RatingComposer
-        entityType="album"
-        entityMbid="mbid-1"
-        initialRating={initialRating}
-      />
-    );
+    render(<RatingComposer entityType="album" entityMbid="mbid-1" initialRating={initialRating} />);
 
-    const btn7 = screen
-      .getAllByRole("button")
-      .find((b) => b.textContent === "7");
+    const btn7 = screen.getAllByRole("button").find((b) => b.textContent === "7");
     expect(btn7?.getAttribute("aria-pressed")).toBe("true");
   });
 
   it("pre-fills the textarea with the existing review text", () => {
-    render(
-      <RatingComposer
-        entityType="album"
-        entityMbid="mbid-1"
-        initialRating={initialRating}
-      />
-    );
+    render(<RatingComposer entityType="album" entityMbid="mbid-1" initialRating={initialRating} />);
 
     const textarea = screen.getByRole("textbox");
     expect((textarea as HTMLTextAreaElement).value).toBe(LONG_ENOUGH_TEXT);
   });
 
   it('changes submit button label to "Update review" when initialRating is provided', () => {
-    render(
-      <RatingComposer
-        entityType="album"
-        entityMbid="mbid-1"
-        initialRating={initialRating}
-      />
-    );
+    render(<RatingComposer entityType="album" entityMbid="mbid-1" initialRating={initialRating} />);
 
     expect(screen.getByRole("button", { name: "Update review" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Submit review" })).toBeNull();
@@ -125,13 +103,7 @@ describe("RatingComposer — pre-fill from initialRating", () => {
     const returnedRating = makeReturnedRating({ score: 7 });
     mockSubmitRating.mockResolvedValueOnce(returnedRating);
 
-    render(
-      <RatingComposer
-        entityType="album"
-        entityMbid="mbid-1"
-        initialRating={initialRating}
-      />
-    );
+    render(<RatingComposer entityType="album" entityMbid="mbid-1" initialRating={initialRating} />);
 
     const submitBtn = screen.getByRole("button", { name: "Update review" });
     await act(async () => {
@@ -159,13 +131,7 @@ describe("RatingComposer — new review submit", () => {
     mockSubmitRating.mockResolvedValueOnce(returnedRating);
     const onSubmitted = vi.fn();
 
-    render(
-      <RatingComposer
-        entityType="track"
-        entityMbid="mbid-2"
-        onSubmitted={onSubmitted}
-      />
-    );
+    render(<RatingComposer entityType="track" entityMbid="mbid-2" onSubmitted={onSubmitted} />);
 
     // Select score 9
     const btn9 = screen.getAllByRole("button").find((b) => b.textContent === "9")!;

@@ -29,8 +29,7 @@ export default async function FollowersPage(props: {
     (result) => ({ data: result, listPrivate: false }),
     (err: unknown) => ({
       data: { items: [], next_cursor: null },
-      listPrivate:
-        err instanceof Error && (err as Error & { status?: number }).status === 403,
+      listPrivate: err instanceof Error && (err as Error & { status?: number }).status === 403,
     })
   );
 
@@ -38,34 +37,31 @@ export default async function FollowersPage(props: {
     <AppShell>
       <main className="mx-auto max-w-2xl px-4 py-10">
         <div className="mb-6">
-          <Link
-            href={`/u/${username}`}
-            className="text-sm text-secondary hover:text-primary"
-          >
+          <Link href={`/u/${username}`} className="text-secondary hover:text-primary text-sm">
             ← @{username}
           </Link>
-          <h1 className="mt-2 text-xl font-light tracking-tight text-primary">
+          <h1 className="text-primary mt-2 text-xl font-light tracking-tight">
             {profile.follower_count === 1 ? "1 follower" : `${profile.follower_count} followers`}
           </h1>
         </div>
 
         {listPrivate ? (
-          <p className="text-sm text-tertiary">This list is private.</p>
+          <p className="text-tertiary text-sm">This list is private.</p>
         ) : data.items.length === 0 ? (
-          <p className="text-sm text-tertiary">No followers yet.</p>
+          <p className="text-tertiary text-sm">No followers yet.</p>
         ) : (
-          <ul className="divide-y divide-hairline">
+          <ul className="divide-hairline divide-y">
             {data.items.map((user) => (
               <li key={user.user_id} className="flex items-center gap-3 py-3">
                 <AvatarImage src={user.avatar_url} username={user.username} size={36} />
                 <div className="min-w-0">
                   <Link
                     href={`/u/${user.username}`}
-                    className="block text-sm font-medium text-primary hover:underline"
+                    className="text-primary block text-sm font-medium hover:underline"
                   >
                     {user.display_name}
                   </Link>
-                  <p className="text-xs text-tertiary">@{user.username}</p>
+                  <p className="text-tertiary text-xs">@{user.username}</p>
                 </div>
               </li>
             ))}
@@ -76,7 +72,7 @@ export default async function FollowersPage(props: {
           <div className="mt-6">
             <Link
               href={`/u/${username}/followers?cursor=${encodeURIComponent(data.next_cursor)}`}
-              className="text-sm text-secondary hover:text-primary"
+              className="text-secondary hover:text-primary text-sm"
             >
               Load more
             </Link>

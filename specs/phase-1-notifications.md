@@ -29,21 +29,21 @@ spec is deliberately minimal by constitutional constraint, not oversight.
 
 ### In Scope
 
-* Two notification types: `melody_received`, `new_follower`.
-* Unread count, mark-one-read, mark-all-read.
-* A bell icon + dropdown panel in `AppShell`, polled (not real-time).
+- Two notification types: `melody_received`, `new_follower`.
+- Unread count, mark-one-read, mark-all-read.
+- A bell icon + dropdown panel in `AppShell`, polled (not real-time).
 
 ### Out of Scope
 
-* Any notification type beyond the two above (e.g. rating likes/comments —
+- Any notification type beyond the two above (e.g. rating likes/comments —
   don't exist as features yet).
-* Push notifications (browser or mobile).
-* Real-time delivery (WebSocket/SSE) — explicitly non-goal per
+- Push notifications (browser or mobile).
+- Real-time delivery (WebSocket/SSE) — explicitly non-goal per
   ENGINEERING_BIBLE §9 ("Feed updates and ranking changes are explicitly
   non-real-time, by design, to preserve calm system behavior").
-* Notification preferences/settings (e.g. muting a type) — everything is
+- Notification preferences/settings (e.g. muting a type) — everything is
   always on for the two shipped types.
-* A rejected-Melody notification — permanently out of scope, not deferred
+- A rejected-Melody notification — permanently out of scope, not deferred
   (ENGINEERING_BIBLE §3: rejection "must never produce a notification or
   penalty visible to anyone else").
 
@@ -51,19 +51,19 @@ spec is deliberately minimal by constitutional constraint, not oversight.
 
 # User Experience
 
-* **Entry point** — bell icon in the `AppShell` header, next to `NavAuth`.
-* **Core flow** — unread count polled on mount + every 60s; a quiet 2px
+- **Entry point** — bell icon in the `AppShell` header, next to `NavAuth`.
+- **Core flow** — unread count polled on mount + every 60s; a quiet 2px
   accent dot appears if `count > 0` (never a number). Clicking the bell
   opens a popover with recent notifications; clicking a row marks it read
   and navigates (Melody rows → `/melodies`, follow rows → the follower's
   profile).
-* **Empty state** — calm "No notifications yet" copy.
-* **Loading state** — standard inline loading in the popover.
-* **Error state** — silent retry on next poll interval; no error toast (a
+- **Empty state** — calm "No notifications yet" copy.
+- **Loading state** — standard inline loading in the popover.
+- **Error state** — silent retry on next poll interval; no error toast (a
   failed poll is not urgent enough to interrupt the user).
-* **Success state** — dot disappears once everything is read; "Mark all
+- **Success state** — dot disappears once everything is read; "Mark all
   read" footer link available.
-* **Edge cases** — a re-follow (unfollow then follow again) does not
+- **Edge cases** — a re-follow (unfollow then follow again) does not
   re-notify (idempotency guard); a Melody notifies exactly once regardless
   of retries.
 
@@ -71,62 +71,62 @@ spec is deliberately minimal by constitutional constraint, not oversight.
 
 # Functional Requirements
 
-* A notification is created synchronously, in the same transaction as its
+- A notification is created synchronously, in the same transaction as its
   trigger (Melody send; follow insert) — never as a background job.
-* A notification must never reveal activity the recipient wouldn't
+- A notification must never reveal activity the recipient wouldn't
   otherwise have permission to see — the payload embeds only actor summary
   and (for Melody) track summary, never rating/activity content.
-* Idempotency is enforced at the database level via partial unique indexes
-  + `ON CONFLICT DO NOTHING`, not application-level checks: a re-follow
-  never re-notifies; a given Melody notifies at most once.
-* All four endpoints are usable while the calling user is suspended
+- Idempotency is enforced at the database level via partial unique indexes
+  - `ON CONFLICT DO NOTHING`, not application-level checks: a re-follow
+    never re-notifies; a given Melody notifies at most once.
+- All four endpoints are usable while the calling user is suspended
   (`CurrentUser`, not `CurrentActiveUser`) — a suspended user can still see
   and clear their notifications, just not act on them elsewhere.
-* No numeric badge anywhere — dot only.
+- No numeric badge anywhere — dot only.
 
 ---
 
 # Acceptance Criteria
 
-* [x] Sending a Melody creates exactly one notification for the recipient.
-* [x] Rejecting a Melody creates zero notifications.
-* [x] Following, then unfollowing, then following again creates exactly
-  one `new_follower` notification total.
-* [x] Unread count reflects only unread rows; mark-one-read and
-  mark-all-read both work and are idempotent.
-* [x] A user can never mark another user's notification as read (404 on
-  cross-user attempt).
-* [x] Full test coverage in `backend/tests/integration/test_notifications.py`.
+- [x] Sending a Melody creates exactly one notification for the recipient.
+- [x] Rejecting a Melody creates zero notifications.
+- [x] Following, then unfollowing, then following again creates exactly
+      one `new_follower` notification total.
+- [x] Unread count reflects only unread rows; mark-one-read and
+      mark-all-read both work and are idempotent.
+- [x] A user can never mark another user's notification as read (404 on
+      cross-user attempt).
+- [x] Full test coverage in `backend/tests/integration/test_notifications.py`.
 
 ---
 
 # Design Requirements
 
-* Dot indicator only, never a numeric badge — consistent with
+- Dot indicator only, never a numeric badge — consistent with
   HARMONIQ.md's Non-Goals (no engagement-loop optimization) and Melody's
   own no-badge-anxiety requirement.
-* The dropdown popover is a **documented deviation** from Harmoniq's
+- The dropdown popover is a **documented deviation** from Harmoniq's
   general no-modals idiom: BRAND_BIBLE explicitly wants a
   notification-style pop-up here. It is non-blocking and anchored, not a
   modal overlay. If this pattern is ever rejected on review, the fallback
   is a dedicated `/notifications` page instead of a popover.
-* No quick actions inside the panel — the Melody inbox (`/melodies`) is
+- No quick actions inside the panel — the Melody inbox (`/melodies`) is
   the single action surface; the panel only links out to it.
 
 ---
 
 # Technical Notes
 
-* Model: `backend/app/models/notification.py`. Service:
+- Model: `backend/app/models/notification.py`. Service:
   `backend/app/services/notification.py`. Schemas:
   `backend/app/schemas/notification.py`. Router:
   `backend/app/api/v1/notifications.py`.
-* Coupling note: notification creation is inline in the melody-send and
+- Coupling note: notification creation is inline in the melody-send and
   follow services, not an event bus. This is a deliberate simplicity
   tradeoff (HARMONIQ.md §4) for two event types; if a third event type is
   added, revisit whether an outbox table is warranted before adding a
   third inline call site.
-* Migration: `add_notifications` (see `backend/alembic/versions/`);
+- Migration: `add_notifications` (see `backend/alembic/versions/`);
   depends on `melodies` existing first (FK on `melody_id`).
 
 ---
@@ -134,7 +134,7 @@ spec is deliberately minimal by constitutional constraint, not oversight.
 # Rollback Plan
 
 Additive table, reversible via `alembic downgrade`. Must be downgraded
-*before* the `melodies` migration if both are being rolled back together
+_before_ the `melodies` migration if both are being rolled back together
 (FK dependency: `notifications.melody_id` → `melodies.id`). Removing the
 `notifications` router and the two inline creation call sites in
 `melody_svc.send_melody` and `follow_svc.follow` fully disables the

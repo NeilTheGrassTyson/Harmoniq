@@ -30,7 +30,7 @@ Harmoniq is built around musical identity.
 
 Engagement metrics should never take priority over helping users authentically express themselves.
 
-*This principle fails when a feature increases engagement without also strengthening how users express, discover, or understand their musical identity.*
+_This principle fails when a feature increases engagement without also strengthening how users express, discover, or understand their musical identity._
 
 ---
 
@@ -42,7 +42,7 @@ Recommendations should emerge from trusted people and meaningful relationships w
 
 AI exists to support human discovery—not replace it.
 
-*This principle fails when an algorithmic recommendation is presented with equal or greater prominence than a recommendation originating from a trusted person, without the distinction being clear to the user.*
+_This principle fails when an algorithmic recommendation is presented with equal or greater prominence than a recommendation originating from a trusted person, without the distinction being clear to the user._
 
 ---
 
@@ -54,7 +54,7 @@ Thoughtful solutions are preferable to rushed ones.
 
 Technical debt should only be accepted deliberately and with a clear path toward resolution.
 
-*This principle fails when an unreviewed shortcut is accepted simply to meet a deadline.*
+_This principle fails when an unreviewed shortcut is accepted simply to meet a deadline._
 
 ---
 
@@ -66,7 +66,7 @@ Every abstraction should have a clear purpose.
 
 Complexity must justify its existence.
 
-*This principle fails when an abstraction, dependency, or architectural pattern cannot be explained in one sentence.*
+_This principle fails when an abstraction, dependency, or architectural pattern cannot be explained in one sentence._
 
 ---
 
@@ -76,7 +76,7 @@ User trust depends on protecting user data.
 
 Security is considered during design—not after implementation.
 
-*This principle fails when security is treated as a review step instead of a design constraint.*
+_This principle fails when security is treated as a review step instead of a design constraint._
 
 ---
 
@@ -88,7 +88,7 @@ What one person sees about another should always be something that person intent
 
 Visibility of identity, activity, and behavior should be explicit, specific, and revocable.
 
-*This principle fails when a user's activity or identity becomes visible without that user's informed choice.*
+_This principle fails when a user's activity or identity becomes visible without that user's informed choice._
 
 ---
 
@@ -100,7 +100,7 @@ Knowledge should remain with the project rather than with individual contributor
 
 Important decisions should be permanently recorded so future contributors understand both the decision and its reasoning.
 
-*This principle fails when a significant decision exists only in conversation.*
+_This principle fails when a significant decision exists only in conversation._
 
 ---
 
@@ -112,7 +112,7 @@ Every interaction should feel intentional, calm, and crafted.
 
 Consistency is valued more highly than novelty.
 
-*This principle fails when an interaction is adopted because it is fashionable rather than because it strengthens Harmoniq's identity.*
+_This principle fails when an interaction is adopted because it is fashionable rather than because it strengthens Harmoniq's identity._
 
 ---
 
@@ -120,33 +120,33 @@ Consistency is valued more highly than novelty.
 
 The Founder owns:
 
-* Vision
-* Product direction
-* Priorities
-* Final decisions
+- Vision
+- Product direction
+- Priorities
+- Final decisions
 
 The Product Advisory role contributes:
 
-* Product architecture
-* Specifications
-* User experience philosophy
-* Cross-feature consistency
-* Systems thinking
+- Product architecture
+- Specifications
+- User experience philosophy
+- Cross-feature consistency
+- Systems thinking
 
 The Engineering Advisory role contributes:
 
-* Architecture discussion
-* Technical critique
-* Engineering tradeoff analysis
-* Specification review
+- Architecture discussion
+- Technical critique
+- Engineering tradeoff analysis
+- Specification review
 
 The Engineering role contributes:
 
-* Implementation
-* Software architecture
-* Code quality
-* Technical optimization
-* Refactoring
+- Implementation
+- Software architecture
+- Code quality
+- Technical optimization
+- Refactoring
 
 Advisory discussions inform the project but do not, by themselves, change it. Decisions become part of the project only after they are incorporated into its permanent documentation.
 
@@ -187,9 +187,9 @@ Only the Founder may ratify one.
 
 Every amendment should include:
 
-* the previous wording,
-* the new wording,
-* the reasoning behind the change.
+- the previous wording,
+- the new wording,
+- the reasoning behind the change.
 
 Because constitutions define long-term principles rather than short-term implementation, amendments should be exceptional rather than routine.
 
@@ -199,13 +199,13 @@ Because constitutions define long-term principles rather than short-term impleme
 
 Before approving any meaningful decision, ask:
 
-* Does this strengthen musical identity?
-* Does this increase trust between people?
-* Does this improve discovery through people?
-* Does this simplify the product?
-* Does this respect a user's control over their own visibility?
-* Does this improve or preserve security?
-* Will this decision still feel correct years from now?
+- Does this strengthen musical identity?
+- Does this increase trust between people?
+- Does this improve discovery through people?
+- Does this simplify the product?
+- Does this respect a user's control over their own visibility?
+- Does this improve or preserve security?
+- Will this decision still feel correct years from now?
 
 If the answer is "no" to multiple questions, reconsider the decision.
 
@@ -223,9 +223,9 @@ Such exceptions should be rare.
 
 A constitutional exception requires:
 
-* explicit approval by the Founder,
-* documented reasoning,
-* a clear condition for reevaluation or removal.
+- explicit approval by the Founder,
+- documented reasoning,
+- a clear condition for reevaluation or removal.
 
 Violating a principle is fundamentally different from accepting technical debt.
 

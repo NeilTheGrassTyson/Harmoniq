@@ -33,40 +33,40 @@ generating one on a user's behalf (ENGINEERING_BIBLE §6).
 
 ### In Scope
 
-* Sending a Melody: one track, one sender, one recipient.
-* Recipient responses: Accept, Open, Reject.
-* A per-user consent setting (`melody_accept_scope`) gating who may send a
+- Sending a Melody: one track, one sender, one recipient.
+- Recipient responses: Accept, Open, Reject.
+- A per-user consent setting (`melody_accept_scope`) gating who may send a
   user a Melody: everyone / follows / mutuals.
-* A Melody inbox (received) and sent list, both cursor-paginated.
-* Rate limiting and a duplicate-pending send guard.
+- A Melody inbox (received) and sent list, both cursor-paginated.
+- Rate limiting and a duplicate-pending send guard.
 
 ### Out of Scope
 
-* Any message/text field on a Melody (see Founder decision below).
-* Sending an album or artist as a Melody — track only.
-* System- or algorithm-generated Melodies (permanently out of scope per
+- Any message/text field on a Melody (see Founder decision below).
+- Sending an album or artist as a Melody — track only.
+- System- or algorithm-generated Melodies (permanently out of scope per
   ENGINEERING_BIBLE §6, not just deferred).
-* An "unsend" action.
-* Melody reporting — see Known Limitations.
+- An "unsend" action.
+- Melody reporting — see Known Limitations.
 
 ---
 
 # User Experience
 
-* **Entry point** — a "Send a Melody" control on a track page
+- **Entry point** — a "Send a Melody" control on a track page
   (`app/track/[mbid]/page.tsx`), sibling to the rating composer.
-* **Core flow** — sender enters a recipient username, sees a live preview
+- **Core flow** — sender enters a recipient username, sees a live preview
   of the embed card that will be sent, and submits. Recipient sees it in
   their inbox (`/melodies`) and responds with Accept, Open, or Reject.
-* **Empty state** — inbox and sent list each show a calm empty state for a
+- **Empty state** — inbox and sent list each show a calm empty state for a
   brand-new account.
-* **Loading state** — standard inline loading, no skeleton complexity.
-* **Error state** — backend error copy is shown verbatim inline; the scope
+- **Loading state** — standard inline loading, no skeleton complexity.
+- **Error state** — backend error copy is shown verbatim inline; the scope
   rejection is deliberately neutral ("This member isn't receiving Melodies
   right now.") regardless of which scope failed, so a sender can never
   infer the recipient's specific setting.
-* **Success state** — "Melody sent to @name."
-* **Edge cases** — self-send blocked (400); duplicate pending send blocked
+- **Success state** — "Melody sent to @name."
+- **Edge cases** — self-send blocked (400); duplicate pending send blocked
   (409, "You've already sent this track to them."); re-send allowed once
   the prior Melody has been responded to; Reject is recoverable (a
   recipient can still Accept or Open a previously rejected Melody).
@@ -75,78 +75,78 @@ generating one on a user's behalf (ENGINEERING_BIBLE §6).
 
 # Functional Requirements
 
-* A Melody carries a sender, a recipient, a track, and a timestamp — no
+- A Melody carries a sender, a recipient, a track, and a timestamp — no
   message field (Founder decision, see below).
-* System must never create a Melody except as a direct result of a
+- System must never create a Melody except as a direct result of a
   recipient-targeted send action taken by the sending user.
-* Lifecycle is `sent` → `received` (automatic, on inbox fetch) → exactly
+- Lifecycle is `sent` → `received` (automatic, on inbox fetch) → exactly
   one of `accepted` / `opened` / `rejected`. From `rejected`, a recipient
   can still move to `accepted` or `opened` (rejection is recoverable).
   `accepted` and `opened` are terminal.
-* The sender's own view of a Melody they sent never shows `received` as a
+- The sender's own view of a Melody they sent never shows `received` as a
   distinct state — it collapses to `sent` (no read receipts).
-* Reject must be visible only to the sender; it must never notify anyone
+- Reject must be visible only to the sender; it must never notify anyone
   or appear on any surface the recipient or a third party can see it
   changed.
-* `melody_accept_scope` (everyone / follows / mutuals, default everyone)
+- `melody_accept_scope` (everyone / follows / mutuals, default everyone)
   is checked before allowing a send; scope-failure and self-send messaging
   must not reveal which specific rule was violated.
-* Send is rate-limited (`10/minute;60/day`); respond is rate-limited
+- Send is rate-limited (`10/minute;60/day`); respond is rate-limited
   (`30/minute`).
-* Suspended users (`CurrentActiveUser`) cannot send or respond, but a
+- Suspended users (`CurrentActiveUser`) cannot send or respond, but a
   suspended user's existing Melodies remain visible to others as normal.
 
 ---
 
 # Acceptance Criteria
 
-* [x] Sending a track to a valid, scope-permitting recipient returns 201
-  and the item appears in the recipient's inbox.
-* [x] Self-send returns 400.
-* [x] Scope violation returns 403 with neutral copy, identical wording
-  regardless of which scope (`follows`/`mutuals`) blocked it.
-* [x] Duplicate pending send returns 409; re-send after a response
-  succeeds.
-* [x] Inbox fetch auto-transitions `sent` → `received` in the same
-  transaction.
-* [x] `respond` supports accept/open/reject; illegal transitions return
-  409; responding as a non-recipient (or to a nonexistent id) returns 404.
-* [x] `rejected` → `accepted`/`opened` succeeds (recoverable); `accepted`
-  → `rejected` fails (409).
-* [x] Sender's sent-list view never displays `received` as distinct from
-  `sent`.
-* [x] Full test coverage in `backend/tests/integration/test_melodies.py`
-  and `backend/tests/unit/test_melody_transitions.py` /
-  `test_melody_scope.py`.
+- [x] Sending a track to a valid, scope-permitting recipient returns 201
+      and the item appears in the recipient's inbox.
+- [x] Self-send returns 400.
+- [x] Scope violation returns 403 with neutral copy, identical wording
+      regardless of which scope (`follows`/`mutuals`) blocked it.
+- [x] Duplicate pending send returns 409; re-send after a response
+      succeeds.
+- [x] Inbox fetch auto-transitions `sent` → `received` in the same
+      transaction.
+- [x] `respond` supports accept/open/reject; illegal transitions return
+      409; responding as a non-recipient (or to a nonexistent id) returns 404.
+- [x] `rejected` → `accepted`/`opened` succeeds (recoverable); `accepted`
+      → `rejected` fails (409).
+- [x] Sender's sent-list view never displays `received` as distinct from
+      `sent`.
+- [x] Full test coverage in `backend/tests/integration/test_melodies.py`
+      and `backend/tests/unit/test_melody_transitions.py` /
+      `test_melody_scope.py`.
 
 ---
 
 # Design Requirements
 
-* Melody renders as an interactive **embed card** (`MelodyCard.tsx`):
+- Melody renders as an interactive **embed card** (`MelodyCard.tsx`):
   cover art, track title, artist, "From \<sender\>" — no text composer
   anywhere in the send flow. This is BRAND_BIBLE §5's "social gesture
   encoded as music" made literal.
-* Copy stays calm and socially neutral throughout — rejection language
+- Copy stays calm and socially neutral throughout — rejection language
   ("Not for me") never implies penalty or failure (BRAND_BIBLE §5.2).
-* No numeric badges anywhere in the Melody flow (consistent with the
+- No numeric badges anywhere in the Melody flow (consistent with the
   Notifications design requirement below).
 
 ---
 
 # Technical Notes
 
-* Model: `backend/app/models/melody.py`. Service:
+- Model: `backend/app/models/melody.py`. Service:
   `backend/app/services/melody.py`. Schemas: `backend/app/schemas/melody.py`.
   Router: `backend/app/api/v1/melodies.py`.
-* `track_id` is a real FK to `tracks.id` — a deliberate deviation from
+- `track_id` is a real FK to `tracks.id` — a deliberate deviation from
   `Rating`'s polymorphic `(entity_type, entity_id)` pair, since Melody is
   track-only and needs no polymorphism.
-* Duplicate-pending guard: partial unique index
+- Duplicate-pending guard: partial unique index
   `uq_melodies_pending_dedup` on `(sender_id, recipient_id, track_id)`
   WHERE `status IN ('sent','received')` — the service pre-checks for a
   friendly 409, the index is the race-proof backstop.
-* Migration: `add_melodies` (see `backend/alembic/versions/`).
+- Migration: `add_melodies` (see `backend/alembic/versions/`).
 
 ---
 
@@ -172,8 +172,7 @@ and the ENGINEERING_BIBLE/BRAND_BIBLE amendment in
 
 # Known Limitations
 
-**No message field, by design.** Founder decision, 2026-07-07 (see ADR
-0009) — not a limitation to be resolved, a permanent scope boundary. Noted
+**No message field, by design.** Founder decision, 2026-07-07 (see ADR 0009) — not a limitation to be resolved, a permanent scope boundary. Noted
 here because it's the single most consequential change from the original
 design draft.
 

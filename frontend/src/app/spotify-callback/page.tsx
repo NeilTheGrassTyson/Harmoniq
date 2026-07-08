@@ -46,9 +46,7 @@ function SpotifyCallbackContent() {
     // renders; this client-side bounce is a fallback in case the request
     // bypassed the middleware.
     if (window.location.hostname === "127.0.0.1") {
-      window.location.replace(
-        window.location.href.replace("//127.0.0.1", "//localhost")
-      );
+      window.location.replace(window.location.href.replace("//127.0.0.1", "//localhost"));
       return;
     }
 
@@ -69,31 +67,31 @@ function SpotifyCallbackContent() {
   }, [code, stateParam, errorParam, getToken, router]);
 
   return (
-      <main className="mx-auto max-w-2xl px-4 py-16">
-        {state === "working" && (
-          <p className="text-sm text-secondary">Connecting your Spotify account…</p>
-        )}
-        {state === "denied" && (
-          <div className="space-y-2">
-            <p className="text-sm text-secondary">
-              No problem — your Spotify account wasn&rsquo;t connected.
-            </p>
-            <Link href="/settings" className="text-sm text-tertiary hover:text-secondary">
-              Back to settings
-            </Link>
-          </div>
-        )}
-        {state === "error" && (
-          <div className="space-y-2">
-            <p className="text-sm text-secondary">
-              Couldn&rsquo;t connect your Spotify account. Try again.
-            </p>
-            <Link href="/settings" className="text-sm text-tertiary hover:text-secondary">
-              Back to settings
-            </Link>
-          </div>
-        )}
-      </main>
+    <main className="mx-auto max-w-2xl px-4 py-16">
+      {state === "working" && (
+        <p className="text-secondary text-sm">Connecting your Spotify account…</p>
+      )}
+      {state === "denied" && (
+        <div className="space-y-2">
+          <p className="text-secondary text-sm">
+            No problem — your Spotify account wasn&rsquo;t connected.
+          </p>
+          <Link href="/settings" className="text-tertiary hover:text-secondary text-sm">
+            Back to settings
+          </Link>
+        </div>
+      )}
+      {state === "error" && (
+        <div className="space-y-2">
+          <p className="text-secondary text-sm">
+            Couldn&rsquo;t connect your Spotify account. Try again.
+          </p>
+          <Link href="/settings" className="text-tertiary hover:text-secondary text-sm">
+            Back to settings
+          </Link>
+        </div>
+      )}
+    </main>
   );
 }
 
@@ -105,7 +103,7 @@ export default function SpotifyCallbackPage() {
       <Suspense
         fallback={
           <main className="mx-auto max-w-2xl px-4 py-16">
-            <p className="text-sm text-secondary">Connecting your Spotify account…</p>
+            <p className="text-secondary text-sm">Connecting your Spotify account…</p>
           </main>
         }
       >

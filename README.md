@@ -39,15 +39,15 @@ Harmoniq/
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| Backend | Python 3.12+, FastAPI, SQLAlchemy 2.0 (async), Alembic |
-| Frontend | Next.js 16 (App Router), TypeScript (strict), Tailwind CSS 4 |
-| Database | PostgreSQL 16 via [Neon](https://neon.tech) (serverless) |
-| Auth | [Clerk](https://clerk.com) |
-| Frontend hosting | [Vercel](https://vercel.com) |
-| Backend hosting | [Railway](https://railway.app) |
-| Music catalog | [MusicBrainz](https://musicbrainz.org) + [Cover Art Archive](https://coverartarchive.org) |
+| Layer            | Technology                                                                                |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| Backend          | Python 3.12+, FastAPI, SQLAlchemy 2.0 (async), Alembic                                    |
+| Frontend         | Next.js 16 (App Router), TypeScript (strict), Tailwind CSS 4                              |
+| Database         | PostgreSQL 16 via [Neon](https://neon.tech) (serverless)                                  |
+| Auth             | [Clerk](https://clerk.com)                                                                |
+| Frontend hosting | [Vercel](https://vercel.com)                                                              |
+| Backend hosting  | [Railway](https://railway.app)                                                            |
+| Music catalog    | [MusicBrainz](https://musicbrainz.org) + [Cover Art Archive](https://coverartarchive.org) |
 
 Full rationale for every decision is in [`docs/adr/`](docs/adr/).
 
@@ -58,6 +58,7 @@ Full rationale for every decision is in [`docs/adr/`](docs/adr/).
 You need accounts on [Neon](https://neon.tech) and [Clerk](https://clerk.com) before the app will run. See [docs/setup.md](docs/setup.md) for the full walkthrough.
 
 **Backend (terminal 1):**
+
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate   # .venv\Scripts\activate on Windows
@@ -68,6 +69,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 **Frontend (terminal 2):**
+
 ```bash
 cd frontend
 npm install
@@ -93,15 +95,15 @@ The `specs/` directory holds feature specifications written using [SPEC_TEMPLATE
 
 ## Key commands
 
-| Where | Command | What it does |
-|---|---|---|
-| `backend/` | `poetry run ruff check .` | Lint |
-| `backend/` | `poetry run ruff format .` | Format |
-| `backend/` | `poetry run mypy app` | Type check |
-| `backend/` | `poetry run pytest` | Test suite |
-| `backend/` | `alembic upgrade head` | Run pending migrations |
-| `frontend/` | `npm run dev` | Start dev server |
-| `frontend/` | `npm run typecheck` | TypeScript check |
-| `frontend/` | `npm run lint` | ESLint |
-| `frontend/` | `npm run format` | Prettier (auto-fix) |
-| `frontend/` | `npm run build` | Production build |
+| Where       | Command                    | What it does           |
+| ----------- | -------------------------- | ---------------------- |
+| `backend/`  | `poetry run ruff check .`  | Lint                   |
+| `backend/`  | `poetry run ruff format .` | Format                 |
+| `backend/`  | `poetry run mypy app`      | Type check             |
+| `backend/`  | `poetry run pytest`        | Test suite             |
+| `backend/`  | `alembic upgrade head`     | Run pending migrations |
+| `frontend/` | `npm run dev`              | Start dev server       |
+| `frontend/` | `npm run typecheck`        | TypeScript check       |
+| `frontend/` | `npm run lint`             | ESLint                 |
+| `frontend/` | `npm run format`           | Prettier (auto-fix)    |
+| `frontend/` | `npm run build`            | Production build       |

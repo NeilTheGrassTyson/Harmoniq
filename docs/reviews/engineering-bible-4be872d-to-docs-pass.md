@@ -48,6 +48,7 @@ that gap.
 **Before:**
 
 > It contains:
+>
 > - Song (title + artist)
 > - Sender identity
 > - Optional short context message (lightweight)
@@ -56,6 +57,7 @@ that gap.
 **After:**
 
 > It renders as an interactive embed card:
+>
 > - Cover art
 > - Song (title + artist)
 > - Sender identity ("From \<name\>")
@@ -89,9 +91,9 @@ decision already made and already shipped.
 ## Founder sign-off
 
 - [x] ENGINEERING_BIBLE.md §3 edit: **approved and applied** (Founder,
-  mid-implementation, 2026-07-07 session)
+      mid-implementation, 2026-07-07 session)
 - [x] BRAND_BIBLE.md §5 edit: **approved and applied** (Founder,
-  mid-implementation, 2026-07-07 session)
+      mid-implementation, 2026-07-07 session)
 
 Process note: unlike the 4be872d incident, this edit did not ride inside a
 feature commit — it is being applied as its own documentation change,

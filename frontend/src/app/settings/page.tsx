@@ -7,7 +7,7 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <main className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="mb-2 text-2xl font-light tracking-tight text-primary">Settings</h1>
+        <h1 className="text-primary mb-2 text-2xl font-light tracking-tight">Settings</h1>
         <MelodySettings />
       </main>
     </AppShell>

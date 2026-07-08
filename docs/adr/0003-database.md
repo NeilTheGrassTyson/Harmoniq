@@ -27,6 +27,7 @@ migrations.
 ### PostgreSQL
 
 No meaningful alternative for this data model. PostgreSQL offers:
+
 - Full relational integrity with foreign keys and check constraints
 - JSONB for semi-structured data (Melody metadata, visibility scope maps)
 - Window functions for feed ranking and Harmony score computation

@@ -116,8 +116,8 @@ export default function OnboardingPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
-      <h1 className="mb-1 text-2xl font-light tracking-tight text-primary">Choose a username</h1>
-      <p className="mb-8 text-sm text-secondary">
+      <h1 className="text-primary mb-1 text-2xl font-light tracking-tight">Choose a username</h1>
+      <p className="text-secondary mb-8 text-sm">
         Your username appears in your profile URL and @mentions.
       </p>
 
@@ -125,7 +125,7 @@ export default function OnboardingPage() {
         <div>
           <label
             htmlFor="username"
-            className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
+            className="text-tertiary mb-1.5 block text-xs font-medium tracking-widest uppercase"
           >
             Username
           </label>
@@ -139,7 +139,7 @@ export default function OnboardingPage() {
             autoCapitalize="none"
             spellCheck={false}
             maxLength={30}
-            className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
+            className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
           />
           <div className="mt-1.5 min-h-[1.25rem] text-xs">
             {availability.kind === "invalid" && (
@@ -149,14 +149,12 @@ export default function OnboardingPage() {
               </span>
             )}
             {availability.kind === "taken" && (
-              <span role="alert" style={{ color: "#f87171" }}>That username is taken.</span>
+              <span role="alert" style={{ color: "#f87171" }}>
+                That username is taken.
+              </span>
             )}
-            {availability.kind === "available" && (
-              <span className="text-accent">Available.</span>
-            )}
-            {availability.kind === "checking" && (
-              <span className="text-tertiary">Checking…</span>
-            )}
+            {availability.kind === "available" && <span className="text-accent">Available.</span>}
+            {availability.kind === "checking" && <span className="text-tertiary">Checking…</span>}
             {availability.kind === "idle" && username.length === 0 && (
               <span className="text-tertiary">Letters, numbers, _ and - · 3–30 characters</span>
             )}
@@ -166,7 +164,7 @@ export default function OnboardingPage() {
         <div>
           <label
             htmlFor="display-name"
-            className="mb-1.5 block text-xs font-medium tracking-widest text-tertiary uppercase"
+            className="text-tertiary mb-1.5 block text-xs font-medium tracking-widest uppercase"
           >
             Display name
           </label>
@@ -177,16 +175,20 @@ export default function OnboardingPage() {
             onChange={(e) => setEditedName(e.target.value)}
             placeholder="Your name"
             maxLength={50}
-            className="w-full rounded-control border border-hairline bg-control px-3 py-2 text-sm text-primary placeholder:text-tertiary"
+            className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
           />
         </div>
 
-        {submitError && <p role="alert" className="text-sm text-red-500">{submitError}</p>}
+        {submitError && (
+          <p role="alert" className="text-sm text-red-500">
+            {submitError}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded-control bg-primary px-4 py-2.5 text-sm font-medium text-canvas transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-control bg-primary text-canvas w-full px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Creating account…" : "Continue"}
         </button>

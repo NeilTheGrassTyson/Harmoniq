@@ -36,9 +36,7 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("@/components/AvatarImage", () => ({
-  default: ({ username }: { username: string }) => (
-    <span data-testid={`avatar-${username}`} />
-  ),
+  default: ({ username }: { username: string }) => <span data-testid={`avatar-${username}`} />,
 }));
 
 const mockSearchCatalog = vi.fn();
@@ -92,9 +90,7 @@ describe("SearchBar — People section", () => {
 
   it("omits People section when user results are empty", async () => {
     mockSearchCatalog.mockResolvedValue({
-      artists: [
-        { mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null },
-      ],
+      artists: [{ mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null }],
       albums: [],
       tracks: [],
     });
@@ -115,9 +111,7 @@ describe("SearchBar — People section", () => {
 
   it("shows music results even when user search fails", async () => {
     mockSearchCatalog.mockResolvedValue({
-      artists: [
-        { mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null },
-      ],
+      artists: [{ mbid: "a1", name: "The Beatles", disambiguation: null, image_url: null }],
       albums: [],
       tracks: [],
     });
