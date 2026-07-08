@@ -25,6 +25,7 @@ preview environments for feature review before merging.
 
 Vercel is the company that created and maintains Next.js. The integration is
 zero-configuration:
+
 - Push to `main` → automatic production deployment
 - Push any branch → automatic preview URL
 - Built-in image optimization, global CDN, and HTTPS
@@ -37,6 +38,7 @@ same level of integration.
 
 Railway is a PaaS optimized for Docker/Procfile-based services with a
 simple GitHub integration:
+
 - Push to `main` → automatic redeploy of the FastAPI service
 - Environment variables managed per service in the Railway dashboard
 - Supports release commands (e.g., `alembic upgrade head` before traffic
@@ -52,6 +54,7 @@ independently.
 ### Why Not Render
 
 Render is Railway's closest competitor. Rejected because:
+
 - Free tier spins services down after 15 minutes of inactivity (30s cold
   start in development)
 - Database hosting is more expensive than Neon

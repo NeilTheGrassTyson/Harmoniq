@@ -7,6 +7,16 @@ constraint already recorded in CLAUDE.md, and adds a short Consent &
 Visibility subsection. It also adds an explicit scope boundary so this
 document doesn't grow every time a new feature ships.
 
+**Revision 2026-07-04 (Founder-ratified):** §3 Melody lifecycle updated to
+the Accept / Open / Reject model with the user-only Melody inbox; the §11
+Evolution Strategy edit from commit 4be872d is ratified. Review record:
+`docs/reviews/engineering-bible-855d2ac-to-4be872d.md`.
+
+**Revision 2026-07-07 (Founder-ratified):** §3 Melody definition updated —
+Melody carries no message field; it renders as an interactive embed card
+(cover art, track, artist, sender identity). Review record:
+`docs/reviews/engineering-bible-4be872d-to-docs-pass.md`.
+
 ---
 
 ## 0. Introduction
@@ -110,20 +120,29 @@ weight than raw listening signals in every downstream system.
 **Melody** is a distinct entity from a highlight, and the two should not be
 conflated. A highlight is something a user says about themselves. A Melody
 is something one user sends to another: a directed recommendation of a
-single track, carrying a sender, a recipient, an optional short context
-message, and a timestamp. A Melody is a social gesture, not a piece of
-content, and it must always trace back to a specific human sender — see
-section 6 for why this matters architecturally.
+single track, carrying a sender, a recipient, and a timestamp — no message
+field. It renders as an interactive embed card (cover art, track title,
+artist, sender identity), not a text composer; the track itself is the
+gesture. A Melody is a social gesture, not a piece of content, and it must
+always trace back to a specific human sender — see section 6 for why this
+matters architecturally.
 
-A Melody has a lifecycle, modeled as an explicit state machine: `sent` → `received`, then either `rejected`, or `opened` — opening a Melody is itself the acceptance; there is no separate accept step. The demo path branches before that: `sent` → `received` → `previewed (demo)` → `opened` or `rejected`.
-Rejection is recoverable and visible only to the sender — it must never
-produce a notification or penalty visible to anyone else.
+A Melody has a lifecycle, modeled as an explicit state machine: `sent` →
+`received`, then exactly one of `accepted` (taken without listening),
+`opened` (the recipient goes to a preview and the track/album page —
+acceptance plus engagement), or `rejected`. Both `accepted` and `opened`
+are positive outcomes; `rejected` is recoverable and visible only to the
+sender — it must never produce a notification or penalty visible to
+anyone else. Every received Melody is retained and listed in the
+recipient's Melody inbox (a user-only surface) with its sender and
+outcome; the inbox is part of the domain model, not a presentation
+convenience.
 
 **Harmony** is a profile-level signal, not a raw entity in the same sense
 as the others. It has two parts that should be kept architecturally
-separate: a *computed* component (derived from Melody acceptance rate and
+separate: a _computed_ component (derived from Melody acceptance rate and
 sustained positive reception over time, owned by the recommendation
-service) and a *cosmetic* component (theme, theme song — owned by the
+service) and a _cosmetic_ component (theme, theme song — owned by the
 profile/presentation layer, not the scoring engine). Conflating these would
 make the score easy to game through unrelated profile customization.
 
@@ -275,9 +294,12 @@ machine learning may assist similarity, but it does not define relevance.
 
 ## 11. Evolution Strategy
 
-Phase 1 (this document): a modular monolith backend, Spotify as the only
-integration, focused on the trust graph, identity model, Melody, Harmony,
-and the Home/Discovery split.
+Phase 1 (this document): a modular monolith backend, MusicBrainz as the
+canonical music source (on-demand ingestion), focused on the trust graph,
+identity model, ratings, follows, Melody, Harmony, and the Home/Discovery
+split. Spotify is a deferred supplementary integration (account linking,
+"currently playing") — not the data backbone. See CLAUDE.md for Spotify
+API constraints that govern this decision.
 
 Phase 2 (deferred, not designed here): additional music providers, more
 sophisticated similarity modeling.

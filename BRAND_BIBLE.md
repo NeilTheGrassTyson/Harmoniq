@@ -1,4 +1,5 @@
 # BRAND_BIBLE.md
+
 ## Harmoniq Brand System v1.0
 
 ---
@@ -11,10 +12,10 @@ It is a **system of constraints**, not marketing copy.
 
 It ensures that as the product scales, it remains:
 
-- emotionally coherent  
-- structurally consistent  
-- culturally distinct  
-- aligned with its core philosophy  
+- emotionally coherent
+- structurally consistent
+- culturally distinct
+- aligned with its core philosophy
 
 If something feels “off,” this document is the reference point for correction.
 
@@ -41,12 +42,15 @@ The primary unit of value is not content itself, but **the act of sharing music 
 Every feature, interaction, and design decision must reinforce at least one of:
 
 ### 3.1 Musical Identity
+
 How a person’s taste defines and expresses who they are.
 
 ### 3.2 Trust
+
 How music sharing becomes a social signal between people.
 
 ### 3.3 Discovery Through People
+
 How users find music through other humans, not abstract feeds.
 
 If a feature does not strengthen at least one of these, it should be questioned.
@@ -82,9 +86,9 @@ A secondary browsing surface where users actively explore music.
 
 Sources of discovery:
 
-- Listening history-based recommendations  
-- Playlist-based recommendations  
-- What trusted connections are currently listening to  
+- Listening history-based recommendations
+- Playlist-based recommendations
+- What trusted connections are currently listening to
 
 This layer is:
 
@@ -112,14 +116,15 @@ These objects are called:
 
 A **Melody** is a recommendation of a song from one user to another.
 
-It contains:
+It renders as an interactive embed card:
 
+- Cover art
 - Song (title + artist)
-- Sender identity
-- Optional short context message (lightweight)
+- Sender identity ("From \<name\>")
 - Timestamp
 
-A Melody is not content.
+There is no message field. The track itself is the gesture — a Melody is
+not content, and it is not a text composer.
 It is a **social gesture encoded as music**.
 
 ---
@@ -130,12 +135,14 @@ A Melody can exist in the following states:
 
 - **Sent**
 - **Received**
-- **Opened**
-- **Accepted (Open)**
-- **Rejected**
-- **Previewed (Demo)**
+- **Accepted** (taken without listening)
+- **Opened** (previewed and visited — also a positive outcome)
+- **Rejected** (recoverable)
 
-Each state is intentional and visible in private user (sender/recipient) history.
+Each state is intentional and visible in private user (sender/recipient)
+history. Every Melody a user receives is kept in their Melody inbox — a
+user-only page listing each Melody, who sent it, and what the recipient
+did with it.
 
 ---
 
@@ -143,11 +150,13 @@ Each state is intentional and visible in private user (sender/recipient) history
 
 When receiving a Melody, the user can:
 
-- **Open** → immediately listen and accept the recommendation  
-- **Demo + Open** → preview before committing  
-- **Reject** → dismiss without social penalty (recoverable from trash) 
+- **Accept** → take the recommendation without listening right now
+- **Open** → go straight to a preview and the song/album page
+- **Reject** → dismiss without social penalty (recoverable from the inbox)
 
-Rejection must remain socially neutral to avoid discouraging sharing. Visible to sender only.
+Accepting and opening are both positive responses. Rejection must remain
+socially neutral to avoid discouraging sharing, and is visible to the
+sender only.
 
 ---
 
@@ -174,11 +183,13 @@ Harmony reflects a users general taste. It is customizable, personal, but champi
 Harmony has two distinct parts, which must never be conflated (see ENGINEERING_BIBLE §3):
 
 **Computed** — what actually determines the signal (Harmony v1):
+
 - acceptance rate of sent Melodies
 - meaningful engagement with shared songs
 - sustained positive reception over time
 
 **Cosmetic** — presentation only, never affects the computed signal (Harmony v2):
+
 - Featured recent listening activity (if public account)
 - Customizable themes
 - Theme song!
@@ -191,15 +202,15 @@ Harmony is **not a vanity metric**.
 
 It must never feel like:
 
-- follower count  
-- popularity score  
-- engagement farming system  
+- follower count
+- popularity score
+- engagement farming system
 
 It should feel like:
 
 > “How often your taste resonates with others.”
 
-It is a display of *alignment*, not attention.
+It is a display of _alignment_, not attention.
 
 ---
 
@@ -207,13 +218,14 @@ It is a display of *alignment*, not attention.
 
 Harmony should be:
 
-- present but not dominant  
-- visible on profiles  
-- never constantly broadcast in feeds or prompts  
+- present but not dominant
+- visible on profiles
+- never constantly broadcast in feeds or prompts
 
 ---
 
 ### 6.3 Ratings & Reviews
+
 - Ratings and reviews are a foundational, day-one feature (see ROADMAP.md, NOW tier) and must follow the same constraints as every other surface in this document.
 - A rating or review is an expression of musical identity — more deliberate and textured than a Melody, but not a popularity contest. It must never be displayed or framed in a way that invites cross-user comparison: no review-count leaderboards, no "top critics," no helpfulness scores that function as a status ladder.
 - Approved language treats a review as a personal account of a listening experience ("Your take on this album") rather than content competing for visibility ("Top reviews," "Most helpful," "Trending takes").
@@ -243,20 +255,20 @@ Harmoniq’s emotional identity is defined by:
 
 ### Desired Emotional States
 
-- calm curiosity  
-- quiet discovery  
-- understated connection  
-- subtle recognition  
-- personal relevance without intrusion  
+- calm curiosity
+- quiet discovery
+- understated connection
+- subtle recognition
+- personal relevance without intrusion
 
 ### Avoided Emotional States
 
-- urgency  
-- hype  
-- pressure  
-- performance anxiety  
-- excessive excitement  
-- manipulative engagement loops  
+- urgency
+- hype
+- pressure
+- performance anxiety
+- excessive excitement
+- manipulative engagement loops
 
 The emotional target is:
 
@@ -268,16 +280,16 @@ The emotional target is:
 
 Harmoniq behaves like:
 
-- a thoughtful friend who shares music carefully  
-- a quiet curator of meaningful connections  
-- a system that reveals patterns rather than shouting suggestions  
-- a mediator between people and taste  
+- a thoughtful friend who shares music carefully
+- a quiet curator of meaningful connections
+- a system that reveals patterns rather than shouting suggestions
+- a mediator between people and taste
 
 It does NOT behave like:
 
-- a social feed platform  
-- a dopamine-driven recommendation engine  
-- a gamified engagement system  
+- a social feed platform
+- a dopamine-driven recommendation engine
+- a gamified engagement system
 
 ---
 
@@ -285,10 +297,10 @@ It does NOT behave like:
 
 ### 10.1 Voice Characteristics
 
-- minimal but intentional  
-- precise rather than expressive  
-- emotionally aware but not emotional  
-- avoids unnecessary explanation  
+- minimal but intentional
+- precise rather than expressive
+- emotionally aware but not emotional
+- avoids unnecessary explanation
 
 ---
 
@@ -296,9 +308,9 @@ It does NOT behave like:
 
 Microcopy should:
 
-- guide without pushing  
-- suggest without persuading  
-- inform without overwhelming  
+- guide without pushing
+- suggest without persuading
+- inform without overwhelming
 
 ---
 
@@ -323,9 +335,9 @@ Avoid:
 
 ### 11.1 Canonical Terms
 
-| Concept | Name |
-|--------|------|
-| Recommendation object | Melody |
+| Concept               | Name    |
+| --------------------- | ------- |
+| Recommendation object | Melody  |
 | User resonance signal | Harmony |
 
 These are system-level terms, not marketing terms.
@@ -353,9 +365,9 @@ Avoid:
 
 Once a term is introduced into user interaction flows, it should be:
 
-- stable over time  
-- not frequently rebranded  
-- treated as part of user vocabulary  
+- stable over time
+- not frequently rebranded
+- treated as part of user vocabulary
 
 ---
 
@@ -379,9 +391,9 @@ Key idea:
 
 Every interaction must reinforce at least one:
 
-- musical identity  
-- trust between users  
-- discovery through people  
+- musical identity
+- trust between users
+- discovery through people
 
 If it does not, it is likely noise.
 
@@ -391,17 +403,17 @@ If it does not, it is likely noise.
 
 Harmoniq must avoid:
 
-- engagement-maximizing design patterns  
-- infinite scroll as primary experience  
-- algorithmic over-personalization that feels invasive  
-- competitive social pressure  
-- performative metrics  
+- engagement-maximizing design patterns
+- infinite scroll as primary experience
+- algorithmic over-personalization that feels invasive
+- competitive social pressure
+- performative metrics
 
 Harmoniq should feel:
 
-- calm even when active  
-- social without being noisy  
-- structured without being rigid  
+- calm even when active
+- social without being noisy
+- structured without being rigid
 
 ---
 
@@ -413,13 +425,13 @@ Harmoniq is:
 
 It is not:
 
-- a streaming service  
-- a recommendation engine  
-- a social media feed  
+- a streaming service
+- a recommendation engine
+- a social media feed
 
 It is:
 
-- a system for exchanging musical identity between people  
+- a system for exchanging musical identity between people
 
 ---
 

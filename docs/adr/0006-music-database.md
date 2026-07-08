@@ -15,6 +15,7 @@ canonical source later requires re-keying the entire user-generated content
 layer.
 
 Requirements:
+
 - Stable identifiers for tracks, albums, and artists
 - Comprehensive global catalog
 - No licensing restriction on commercial use or ML training

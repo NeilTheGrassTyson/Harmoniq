@@ -21,6 +21,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer()
+_optional_bearer = HTTPBearer(auto_error=False)
 
 
 @lru_cache(maxsize=1)
@@ -81,3 +82,22 @@ async def get_current_user(
             detail="Token missing subject claim",
         )
     return user_id
+
+
+async def get_optional_clerk_id(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(_optional_bearer)
+    ],
+) -> str | None:
+    """
+    FastAPI dependency that returns the Clerk user ID when a valid Bearer token
+    is present, or None when no token is provided. Used for public endpoints
+    that personalise their response based on the viewer's identity.
+    """
+    if credentials is None:
+        return None
+    try:
+        payload = _verify_clerk_token(credentials.credentials)
+        return payload.get("sub")
+    except HTTPException:
+        return None

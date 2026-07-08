@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
   title: "Harmoniq",
   description: "A social music discovery network built around trust and musical identity.",
 };
+
+// The 127.0.0.1 → localhost bounce (Spotify OAuth return, Clerk dev-session
+// origin mismatch) lives in proxy.ts as an HTML response — any script tag
+// rendered from a React component triggers React 19 dev warnings.
 
 export default function RootLayout({
   children,
@@ -20,8 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${geistSans.variable} h-full antialiased`}>
-        <body className="flex min-h-full flex-col">{children}</body>
+      <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
+        <body className="bg-canvas text-primary h-full antialiased">{children}</body>
       </html>
     </ClerkProvider>
   );
