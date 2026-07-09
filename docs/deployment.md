@@ -159,3 +159,21 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   headers — the browser reports that as a failed fetch, not a 500, so the
   real error never reaches the console. Always double-check this value
   against your actual Clerk dashboard subdomain, not just that it's "set."
+- **Malformed `TOKEN_ENCRYPTION_KEY`** (set, but not a valid Fernet key —
+  32 url-safe base64 bytes) 500'd `GET /spotify/listening/{username}` for
+  any user with a linked Spotify connection. Found by the 2026-07-09 live
+  visibility audit. The code now degrades this to `connected: false`
+  (`app/core/crypto.py` raises `TokenCryptoError` for malformed keys, not
+  raw `ValueError`), but the env var still needs a real key: generate with
+  `python -c "from cryptography.fernet import Fernet;
+  print(Fernet.generate_key().decode())"`, set it on Railway, then
+  reconnect Spotify on any affected account (tokens encrypted under the
+  old value are orphaned by a key change).
+
+---
+
+## Seeding the catalog (before first invites)
+
+Run `backend/scripts/seed_catalog.py` once against the production
+database so new users don't land on an empty Search — see
+`docs/setup.md` § "Seeding the catalog" for usage and flags.

@@ -78,6 +78,7 @@ referencing the file by name in your prompt:
 
 - **Dependency management:** Poetry (`pyproject.toml`). Poetry not on PATH on Windows — invoke via `py -m poetry` or the full `.venv` path.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
+- **Security scan:** Bandit (`bandit -r app`), runs in CI alongside lint/type checks.
 - **Type check:** `mypy` (or pyright — check `pyproject.toml`).
 - **Tests:** `pytest`, `pytest-asyncio`, `pytest-cov`. Integration tests use Testcontainers (real PostgreSQL). `NullPool` required in test fixtures to avoid asyncpg connection conflicts.
 - **Run tests:** `cd backend && python -m pytest`
@@ -86,7 +87,7 @@ referencing the file by name in your prompt:
 
 ### Frontend tooling
 
-- **Lint:** ESLint (`npm run lint`). Two Dependabot PRs held pending `eslint-config-next` peer dep support for TypeScript 5→6 and ESLint 9→10.
+- **Lint:** ESLint (`npm run lint`). ESLint 9→10 and TypeScript 5→6 upgrades held pending `eslint-config-next` peer dep support. (Dependabot was removed 2026-07-09 — dependency bumps are manual now; config stashed at `Old/dependabot.yml`, gitignored, if it's ever revived.)
 - **Type check:** `npm run typecheck`
 - **Format:** Prettier with `prettier-plugin-tailwindcss`
 - **Run dev server:** `cd frontend && npm run dev`

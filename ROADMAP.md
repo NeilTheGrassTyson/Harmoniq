@@ -138,13 +138,14 @@ hiding the surface's existence.
 _Security: `is_moderator` is granted only via manual SQL, never via API —
 verified in `test_moderation.py`'s non-moderator 404 matrix._
 
-#### 4. Visibility Audit (Tier 2 — run as a full Security Audit, `WORKFLOW.md` §2.5)
+#### 4. Visibility Audit (Tier 2 — run as a full Security Audit, `WORKFLOW.md` §2.5) — ✅ shipped
 
-Confirm every visibility scope end to end with a non-owner test account,
-across every surface that now exists (profile fields, ratings, Melody
-inbox, notifications). Do this after items 1–3, once Melody, Notifications,
-and Moderation all exist to test against — ROADMAP's Public Alpha Criteria
-calls this out as "confirmed working end to end — not assumed, checked."
+Completed 2026-07-09 against the live production deploy, across anonymous,
+authenticated-non-owner, and structural tiers — see
+`docs/reviews/visibility-audit-live-2026-07-09.md` for method, results
+matrix, and the one (non-visibility) robustness finding it produced. The
+friends-scope admittance branch is covered by the integration suite rather
+than live mutation of production accounts.
 
 #### 5. Deployment Verification (Tier 2) — ✅ shipped
 
@@ -257,9 +258,12 @@ testers — the checklist form of the NOW tier above.
       end to end 2026-07-08 (fresh signup → onboarding → live profile). See
       `docs/deployment.md`'s Troubleshooting section for the real gotchas
       hit getting here — none were code bugs, all were environment config.
-- [ ] Visibility defaults from every item above confirmed working end to end
-      — not assumed, checked. Still needs a non-owner-account pass against
-      the *live* deploy (the local-only pass doesn't satisfy this box).
+- [x] Visibility defaults from every item above confirmed working end to end
+      — not assumed, checked. Live-deploy audit completed 2026-07-09 across
+      anonymous, authenticated-non-owner, and structural tiers:
+      `docs/reviews/visibility-audit-live-2026-07-09.md`. One adjacent
+      robustness bug found and fixed (malformed `TOKEN_ENCRYPTION_KEY`
+      500'd the listening endpoint instead of degrading gracefully).
 
 ---
 
@@ -270,10 +274,14 @@ still need follow-through before invites go out. Not part of the five-item
 Phase 1 → Phase 2 gate above; these are invite-readiness, not build-phase.
 
 - **Seed data** — Founder decision: pre-seed rather than rely on cold
-  on-demand ingestion. Target: top 100–500 artists and their discographies.
-  No seed script exists yet (`scripts/` is empty) — the ingestion path to
-  call it against is `backend/app/services/catalog.py::search_and_ingest`,
-  once per curated artist, against the live production DB, before invites.
+  on-demand ingestion. Script exists: `backend/scripts/seed_catalog.py`
+  (~100 present-day + ~200 all-time artists, full discographies, via the
+  normal ingestion path — idempotent, per-artist retries, smoke-tested
+  locally 2026-07-09; see docs/setup.md "Seeding the catalog"). Remaining:
+  run it once against the **production** DB before invites
+  (`DATABASE_URL=<prod pooled string> poetry run python
+  scripts/seed_catalog.py` from `backend/` — expect ~30-60 min at
+  MusicBrainz's 1 req/s limit).
 - **Spotify integration — stays in scope.** Founder decision: friends use
   different streaming services and may write their own provider
   integrations later, so Spotify linking should keep working for whoever

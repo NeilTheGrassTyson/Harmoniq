@@ -369,6 +369,36 @@ single Founder-moderator.
 
 ---
 
+## 8c. Seeding the catalog
+
+`backend/scripts/seed_catalog.py` pre-populates the catalog with a curated
+list (~100 present-day + ~200 all-time artists, full discographies) so
+Search isn't empty for new users. It runs the exact same ingestion path as
+live Search (`search_and_ingest` + discography sync), so seeded rows are
+indistinguishable from organic ones. Idempotent — rerunning or resuming
+after an interruption is safe, and transient MusicBrainz failures retry
+per artist automatically.
+
+```bash
+cd backend
+
+# Preview the artist list without touching network or DB
+poetry run python scripts/seed_catalog.py --dry-run
+
+# Smoke-test the pipeline against your local/dev DB
+poetry run python scripts/seed_catalog.py --limit 3
+
+# Full run against a specific database (e.g. production before invites)
+DATABASE_URL="postgresql+asyncpg://...?ssl=require" \
+    poetry run python scripts/seed_catalog.py
+```
+
+A full run takes ~30-60 minutes: MusicBrainz allows 1 request/second
+(enforced by the app's shared rate limiter) and each artist costs several
+requests. `--tier present` or `--tier alltime` seeds one list only.
+
+---
+
 ## 9. Database branching (Neon)
 
 Neon supports database branches that mirror git branches. For feature work:
