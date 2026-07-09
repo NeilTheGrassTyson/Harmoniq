@@ -113,3 +113,49 @@ Before deploying to production, confirm:
 - [ ] `APP_ENV=production` (disables `/docs` and `/redoc` endpoints)
 - [ ] `DEBUG=false`
 - [ ] No `.env` files committed to git
+
+---
+
+## Troubleshooting (from the first live deploy, 2026-07-08)
+
+Every issue below was an environment/config problem, not an application
+bug — the app code was correct throughout. Recorded here since the
+symptoms (500s, "Failed to fetch," 503s) look identical to real bugs from
+the browser and are easy to misdiagnose without Railway's Deploy Logs.
+
+- **Railway's `releaseCommand` in `railway.json` silently not running
+  migrations under the Railpack builder.** Deploy Logs showed no alembic
+  output between `Starting Container` and `Uvicorn running`. Workaround:
+  run `alembic upgrade head` by hand from the Railway service shell after
+  each deploy that includes a migration, until this is root-caused.
+- **`DATABASE_URL` hostname typo/mismatch** → `socket.gaierror: [Errno -5]
+  No address associated with hostname` on `alembic upgrade head`. Copy the
+  host from Neon's connection string dialog exactly; don't hand-edit it.
+- **Bare `postgresql://` scheme** → `ModuleNotFoundError: No module named
+  'psycopg2'` at boot. This project only installs `asyncpg`. The scheme
+  must be `postgresql+asyncpg://`, not `postgresql://`.
+- **libpq-style query params (`sslmode=require&channel_binding=require`)
+  on an asyncpg URL** → `TypeError: connect() got an unexpected keyword
+  argument 'sslmode'`. asyncpg uses a different param name and doesn't
+  support `channel_binding` at all. Use `?ssl=require` only.
+- **Stale/crashed Railway deployments left running alongside the current
+  one** produced inconsistent responses (same request, different results
+  across retries) because traffic was hitting more than one replica.
+  Check Railway's Deployments tab and remove any crashed ones; confirm
+  you're down to exactly one active replica.
+- **Trailing slash in `CORS_ALLOWED_ORIGINS`** silently breaks the origin
+  match (`https://your-app.vercel.app/` ≠ `https://your-app.vercel.app`
+  as far as `CORSMiddleware` is concerned) — the frontend UI feature-gates
+  on it, so this shows up as buttons staying disabled/greyed out rather
+  than a visible network error.
+- **`CLERK_JWKS_URL` left as the literal placeholder value** (i.e. never
+  swapped in your real Clerk instance subdomain) causes account creation
+  to fail as an opaque `TypeError: Failed to fetch` in the browser, with
+  no useful network-tab detail. Root cause only visible in Railway Deploy
+  Logs as a `ConnectError`/`ConnectTimeout` trying to resolve the
+  placeholder hostname. This happens because an unhandled exception during
+  JWT verification propagates through `SecurityHeadersMiddleware`
+  (`app/core/security.py`) and the resulting 500 response loses its CORS
+  headers — the browser reports that as a failed fetch, not a 500, so the
+  real error never reaches the console. Always double-check this value
+  against your actual Clerk dashboard subdomain, not just that it's "set."

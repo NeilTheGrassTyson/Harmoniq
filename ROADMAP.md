@@ -146,12 +146,18 @@ inbox, notifications). Do this after items 1–3, once Melody, Notifications,
 and Moderation all exist to test against — ROADMAP's Public Alpha Criteria
 calls this out as "confirmed working end to end — not assumed, checked."
 
-#### 5. Deployment Verification (Tier 2)
+#### 5. Deployment Verification (Tier 2) — ✅ shipped
 
-ADR 0005 is accepted and `Procfile` / `railway.json` exist, but a live
-Vercel + Railway deployment has not been confirmed end to end. Smoke-test
-prod (sign-in, one full rating round-trip, one Melody round-trip) before
-calling "stable deployment" done.
+ADR 0005 is accepted; production Vercel + Railway + Neon confirmed live
+end to end 2026-07-08 (fresh signup → onboarding → profile). Founder
+decision: deploy directly to production for this closed friends-test round
+rather than standing up the documented `staging` Neon branch first — a
+`staging` branch remains the plan for the next environment tier once
+outside (non-friend) testers are in scope. Real-world round-trip smoke
+tests (rating, Melody, follow notification) are still pending against the
+live URL — tracked as part of item 4's Visibility Audit, since both need
+a second live test account. See `docs/deployment.md` Troubleshooting for
+config gotchas hit during the first live deploy.
 
 ---
 
@@ -246,10 +252,39 @@ testers — the checklist form of the NOW tier above.
 - [x] Melody
 - [x] Notifications
 - [x] Moderation review & action
-- [ ] Deployment verified live (Vercel + Railway configured; not yet
-      smoke-tested end to end in production)
+- [x] Deployment verified live — production Vercel (`harmoniq-two.vercel.app`)
+      + Railway (`harmoniq-production-ac1f.up.railway.app`) + Neon confirmed
+      end to end 2026-07-08 (fresh signup → onboarding → live profile). See
+      `docs/deployment.md`'s Troubleshooting section for the real gotchas
+      hit getting here — none were code bugs, all were environment config.
 - [ ] Visibility defaults from every item above confirmed working end to end
-      — not assumed, checked.
+      — not assumed, checked. Still needs a non-owner-account pass against
+      the *live* deploy (the local-only pass doesn't satisfy this box).
+
+---
+
+## Operational TODOs before inviting friends
+
+Not feature gaps — scope/ops decisions the Founder made 2026-07-08 that
+still need follow-through before invites go out. Not part of the five-item
+Phase 1 → Phase 2 gate above; these are invite-readiness, not build-phase.
+
+- **Seed data** — Founder decision: pre-seed rather than rely on cold
+  on-demand ingestion. Target: top 100–500 artists and their discographies.
+  No seed script exists yet (`scripts/` is empty) — the ingestion path to
+  call it against is `backend/app/services/catalog.py::search_and_ingest`,
+  once per curated artist, against the live production DB, before invites.
+- **Spotify integration — stays in scope.** Founder decision: friends use
+  different streaming services and may write their own provider
+  integrations later, so Spotify linking should keep working for whoever
+  does use it. Dev-mode 5-user cap applies — each friend's Spotify account
+  email needs manual allowlisting in the Spotify Developer Dashboard before
+  they can connect.
+- **Moderator grant — TBD.** No username chosen yet. Grant via the manual
+  SQL in `docs/setup.md`'s "Granting moderator access" section once
+  decided; don't grant beyond the Founder without re-reading
+  `specs/phase-1-moderation.md`'s Known Limitations (no unsuspend/appeal
+  flow yet).
 
 ---
 
