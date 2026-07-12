@@ -28,6 +28,7 @@ pytest-cov = ">=6,<8"
 httpx = "^0.28"
 ruff = ">=0.8,<0.16"
 mypy = "^1.13"
+bandit = "^1.8"
 types-python-jose = "^3.3"
 boto3-stubs = {extras = ["s3"], version = "^1.43.33"}
 testcontainers = {version = ">=4.0,<5", extras = ["postgresql"]}
@@ -52,6 +53,9 @@ ignore = ["S101"]  # allow assert in tests
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

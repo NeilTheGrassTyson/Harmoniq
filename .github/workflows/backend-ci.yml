@@ -43,6 +43,9 @@ jobs:
       - name: Mypy type check
         run: poetry run mypy app
 
+      - name: Bandit security scan
+        run: poetry run bandit -r app
+
   test:
     name: Tests
     # ubuntu-latest has Docker pre-installed; Testcontainers uses it for the

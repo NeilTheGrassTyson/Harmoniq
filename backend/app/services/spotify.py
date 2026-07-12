@@ -42,7 +42,7 @@ from app.services import follow as follow_svc
 logger = logging.getLogger(__name__)
 
 _AUTH_URL = "https://accounts.spotify.com/authorize"
-_TOKEN_URL = "https://accounts.spotify.com/api/token"  # noqa: S105 — endpoint URL, not a secret
+_TOKEN_URL = "https://accounts.spotify.com/api/token"  # noqa: S105 — endpoint URL, not a secret  # nosec B105
 _API_BASE = "https://api.spotify.com/v1"
 
 SCOPES = "user-read-recently-played user-read-currently-playing"

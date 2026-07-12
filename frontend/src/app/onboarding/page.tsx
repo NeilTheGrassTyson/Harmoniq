@@ -57,6 +57,12 @@ export default function OnboardingPage() {
   // Debounced availability check
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Guards against double-submit from rapid repeat clicks: React's
+  // setSubmitting(true) doesn't disable the button until the next render,
+  // which is too slow to beat a fast double/triple-click. A ref updates
+  // synchronously, so the second click bails before firing a request.
+  const submittingRef = useRef(false);
+
   const handleUsernameChange = useCallback((value: string) => {
     setUsername(value);
     setSubmitError(null);
@@ -85,11 +91,14 @@ export default function OnboardingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+
     setSubmitError(null);
 
     if (!USERNAME_RE.test(username)) return;
     if (!displayName.trim()) return;
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const token = await getToken();
@@ -103,6 +112,7 @@ export default function OnboardingPage() {
       const message = err instanceof Error ? err.message : "Something went wrong.";
       setSubmitError(message);
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };

@@ -19,7 +19,12 @@ class TokenCryptoError(Exception):
 def _fernet() -> Fernet:
     if not settings.token_encryption_key:
         raise TokenCryptoError("TOKEN_ENCRYPTION_KEY is not configured")
-    return Fernet(settings.token_encryption_key.encode())
+    try:
+        return Fernet(settings.token_encryption_key.encode())
+    except ValueError as exc:
+        # A malformed key (not 32 url-safe base64 bytes) must fail the same
+        # way as a missing one — callers only handle TokenCryptoError.
+        raise TokenCryptoError("TOKEN_ENCRYPTION_KEY is malformed") from exc
 
 
 def encrypt_token(plaintext: str) -> str:

@@ -41,3 +41,15 @@ class TestTokenCrypto:
         monkeypatch.setattr(settings, "token_encryption_key", None)
         with pytest.raises(TokenCryptoError):
             encrypt_token("anything")
+
+    def test_malformed_key_raises_token_crypto_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A key that isn't 32 url-safe base64 bytes must surface as
+        # TokenCryptoError (graceful degradation), never a raw ValueError —
+        # found live: a bad TOKEN_ENCRYPTION_KEY 500'd the listening endpoint.
+        monkeypatch.setattr(settings, "token_encryption_key", "not-a-valid-key")
+        with pytest.raises(TokenCryptoError):
+            encrypt_token("anything")
+        with pytest.raises(TokenCryptoError):
+            decrypt_token("gAAAAdoesnotmatter")
