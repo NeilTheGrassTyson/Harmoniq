@@ -37,6 +37,10 @@ Proceed directly, no spec needed:
 
 Tier 2 work still ends up going through the **Review Workflow** below before it's considered done — it just skips the spec-and-approval step that precedes it.
 
+### Branch integration direction
+
+Integration flows in **one direction only: feature work lands on `dev`, then `dev → main` via a single PR.** Do not merge `main → dev` and `dev → main` for the same changes — doing so replays the same commits through two paths, producing duplicate commit SHAs with identical content. GitHub then reports the branches as simultaneously "N ahead / N behind" even though their files are byte-identical, which is confusing and obscures real divergence. If `dev` needs something that landed on `main`, bring it over once and let it flow back to `main` through the normal `dev → main` PR — never merge it in both directions.
+
 ---
 
 # 2. The Review Workflow
