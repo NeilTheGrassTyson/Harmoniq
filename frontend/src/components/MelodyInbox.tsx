@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import MelodyCard from "@/components/MelodyCard";
@@ -59,42 +60,51 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const respond = async (item: MelodyInboxItem, action: MelodyRespondAction) => {
-    if (busyId) return;
-    setBusyId(item.id);
-    setError(null);
-    try {
+  const respondMutation = useMutation({
+    mutationFn: async ({ item, action }: { item: MelodyInboxItem; action: MelodyRespondAction }) => {
       const token = await getToken();
       if (!token) throw new Error("Not signed in.");
-      const updated = await respondToMelody(token, item.id, action);
+      return { updated: await respondToMelody(token, item.id, action), action };
+    },
+    onSuccess: ({ updated, action }) => {
       setItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
       if (action === "open") {
         router.push(`/track/${updated.track.mbid}`);
       }
-    } catch (err) {
+    },
+    onError: (err) => {
       setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
-    } finally {
-      setBusyId(null);
-    }
+    },
+    onSettled: () => setBusyId(null),
+  });
+
+  const respond = (item: MelodyInboxItem, action: MelodyRespondAction) => {
+    if (busyId) return;
+    setBusyId(item.id);
+    setError(null);
+    respondMutation.mutate({ item, action });
   };
 
-  const loadMore = async () => {
-    if (!cursor || loadingMore) return;
-    setLoadingMore(true);
-    try {
+  const loadMoreMutation = useMutation({
+    mutationFn: async (afterCursor: string) => {
       const token = await getToken();
       if (!token) throw new Error("Not signed in.");
-      const page = await getInbox(token, cursor);
+      return getInbox(token, afterCursor);
+    },
+    onSuccess: (page) => {
       setItems((prev) => [...prev, ...page.items]);
       setCursor(page.next_cursor);
-    } catch {
-      setError("Couldn't load more. Try again.");
-    } finally {
-      setLoadingMore(false);
-    }
+    },
+    onError: () => setError("Couldn't load more. Try again."),
+  });
+
+  const loadingMore = loadMoreMutation.isPending;
+  const loadMore = () => {
+    if (!cursor || loadingMore) return;
+    setError(null);
+    loadMoreMutation.mutate(cursor);
   };
 
   if (items.length === 0) {

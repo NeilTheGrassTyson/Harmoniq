@@ -1,8 +1,9 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+﻿import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderWithQuery } from "@/__tests__/test-utils";
 import type { MelodyInboxItem } from "@/types";
 
-// ── Module mocks ──────────────────────────────────────────────────────────────
+// â”€â”€ Module mocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -34,7 +35,7 @@ vi.mock("@/components/EqualizerGlyph", () => ({
 
 import MelodyInbox from "@/components/MelodyInbox";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function makeItem(overrides: Partial<MelodyInboxItem> & { id: string }): MelodyInboxItem {
   return {
@@ -58,11 +59,11 @@ beforeEach(() => {
   mockPush.mockReset();
 });
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe("MelodyInbox — quick actions", () => {
+describe("MelodyInbox â€” quick actions", () => {
   it("renders sender, track, and the three actions for an unresponded Melody", () => {
-    render(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
+    renderWithQuery(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
 
     expect(screen.getByText("Only Shallow")).toBeDefined();
     expect(screen.getByText("My Bloody Valentine")).toBeDefined();
@@ -73,7 +74,7 @@ describe("MelodyInbox — quick actions", () => {
 
   it("accept calls respond with 'accept' and shows the outcome label", async () => {
     mockRespond.mockResolvedValue(makeItem({ id: "m1", status: "accepted" }));
-    render(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
+    renderWithQuery(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
 
     fireEvent.click(screen.getByText("Take it"));
 
@@ -85,7 +86,7 @@ describe("MelodyInbox — quick actions", () => {
 
   it("open navigates to the track page", async () => {
     mockRespond.mockResolvedValue(makeItem({ id: "m1", status: "opened" }));
-    render(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
+    renderWithQuery(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
 
     fireEvent.click(screen.getByText("Listen"));
 
@@ -97,7 +98,7 @@ describe("MelodyInbox — quick actions", () => {
 
   it("reject keeps the row actionable (recoverable) with neutral copy", async () => {
     mockRespond.mockResolvedValue(makeItem({ id: "m1", status: "rejected" }));
-    render(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
+    renderWithQuery(<MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} />);
 
     fireEvent.click(screen.getByText("Not for me"));
 
@@ -111,7 +112,7 @@ describe("MelodyInbox — quick actions", () => {
   });
 
   it("terminal statuses render no actions", () => {
-    render(
+    renderWithQuery(
       <MelodyInbox initialItems={[makeItem({ id: "m1", status: "opened" })]} initialCursor={null} />
     );
     expect(screen.queryByText("Listen")).toBeNull();
@@ -120,7 +121,7 @@ describe("MelodyInbox — quick actions", () => {
   });
 
   it("shows the empty state when there are no Melodies", () => {
-    render(<MelodyInbox initialItems={[]} initialCursor={null} />);
+    renderWithQuery(<MelodyInbox initialItems={[]} initialCursor={null} />);
     expect(screen.getByText(/No Melodies yet/)).toBeDefined();
   });
 });
