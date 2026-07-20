@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getListening } from "@/lib/spotify";
 import type { ListeningResponse } from "@/types";
 
@@ -14,10 +14,11 @@ interface UsePolledListeningOptions {
 }
 
 /**
- * Polls GET /spotify/listening/{username} while the tab is visible, pausing
- * when hidden and refetching immediately on becoming visible again. A failed
- * poll silently keeps the last known-good data (section-independence — same
- * philosophy as Home's _safe_section) rather than surfacing an error.
+ * Polls GET /spotify/listening/{username} while the tab is visible —
+ * refetchIntervalInBackground stays false so hidden tabs stop polling, and
+ * refetchOnWindowFocus refreshes immediately on return. A failed poll keeps
+ * the last known-good data (section-independence — same philosophy as Home's
+ * _safe_section) rather than surfacing an error.
  */
 export function usePolledListening({
   username,
@@ -25,61 +26,22 @@ export function usePolledListening({
   initial,
   intervalMs = 25_000,
 }: UsePolledListeningOptions): ListeningResponse {
-  const [listening, setListening] = useState(initial);
+  const { data } = useQuery({
+    // Token deliberately excluded from the key: a Clerk token refresh is the
+    // same viewer, and keying on it would reset the cache entry every ~60s.
+    queryKey: ["listening", username],
+    queryFn: () => getListening(username, token),
+    initialData: initial,
+    // The RSC parent just fetched `initial`; the first refetch belongs to the
+    // interval, not the mount. Fresh for one cycle so a focus-refetch only
+    // fires when the data is actually older than a poll.
+    refetchOnMount: false,
+    staleTime: intervalMs,
+    refetchInterval: intervalMs,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
 
-  // Held in refs so a Clerk token refresh (or any other prop churn) doesn't
-  // tear down and recreate the interval — only the mount/unmount lifecycle
-  // and an explicit intervalMs change should do that. Updated in their own
-  // effect, not during render, per react-hooks/refs.
-  const usernameRef = useRef(username);
-  const tokenRef = useRef(token);
-  useEffect(() => {
-    usernameRef.current = username;
-    tokenRef.current = token;
-  }, [username, token]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const poll = async () => {
-      try {
-        const result = await getListening(usernameRef.current, tokenRef.current);
-        if (!cancelled) setListening(result);
-      } catch {
-        // Keep showing the last known-good data.
-      }
-    };
-
-    const start = () => {
-      if (intervalId !== null) return;
-      intervalId = setInterval(poll, intervalMs);
-    };
-    const stop = () => {
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stop();
-      } else {
-        void poll();
-        start();
-      }
-    };
-
-    if (!document.hidden) start();
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      cancelled = true;
-      stop();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [intervalMs]);
-
-  return listening;
+  return data;
 }

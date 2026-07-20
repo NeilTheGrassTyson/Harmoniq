@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { followUser, unfollowUser } from "@/lib/follows";
 
@@ -14,46 +15,42 @@ interface Props {
 export default function FollowButton({ username, initialIsFollowing, onChange }: Props) {
   const { getToken } = useAuth();
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleClick() {
-    if (pending) return;
-    setPending(true);
-    setError(null);
-
-    const token = await getToken().catch(() => null);
-    if (!token) {
-      setPending(false);
-      return;
-    }
-
-    const previous = isFollowing;
-    // Optimistic update
-    setIsFollowing(!previous);
-    onChange?.(!previous);
-
-    try {
-      if (previous) {
-        await unfollowUser(token, username);
-      } else {
+  const mutation = useMutation({
+    mutationFn: async (next: boolean) => {
+      const token = await getToken().catch(() => null);
+      if (!token) throw new Error("Not signed in.");
+      if (next) {
         await followUser(token, username);
+      } else {
+        await unfollowUser(token, username);
       }
-    } catch {
-      // Roll back on failure
-      setIsFollowing(previous);
-      onChange?.(previous);
-      setError("Something went wrong. Try again.");
-    } finally {
-      setPending(false);
-    }
+      return next;
+    },
+    onMutate: (next) => {
+      const previous = isFollowing;
+      setIsFollowing(next);
+      onChange?.(next);
+      return { previous };
+    },
+    onError: (_err, _next, context) => {
+      if (context) {
+        setIsFollowing(context.previous);
+        onChange?.(context.previous);
+      }
+    },
+  });
+
+  function handleClick() {
+    if (mutation.isPending) return;
+    mutation.mutate(!isFollowing);
   }
 
   return (
     <div>
       <button
         onClick={handleClick}
-        disabled={pending}
+        disabled={mutation.isPending}
         className={
           isFollowing
             ? "rounded-control border-hairline text-secondary hover:text-primary border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
@@ -62,9 +59,9 @@ export default function FollowButton({ username, initialIsFollowing, onChange }:
       >
         {isFollowing ? "Following" : "Follow"}
       </button>
-      {error && (
+      {mutation.isError && (
         <p role="alert" className="mt-1 text-xs" style={{ color: "#f87171" }}>
-          {error}
+          Something went wrong. Try again.
         </p>
       )}
     </div>

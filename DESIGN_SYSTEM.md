@@ -285,6 +285,32 @@ their clickable nature visually apparent on hover. No underline is shown by defa
 
 ---
 
-## 13. Provenance
+## 13. Component primitives (shadcn/ui)
+
+**Founder-ratified 2026-07-20** (spec:
+`docs/specs/frontend-data-layer-foundation.md`). shadcn/ui is the official
+primitive layer for interactive controls — Button, Input, Textarea, Select,
+Dialog, Form, Label — adopted for its interaction behavior and
+accessibility (Base UI primitives, the shadcn CLI v4 default), **not** its
+visual language. The rules:
+
+- Every shadcn component is restyled onto the tokens in this document at
+  install time: colors from §2, radii from §4, type from §3. shadcn's
+  default theme variables are remapped to the existing `@theme` block in
+  `globals.css`, never added alongside it.
+- The `Card` component is not installed. The bordered-card-grid ban in
+  §1/§7/§9 stands unchanged — adopting shadcn does not relax any visual
+  rule in this document.
+- Focus states come from the existing global `:focus-visible` ring (§8);
+  per-component ring utilities are stripped from generated components.
+- New interactive controls use these primitives instead of hand-styled
+  elements; existing components migrate opportunistically, not in a
+  big-bang rewrite.
+- Form validation pairs these primitives with react-hook-form + zod;
+  validation rules live in zod schemas, not scattered input attributes.
+
+---
+
+## 14. Provenance
 
 This file is the implementation source of truth for the `@theme` block in `frontend/src/app/globals.css` (Tailwind v4 — no `tailwind.config.js`) and for every new or retrofitted component. Token names in this doc map directly to the `--color-*`, `--radius-*`, and `--font-*` custom properties declared there. If a screen needs a value not listed here, that's a signal to add it deliberately — to this document first, then to `globals.css` — not to improvise locally and let the system drift.
