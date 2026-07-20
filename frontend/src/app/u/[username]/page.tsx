@@ -26,6 +26,10 @@ export default async function ProfilePage(props: {
   const { getToken } = await auth();
   const token = await getToken().catch(() => null);
 
+  const ratingsPromise = getUserRatings(username, token ?? undefined).catch(() => ({
+    reviews: [],
+  }));
+
   let profile;
   try {
     profile = await getProfile(username, token ?? undefined);
@@ -36,10 +40,6 @@ export default async function ProfilePage(props: {
     throw err;
   }
 
-  const ratingsData = await getUserRatings(username, token ?? undefined).catch(() => ({
-    reviews: [],
-  }));
-
   // Section independence: a listening failure renders nothing, it never
   // breaks the page. The backend re-enforces visibility regardless of the
   // activity_placeholder flag.
@@ -47,6 +47,8 @@ export default async function ProfilePage(props: {
     "activity_placeholder" in profile && profile.activity_placeholder
       ? await getListening(username, token ?? undefined).catch(() => null)
       : null;
+
+  const ratingsData = await ratingsPromise;
 
   return (
     <AppShell>
