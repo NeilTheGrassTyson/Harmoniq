@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@clerk/nextjs";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
 import VisibilitySelect from "@/components/VisibilitySelect";
 import { submitRating } from "@/lib/ratings";
 import type { RatingRead, VisibilityScope } from "@/types";
@@ -9,6 +15,20 @@ import type { RatingRead, VisibilityScope } from "@/types";
 const REVIEW_MIN = 15;
 const REVIEW_MAX = 2000;
 const SCORES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+// The validation rules live here, not scattered across canSubmit booleans —
+// the submit gate and the input constraints read from the same schema.
+const ratingSchema = z.object({
+  score: z.number().int().min(1).max(10),
+  reviewText: z
+    .string()
+    .trim()
+    .min(REVIEW_MIN)
+    .max(REVIEW_MAX),
+  visibility: z.enum(["private", "friends", "public"]),
+});
+
+type RatingValues = z.infer<typeof ratingSchema>;
 
 interface Props {
   entityType: "track" | "album";
@@ -19,6 +39,14 @@ interface Props {
   initialRating?: { score: number; review_text: string; visibility: string };
 }
 
+function valuesFrom(initialRating?: Props["initialRating"]): Partial<RatingValues> {
+  return {
+    score: initialRating?.score,
+    reviewText: initialRating?.review_text ?? "",
+    visibility: (initialRating?.visibility as VisibilityScope) ?? "public",
+  };
+}
+
 export default function RatingComposer({
   entityType,
   entityMbid,
@@ -26,118 +54,141 @@ export default function RatingComposer({
   initialRating,
 }: Props) {
   const { getToken } = useAuth();
-  const [score, setScore] = useState<number | null>(initialRating?.score ?? null);
-  const [text, setText] = useState(initialRating?.review_text ?? "");
-  const [visibility, setVisibility] = useState<VisibilityScope>(
-    (initialRating?.visibility as VisibilityScope) ?? "public"
-  );
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const form = useForm<RatingValues>({
+    resolver: zodResolver(ratingSchema),
+    mode: "onChange",
+    defaultValues: valuesFrom(initialRating) as RatingValues,
+  });
 
   // Sync form state when the parent updates initialRating (e.g. after a
-  // successful submit) — the adjust-state-during-render pattern, not an
-  // effect, per react-hooks/set-state-in-effect.
-  const [prevInitialRating, setPrevInitialRating] = useState(initialRating);
-  if (prevInitialRating !== initialRating) {
-    setPrevInitialRating(initialRating);
-    setScore(initialRating?.score ?? null);
-    setText(initialRating?.review_text ?? "");
-    setVisibility((initialRating?.visibility as VisibilityScope) ?? "public");
-  }
+  // successful submit) so the composer always reflects the saved review.
+  useEffect(() => {
+    form.reset(valuesFrom(initialRating) as RatingValues);
+  }, [initialRating, form]);
 
+  const score = form.watch("score");
+  const text = form.watch("reviewText") ?? "";
   const trimmed = text.trim();
   const tooShort = trimmed.length < REVIEW_MIN;
-  const canSubmit = score !== null && !tooShort && !submitting;
+  // Synchronous mirror of the schema for the disabled state — formState.isValid
+  // updates a tick after interactions, which reads as a laggy button. The zod
+  // resolver inside handleSubmit stays the authoritative gate.
+  const canSubmit = score !== undefined && !tooShort && !form.formState.isSubmitting;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
-    setSubmitting(true);
-    setError(null);
+  const onSubmit = async (values: RatingValues) => {
+    form.clearErrors("root");
     try {
       const token = await getToken();
       if (!token) throw new Error("Not signed in.");
       const rating = await submitRating(token, {
         entity_type: entityType,
         entity_mbid: entityMbid,
-        score: score!,
-        review_text: trimmed,
-        visibility,
+        score: values.score,
+        review_text: values.reviewText.trim(),
+        visibility: values.visibility,
       });
-      // Don't reset manually — the parent updates initialRating after onSubmitted,
-      // which triggers the useEffect above and syncs the form to the saved state.
+      // Don't reset manually — the parent updates initialRating after
+      // onSubmitted, and the reset effect syncs the form to the saved state.
       onSubmitted?.(rating);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Your review wasn't saved. Try again."
-      );
-    } finally {
-      setSubmitting(false);
+      form.setError("root", {
+        message:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong. Your review wasn't saved. Try again.",
+      });
     }
-  }
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Score selector */}
-      <div>
-        <div className="flex flex-wrap gap-1">
-          {SCORES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setScore(s)}
-              aria-pressed={score === s}
-              className={[
-                "rounded-control h-8 w-8 text-sm font-medium transition-colors",
-                score === s
-                  ? "bg-primary text-canvas"
-                  : "border-hairline text-secondary hover:border-secondary border",
-              ].join(" ")}
-            >
-              {s}
-            </button>
-          ))}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Score selector */}
+        <div>
+          <div className="flex flex-wrap gap-1">
+            {SCORES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => form.setValue("score", s, { shouldValidate: true })}
+                aria-pressed={score === s}
+                className={[
+                  "rounded-control h-8 w-8 text-sm font-medium transition-colors",
+                  score === s
+                    ? "bg-primary text-canvas"
+                    : "border-hairline text-secondary hover:border-secondary border",
+                ].join(" ")}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          {score === undefined && (
+            <p className="text-tertiary mt-1 text-xs">Pick a rating from 1–10.</p>
+          )}
         </div>
-        {score === null && <p className="text-tertiary mt-1 text-xs">Pick a rating from 1–10.</p>}
-      </div>
 
-      {/* Review text */}
-      <div>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="What did you think?"
-          maxLength={REVIEW_MAX}
-          rows={4}
-          className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
+        {/* Review text */}
+        <FormField
+          control={form.control}
+          name="reviewText"
+          render={({ field }) => (
+            <FormItem className="gap-0">
+              <FormControl>
+                <Textarea
+                  {...field}
+                  placeholder="What did you think?"
+                  maxLength={REVIEW_MAX}
+                  rows={4}
+                  className="min-h-0 px-3 py-2 text-sm"
+                />
+              </FormControl>
+              {tooShort && trimmed.length > 0 && (
+                <p className="text-tertiary mt-1 text-xs">
+                  A few more words — tell us what stood out.
+                </p>
+              )}
+              <p className="text-tertiary mt-1 text-right text-xs">
+                {trimmed.length} / {REVIEW_MAX}
+              </p>
+            </FormItem>
+          )}
         />
-        {tooShort && trimmed.length > 0 && (
-          <p className="text-tertiary mt-1 text-xs">A few more words — tell us what stood out.</p>
+
+        {/* Visibility + submit — wraps so the button never clips on narrow screens */}
+        <div className="flex flex-wrap items-center gap-3">
+          <FormField
+            control={form.control}
+            name="visibility"
+            render={({ field }) => (
+              <VisibilitySelect
+                value={field.value}
+                onChange={field.onChange}
+                id="rating-visibility"
+              />
+            )}
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={!canSubmit}
+            className="h-auto px-4 py-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {form.formState.isSubmitting
+              ? "Saving…"
+              : initialRating
+                ? "Update review"
+                : "Submit review"}
+          </Button>
+        </div>
+
+        {form.formState.errors.root && (
+          <p role="alert" className="text-destructive text-sm">
+            {form.formState.errors.root.message}
+          </p>
         )}
-        <p className="text-tertiary mt-1 text-right text-xs">
-          {trimmed.length} / {REVIEW_MAX}
-        </p>
-      </div>
-
-      {/* Visibility + submit — wraps so the button never clips on narrow screens */}
-      <div className="flex flex-wrap items-center gap-3">
-        <VisibilitySelect value={visibility} onChange={setVisibility} id="rating-visibility" />
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="rounded-control border-hairline text-primary border px-4 py-1.5 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {submitting ? "Saving…" : initialRating ? "Update review" : "Submit review"}
-        </button>
-      </div>
-
-      {error && (
-        <p role="alert" className="text-sm" style={{ color: "#f87171" }}>
-          {error}
-        </p>
-      )}
-    </form>
+      </form>
+    </Form>
   );
 }

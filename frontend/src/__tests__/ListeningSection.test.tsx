@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ListeningSection, { formatRelative } from "@/components/ListeningSection";
+import { renderWithQuery } from "@/__tests__/test-utils";
 import type { ListeningResponse, RecentlyPlayedItem } from "@/types";
 
 // The component polls via usePolledListening (which calls getListening) —
@@ -23,7 +24,7 @@ function makeItem(overrides: Partial<RecentlyPlayedItem> = {}): RecentlyPlayedIt
 }
 
 function renderSection(listening: ListeningResponse) {
-  return render(<ListeningSection username="testuser" token="tok" initial={listening} />);
+  return renderWithQuery(<ListeningSection username="testuser" token="tok" initial={listening} />);
 }
 
 describe("ListeningSection", () => {
