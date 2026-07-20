@@ -84,8 +84,8 @@
 # Technical Notes
 
 - Dependencies added: `@tanstack/react-query`, `react-hook-form`, `zod`,
-  `@hookform/resolvers`, shadcn CLI-generated components (Radix
-  primitives).
+  `@hookform/resolvers`, shadcn CLI-generated components (Base UI
+  primitives — the CLI v4 default; behaviorally equivalent to Radix).
 - One `QueryClient` per request via a root client provider component
   (SSR-safe per TanStack App Router guidance); Server Components keep
   direct `await`s and pass `initialData`.

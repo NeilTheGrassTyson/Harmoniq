@@ -2,6 +2,13 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getOwnProfile, updateProfile } from "@/lib/users";
 import type { MelodyAcceptScope } from "@/types";
 
@@ -57,19 +64,22 @@ export default function MelodySettings() {
         <label htmlFor="melody-accept-scope" className="text-secondary" style={{ fontSize: 13 }}>
           Who can send you Melodies
         </label>
-        <select
-          id="melody-accept-scope"
+        <Select
           value={scope ?? "everyone"}
+          onValueChange={(value) => void handleChange(value as MelodyAcceptScope)}
           disabled={scope === null || saving}
-          onChange={(e) => void handleChange(e.target.value as MelodyAcceptScope)}
-          className="rounded-control border-hairline bg-control text-primary border px-2 py-1 text-sm disabled:opacity-50"
         >
-          {OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="melody-accept-scope">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {error && (
         <p className="mt-2" style={{ color: "#f87171", fontSize: 13 }} role="alert">

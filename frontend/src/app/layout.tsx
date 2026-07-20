@@ -4,6 +4,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import QueryProvider from "@/components/QueryProvider";
 import "./globals.css";
 
+// No Geist/Inter here deliberately: the body face is the system font stack
+// and the display face is Space Grotesk (DESIGN_SYSTEM.md §3, §9).
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
   subsets: ["latin"],

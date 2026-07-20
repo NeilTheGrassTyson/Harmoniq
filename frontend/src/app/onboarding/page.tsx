@@ -1,11 +1,24 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { checkUsernameAvailable, createUser } from "@/lib/users";
 
 const USERNAME_RE = /^[a-zA-Z0-9_-]{3,30}$/;
+
+const onboardingSchema = z.object({
+  username: z.string().regex(USERNAME_RE),
+  displayName: z.string().trim().min(1).max(50),
+});
+
+type OnboardingValues = z.infer<typeof onboardingSchema>;
 
 type AvailabilityState =
   | { kind: "idle" }
@@ -19,37 +32,38 @@ export default function OnboardingPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
-  // Tracks user edits. When null, the display name field derives from Clerk.
-  const [editedName, setEditedName] = useState<string | null>(null);
   const [availability, setAvailability] = useState<AvailabilityState>({
     kind: "idle",
   });
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  // Derive display name: prefer user's edit, fall back to Clerk profile name.
+  // Derive the default display name from the Clerk profile once it loads.
   const clerkName =
     isLoaded && user ? [user.firstName, user.lastName].filter(Boolean).join(" ") : "";
-  const displayName = editedName ?? clerkName;
+
+  const form = useForm<OnboardingValues>({
+    resolver: zodResolver(onboardingSchema),
+    mode: "onChange",
+    defaultValues: { username: "", displayName: "" },
+  });
+
+  // Seed the display name from Clerk unless the user already edited it.
+  const nameEditedRef = useRef(false);
+  useEffect(() => {
+    if (!nameEditedRef.current && clerkName && !form.getValues("displayName")) {
+      form.setValue("displayName", clerkName, { shouldValidate: true });
+    }
+  }, [clerkName, form]);
 
   // Users who already have a Harmoniq account never reach this page — the
   // proxy.ts gate checks the backend record and redirects them away, even
   // when the JWT's onboarded claim is stale or missing.
 
-  // Debounced availability check
+  // Debounced availability check — server-side truth, outside the zod schema.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Guards against double-submit from rapid repeat clicks: React's
-  // setSubmitting(true) doesn't disable the button until the next render,
-  // which is too slow to beat a fast double/triple-click. A ref updates
-  // synchronously, so the second click bails before firing a request.
-  const submittingRef = useRef(false);
-
   const handleUsernameChange = useCallback((value: string) => {
-    setUsername(value);
     setSubmitError(null);
-
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (!value) {
@@ -72,21 +86,12 @@ export default function OnboardingPage() {
     }, 300);
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (submittingRef.current) return;
-
+  const onSubmit = async (values: OnboardingValues) => {
     setSubmitError(null);
-
-    if (!USERNAME_RE.test(username)) return;
-    if (!displayName.trim()) return;
-
-    submittingRef.current = true;
-    setSubmitting(true);
     try {
       const token = await getToken();
       if (!token) throw new Error("Not authenticated");
-      const profile = await createUser(token, username, displayName.trim());
+      const profile = await createUser(token, values.username, values.displayName.trim());
 
       // Force a session reload so the Clerk JWT picks up onboarded=true.
       await user?.reload();
@@ -94,18 +99,13 @@ export default function OnboardingPage() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
       setSubmitError(message);
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
     }
   };
 
-  const usernameValid = USERNAME_RE.test(username);
+  // RHF's isSubmitting doubles as the double-submit guard: handleSubmit
+  // won't re-enter while the previous submission promise is pending.
   const canSubmit =
-    usernameValid &&
-    displayName.trim().length > 0 &&
-    availability.kind === "available" &&
-    !submitting;
+    form.formState.isValid && availability.kind === "available" && !form.formState.isSubmitting;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
@@ -114,78 +114,98 @@ export default function OnboardingPage() {
         Your username appears in your profile URL and @mentions.
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label
-            htmlFor="username"
-            className="text-tertiary mb-1.5 block text-xs font-medium tracking-widest uppercase"
-          >
-            Username
-          </label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(e) => handleUsernameChange(e.target.value)}
-            placeholder="yourname"
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            maxLength={30}
-            className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-tertiary text-xs font-medium tracking-widest uppercase">
+                  Username
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      handleUsernameChange(e.target.value);
+                    }}
+                    placeholder="yourname"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    maxLength={30}
+                    className="h-auto px-3 py-2 text-sm"
+                  />
+                </FormControl>
+                <div className="min-h-[1.25rem] text-xs">
+                  {availability.kind === "invalid" && (
+                    <span role="alert" className="text-destructive">
+                      Usernames can only contain letters, numbers, underscores, and hyphens (3–30
+                      characters).
+                    </span>
+                  )}
+                  {availability.kind === "taken" && (
+                    <span role="alert" className="text-destructive">
+                      That username is taken.
+                    </span>
+                  )}
+                  {availability.kind === "available" && (
+                    <span className="text-accent">Available.</span>
+                  )}
+                  {availability.kind === "checking" && (
+                    <span className="text-tertiary">Checking…</span>
+                  )}
+                  {availability.kind === "idle" && field.value.length === 0 && (
+                    <span className="text-tertiary">
+                      Letters, numbers, _ and - · 3–30 characters
+                    </span>
+                  )}
+                </div>
+              </FormItem>
+            )}
           />
-          <div className="mt-1.5 min-h-[1.25rem] text-xs">
-            {availability.kind === "invalid" && (
-              <span role="alert" style={{ color: "#f87171" }}>
-                Usernames can only contain letters, numbers, underscores, and hyphens (3–30
-                characters).
-              </span>
-            )}
-            {availability.kind === "taken" && (
-              <span role="alert" style={{ color: "#f87171" }}>
-                That username is taken.
-              </span>
-            )}
-            {availability.kind === "available" && <span className="text-accent">Available.</span>}
-            {availability.kind === "checking" && <span className="text-tertiary">Checking…</span>}
-            {availability.kind === "idle" && username.length === 0 && (
-              <span className="text-tertiary">Letters, numbers, _ and - · 3–30 characters</span>
-            )}
-          </div>
-        </div>
 
-        <div>
-          <label
-            htmlFor="display-name"
-            className="text-tertiary mb-1.5 block text-xs font-medium tracking-widest uppercase"
-          >
-            Display name
-          </label>
-          <input
-            id="display-name"
-            type="text"
-            value={displayName}
-            onChange={(e) => setEditedName(e.target.value)}
-            placeholder="Your name"
-            maxLength={50}
-            className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
+          <FormField
+            control={form.control}
+            name="displayName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-tertiary text-xs font-medium tracking-widest uppercase">
+                  Display name
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    onChange={(e) => {
+                      nameEditedRef.current = true;
+                      field.onChange(e);
+                    }}
+                    placeholder="Your name"
+                    maxLength={50}
+                    className="h-auto px-3 py-2 text-sm"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
           />
-        </div>
 
-        {submitError && (
-          <p role="alert" className="text-sm text-red-500">
-            {submitError}
-          </p>
-        )}
+          {submitError && (
+            <p role="alert" className="text-destructive text-sm">
+              {submitError}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="rounded-control bg-primary text-canvas w-full px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {submitting ? "Creating account…" : "Continue"}
-        </button>
-      </form>
+          <Button
+            type="submit"
+            disabled={!canSubmit}
+            className="h-auto w-full px-4 py-2.5 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {form.formState.isSubmitting ? "Creating account…" : "Continue"}
+          </Button>
+        </form>
+      </Form>
     </main>
   );
 }

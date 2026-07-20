@@ -291,7 +291,8 @@ their clickable nature visually apparent on hover. No underline is shown by defa
 `docs/specs/frontend-data-layer-foundation.md`). shadcn/ui is the official
 primitive layer for interactive controls — Button, Input, Textarea, Select,
 Dialog, Form, Label — adopted for its interaction behavior and
-accessibility (Radix), **not** its visual language. The rules:
+accessibility (Base UI primitives, the shadcn CLI v4 default), **not** its
+visual language. The rules:
 
 - Every shadcn component is restyled onto the tokens in this document at
   install time: colors from §2, radii from §4, type from §3. shadcn's

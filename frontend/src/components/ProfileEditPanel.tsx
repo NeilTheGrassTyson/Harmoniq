@@ -2,13 +2,25 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import AvatarImage from "@/components/AvatarImage";
 import VisibilitySelect from "@/components/VisibilitySelect";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { checkUsernameAvailable, getOwnProfile, updateProfile, uploadAvatar } from "@/lib/users";
 import { disconnectSpotify, getSpotifyConnection, getSpotifyConnectUrl } from "@/lib/spotify";
 import type { OwnProfileResponse, SpotifyConnectionStatus, VisibilityScope } from "@/types";
 
 const USERNAME_RE = /^[a-zA-Z0-9_-]{3,30}$/;
+
+// One schema for the editable text fields — the save gate and the input
+// constraints read from the same rules instead of scattered checks.
+const profileSchema = z.object({
+  displayName: z.string().trim().min(1).max(50),
+  username: z.string().regex(USERNAME_RE),
+  bio: z.string().max(280),
+});
 
 type AvailabilityState =
   | { kind: "idle" }
@@ -198,8 +210,7 @@ export default function ProfileEditPanel({
     e.preventDefault();
     setSaveError(null);
 
-    if (!USERNAME_RE.test(username)) return;
-    if (!displayName.trim()) return;
+    if (!profileSchema.safeParse({ displayName, username, bio }).success) return;
 
     const isUsernameChanged = username !== originalUsername;
     if (isUsernameChanged && availability.kind !== "available") return;
@@ -239,8 +250,7 @@ export default function ProfileEditPanel({
 
   const canSave =
     !saving &&
-    displayName.trim().length > 0 &&
-    USERNAME_RE.test(username) &&
+    profileSchema.safeParse({ displayName, username, bio }).success &&
     (username === originalUsername || availability.kind === "available");
 
   return (
@@ -279,13 +289,13 @@ export default function ProfileEditPanel({
         >
           Display name
         </label>
-        <input
+        <Input
           id="display-name"
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           maxLength={50}
-          className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
+          className="h-auto px-3 py-2 text-sm"
         />
       </div>
 
@@ -297,7 +307,7 @@ export default function ProfileEditPanel({
         >
           Username
         </label>
-        <input
+        <Input
           id="username"
           type="text"
           value={username}
@@ -305,7 +315,7 @@ export default function ProfileEditPanel({
           autoCapitalize="none"
           spellCheck={false}
           maxLength={30}
-          className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full border px-3 py-2 text-sm"
+          className="h-auto px-3 py-2 text-sm"
         />
         <div className="mt-1 min-h-[1.25rem] text-xs">
           {availability.kind === "invalid" && (
@@ -331,14 +341,14 @@ export default function ProfileEditPanel({
         >
           Bio
         </label>
-        <textarea
+        <Textarea
           id="bio"
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           maxLength={280}
           rows={3}
           placeholder="A few words about your taste…"
-          className="rounded-control border-hairline bg-control text-primary placeholder:text-tertiary w-full resize-none border px-3 py-2 text-sm"
+          className="min-h-0 resize-none px-3 py-2 text-sm"
         />
         <p className="text-tertiary mt-1 text-right text-xs">{bio.length}/280</p>
       </div>
@@ -448,13 +458,13 @@ export default function ProfileEditPanel({
       )}
 
       <div className="flex items-center gap-4">
-        <button
+        <Button
           type="submit"
           disabled={!canSave}
-          className="rounded-control bg-primary text-canvas px-5 py-2 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-auto px-5 py-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving ? "Saving…" : "Save changes"}
-        </button>
+        </Button>
         <button
           type="button"
           onClick={onCancel}
