@@ -2,7 +2,7 @@
 
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { checkUsernameAvailable, createUser } from "@/lib/users";
 
 const USERNAME_RE = /^[a-zA-Z0-9_-]{3,30}$/;
@@ -33,26 +33,9 @@ export default function OnboardingPage() {
     isLoaded && user ? [user.firstName, user.lastName].filter(Boolean).join(" ") : "";
   const displayName = editedName ?? clerkName;
 
-  // Check if user already has a Harmoniq account (e.g. arriving from a new
-  // device before the JWT has refreshed to include onboarded=true).
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-    getToken()
-      .then(async (token) => {
-        if (!token) return;
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/users/me`,
-          { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
-        );
-        if (res.ok) {
-          const profile = await res.json();
-          router.replace(`/u/${profile.username}`);
-        }
-      })
-      .catch(() => {
-        // No existing account — stay on onboarding page.
-      });
-  }, [isLoaded, user, getToken, router]);
+  // Users who already have a Harmoniq account never reach this page — the
+  // proxy.ts gate checks the backend record and redirects them away, even
+  // when the JWT's onboarded claim is stale or missing.
 
   // Debounced availability check
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);

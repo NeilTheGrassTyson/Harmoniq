@@ -19,6 +19,25 @@ const isPublicRoute = createRouteMatcher([
   "/u/(.*)",
 ]);
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+// True/false when the backend answered definitively, null when it couldn't
+// (no token, network failure, 5xx, rate limit) so the caller can fail open.
+async function harmoniqAccountExists(token: string | null): Promise<boolean | null> {
+  if (!token) return null;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/users/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (res.ok) return true;
+    if (res.status === 403 || res.status === 404) return false;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default clerkMiddleware(async (auth, request) => {
   // Requests on the 127.0.0.1 origin (Spotify's OAuth return target) are
   // bounced to localhost here, as a tiny HTML page that client-side
@@ -38,7 +57,7 @@ export default clerkMiddleware(async (auth, request) => {
     );
   }
 
-  const { userId, sessionClaims } = await auth();
+  const { userId, sessionClaims, getToken } = await auth();
 
   // Authenticated users who haven't completed onboarding are gated to
   // /onboarding. The `onboarded` flag is set in Clerk's publicMetadata when
@@ -48,31 +67,40 @@ export default clerkMiddleware(async (auth, request) => {
   // string, not interpolated. Configure it in: Clerk Dashboard → Configure
   // → Sessions → Customize session token. See docs/setup.md §5.
   if (userId) {
-    // Trust the claim only when it interpolated into a real object. When it
-    // is absent or a leftover "{{ … }}" string (dashboard misconfiguration),
-    // skip the gate: bouncing every signed-in user through /onboarding
-    // forever is a far worse failure than not gating a brand-new account.
     const rawMetadata: unknown = sessionClaims?.metadata;
     const metadata =
       typeof rawMetadata === "object" && rawMetadata !== null
         ? (rawMetadata as Record<string, unknown>)
         : undefined;
-    const claimAvailable = metadata !== undefined;
     const isOnboarded = metadata?.onboarded === true;
     const pathname = request.nextUrl.pathname;
+    const onOnboardingRoute = pathname.startsWith("/onboarding");
 
-    // Only gate private routes on the onboarded flag. Public browse routes
-    // (/, /u/*, /artist/*, /spotify-callback, etc.) are readable before
-    // onboarding completes — this also avoids a JWT-propagation race after
-    // the onboarding form submits, and keeps the onboarding redirect from
-    // bouncing the OAuth return and burning the single-use code.
-    if (
-      claimAvailable &&
-      !isOnboarded &&
-      !pathname.startsWith("/onboarding") &&
-      !isPublicRoute(request)
-    ) {
-      return NextResponse.redirect(new URL("/onboarding", request.url));
+    if (isOnboarded) {
+      // A completed account never sees the onboarding form again.
+      if (onOnboardingRoute) {
+        return NextResponse.redirect(new URL("/", request.url));
+      }
+    } else if (onOnboardingRoute || !isPublicRoute(request)) {
+      // The claim is false, absent, or a leftover "{{ … }}" string
+      // (dashboard misconfiguration) — but it can also simply be stale for
+      // a short window right after onboarding, before the JWT refreshes.
+      // The backend user record is the source of truth, so ask it before
+      // redirecting either way. Public browse routes (/, /u/*, /artist/*,
+      // /spotify-callback, etc.) stay readable before onboarding completes,
+      // which also keeps the onboarding redirect from bouncing the OAuth
+      // return and burning the single-use code.
+      const accountExists = await harmoniqAccountExists(await getToken().catch(() => null));
+
+      if (accountExists === true && onOnboardingRoute) {
+        return NextResponse.redirect(new URL("/", request.url));
+      }
+      if (accountExists === false && !onOnboardingRoute) {
+        return NextResponse.redirect(new URL("/onboarding", request.url));
+      }
+      // accountExists === null (backend unreachable / indeterminate): fail
+      // open. Bouncing every signed-in user through /onboarding forever is
+      // a far worse failure than not gating a brand-new account.
     }
   }
 
