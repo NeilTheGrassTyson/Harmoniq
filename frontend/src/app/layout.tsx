@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import QueryProvider from "@/components/QueryProvider";
 import "./globals.css";
 
@@ -31,6 +32,9 @@ export default function RootLayout({
       <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
         <body className="bg-canvas text-primary h-full antialiased">
           <QueryProvider>{children}</QueryProvider>
+          {/* Anonymous Core Web Vitals only — no identity, no behaviour
+              tracking. Inert outside Vercel, so local dev sends nothing. */}
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
