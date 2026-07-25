@@ -2,12 +2,14 @@ name: Backend CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
+  # dev is included deliberately: feature work merges into dev first, so
+  # limiting this to main let every feature PR merge without CI.
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "backend/**"
       - ".github/workflows/backend-ci.yml"
