@@ -504,9 +504,10 @@ The frontend design token reference is documented separately in
 [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) — colors, typography,
 spacing, motion, and component patterns.
 
-**Outstanding:** Clerk's `appearance` prop for the sign-in and sign-up pages
-has not yet been configured. The pages use Clerk's default dark theme until
-this is wired up.
+Clerk's `appearance` prop is configured in
+`frontend/src/lib/clerkAppearance.ts` and applied once on `<ClerkProvider>`,
+so the hosted sign-in/sign-up pages, the sign-in modal, and `<UserButton>`
+share Harmoniq's tokens. See DESIGN_SYSTEM.md §15.
 
 | #                                                     | Title                                                            |
 | ----------------------------------------------------- | ---------------------------------------------------------------- |

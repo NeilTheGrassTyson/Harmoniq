@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import QueryProvider from "@/components/QueryProvider";
+import { clerkAppearance } from "@/lib/clerkAppearance";
 import "./globals.css";
 
 // No Geist/Inter here deliberately: the body face is the system font stack
@@ -26,8 +27,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // appearance is set once here so every Clerk surface — the hosted
+  // sign-in/sign-up pages, the <SignInButton> modal, and <UserButton> —
+  // picks up Harmoniq's tokens without per-call-site theming.
   return (
-    <ClerkProvider>
+    <ClerkProvider appearance={clerkAppearance}>
       <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
         <body className="bg-canvas text-primary h-full antialiased">
           <QueryProvider>{children}</QueryProvider>

@@ -1,17 +1,10 @@
 import { SignIn } from "@clerk/nextjs";
+import AuthScreen from "@/components/AuthScreen";
 
 export default function SignInPage() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#0b0d12",
-      }}
-    >
+    <AuthScreen caption="Sign in to see what your friends are listening to.">
       <SignIn />
-    </main>
+    </AuthScreen>
   );
 }

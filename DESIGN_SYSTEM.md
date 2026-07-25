@@ -137,6 +137,12 @@ No pill-shaped elements. No single uniform radius applied to everything — this
 - Tile hover: `transform: translateY(-2px)`, ~150ms ease. That's it.
 - Sidebar open/close: width transition, ~200ms ease.
 - The _only_ permitted shadow anywhere: a 1.5px solid focus ring (`box-shadow: 0 0 0 1.5px rgba(47,140,255,.6)`).
+- Loading placeholders pulse: `.skeleton-pulse`, opacity 1 → 0.55, 1.6s ease-in-out,
+  defined in `globals.css`. **Stated exception** to "no decorative motion" — this
+  motion is functional (it distinguishes "still loading" from "finished and
+  empty"), the same justification the `.eq-bar` now-playing pulse runs on.
+  Opacity only: no shimmer sweep, no travelling highlight, no gradient — those
+  are the templated-skeleton tell. Disabled under `prefers-reduced-motion`.
 - Focus ring is applied **globally** via `:focus-visible` in `globals.css` so every
   interactive element (buttons, links, inputs, selects) gets a consistent ring on
   keyboard navigation. Mouse clicks suppress it (`:focus-visible` vs `:focus`).
@@ -311,6 +317,66 @@ visual language. The rules:
 
 ---
 
-## 14. Provenance
+## 14. Loading states
+
+Catalog detail pages read through MusicBrainz with on-demand ingestion, and
+album/track responses are deliberately uncached because they embed
+visibility-scoped reviews (ENGINEERING_BIBLE §8.1). A cache miss is therefore
+slow often enough that "no loading state" is a visible defect: navigation
+stalls on the previous screen, then the new one appears at once.
+
+**Rule:** every route whose server component awaits a catalog read has a
+sibling `loading.tsx`. Implemented for `/album/[mbid]`, `/artist/[mbid]`, and
+`/track/[mbid]`.
+
+**Shape.** Skeletons live in `components/skeletons/` and mirror the real
+page's geometry — same `max-w-2xl`, same padding, same cover size, same row
+rhythm — so content doesn't jump when it lands. Placeholder fill is
+`--color-surface-tile`, the same value `CoverArt` uses for a missing image, so
+a skeleton and an artwork fallback read as one material rather than two
+different greys.
+
+**What a skeleton is not:** it is not a spinner, and it is not a full-page
+"Loading…" label. It is the page's own silhouette, held for a moment.
+
+**Accessibility.** The skeleton container carries `role="status"` and
+`aria-busy="true"` with an `sr-only` "Loading" label; the placeholder blocks
+themselves are `aria-hidden`.
+
+---
+
+## 15. Third-party UI: Clerk
+
+Clerk renders its own DOM, so it can't inherit the `@theme` block the way our
+components do. Left alone it ships a light-mode widget onto a dark app — which
+is exactly what the sign-in screen looked like before this was addressed, and
+it was the first thing a new user saw.
+
+**Config:** `frontend/src/lib/clerkAppearance.ts`, applied once on
+`<ClerkProvider>` in `app/layout.tsx` so it covers the hosted sign-in/sign-up
+pages, the `<SignInButton>` modal, and `<UserButton>` together. Never theme
+Clerk at an individual call site — that's how two surfaces drift apart.
+
+**Decisions worth keeping:**
+
+- No `@clerk/themes` dependency. Its `dark` theme carries its own palette and
+  its own shadows, which would then need overriding back to Harmoniq's values;
+  driving `variables` directly is fewer moving parts and one less package.
+- Clerk's `semibold` and `bold` weight slots are both mapped to **500**, so its
+  internal headings can't reintroduce heavy text and break §3.
+- `colorShadow: transparent` and explicit `boxShadow: none` on the card — §8
+  allows exactly one shadow, and it isn't this one.
+- `logoPlacement: "none"`. The equalizer glyph and wordmark are rendered by our
+  own `AuthScreen` component above the card, so the brand mark on the auth
+  screen is the one we control, not a dashboard-hosted image.
+- `shimmer: false` — the avatar shimmer is decorative motion (§8).
+
+**`AuthScreen`** (`components/AuthScreen.tsx`) wraps both auth routes: glyph,
+wordmark, one line of orientation copy, then Clerk's form. No card chrome
+around it — the stack sits in whitespace per §1.
+
+---
+
+## 16. Provenance
 
 This file is the implementation source of truth for the `@theme` block in `frontend/src/app/globals.css` (Tailwind v4 — no `tailwind.config.js`) and for every new or retrofitted component. Token names in this doc map directly to the `--color-*`, `--radius-*`, and `--font-*` custom properties declared there. If a screen needs a value not listed here, that's a signal to add it deliberately — to this document first, then to `globals.css` — not to improvise locally and let the system drift.

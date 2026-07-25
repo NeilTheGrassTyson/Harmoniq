@@ -99,6 +99,23 @@ body {
   transform: translateY(-2px);
 }
 
+/* Loading placeholder pulse — functional motion (signals work in progress),
+   not decoration, so it is a stated exception to the motion rules
+   (DESIGN_SYSTEM.md §8). Opacity only: no shimmer sweep, no gradient. */
+.skeleton-pulse {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tile-hover,
   .sidebar-panel {
@@ -108,6 +125,9 @@ body {
     transform: none;
   }
   .eq-bar {
+    animation: none;
+  }
+  .skeleton-pulse {
     animation: none;
   }
 }
