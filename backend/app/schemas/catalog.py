@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from app.schemas.rating import RatingRead
-
 
 class ArtistResult(BaseModel):
     mbid: str
@@ -47,6 +45,10 @@ class ArtistDetail(BaseModel):
     albums: list[AlbumResult]
 
 
+# Album and track detail carry catalog metadata only — no ratings. Reviews are
+# visibility-scoped per viewer, and embedding them here made these responses
+# impossible to cache (ENGINEERING_BIBLE.md §8.1). Clients read reviews from
+# GET /ratings/entity/{type}/{mbid}, which enforces scope at the data layer.
 class AlbumDetail(BaseModel):
     mbid: str
     title: str
@@ -56,8 +58,6 @@ class AlbumDetail(BaseModel):
     album_type: str | None
     cover_art_url: str | None
     tracks: list[TrackResult]
-    aggregate_score: float | None = None
-    reviews: list[RatingRead] = []
 
 
 class TrackDetail(BaseModel):
@@ -71,5 +71,3 @@ class TrackDetail(BaseModel):
     duration_ms: int | None
     track_number: int | None
     disc_number: int | None
-    aggregate_score: float | None = None
-    reviews: list[RatingRead] = []

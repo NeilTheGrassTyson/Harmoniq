@@ -742,6 +742,41 @@ class TestRatingsAPI:
         assert body["aggregate_score"] is None
         assert body["reviews"] == []
 
+    async def test_catalog_detail_carries_no_reviews_and_is_cacheable(
+        self, authed_client: tuple[AsyncClient, str], db_session: AsyncSession
+    ) -> None:
+        """Catalog detail must stay viewer-independent.
+
+        Reviews are visibility-scoped, so if they ever leak back into these
+        payloads the public Cache-Control below would serve one viewer's
+        private reviews to another (ENGINEERING_BIBLE.md §8.1). This test
+        pins both halves of that invariant together.
+        """
+        ac, clerk_id = authed_client
+        user = await _make_user(db_session, clerk_id=clerk_id, username="api_cache1")
+        track = await _make_track(db_session, mbid="mbid-api-cache01")
+        await _rate(
+            db_session,
+            user=user,
+            entity_type="track",
+            entity_id=track.id,
+            score=9,
+            visibility=VisibilityScope.PRIVATE,
+        )
+
+        resp = await ac.get("/api/v1/catalog/tracks/mbid-api-cache01")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "reviews" not in body
+        assert "aggregate_score" not in body
+        assert resp.headers["cache-control"].startswith("public")
+
+        # The private review is still readable by its author, via ratings.
+        rated = await ac.get("/api/v1/ratings/entity/track/mbid-api-cache01")
+        assert len(rated.json()["reviews"]) == 1
+        assert "public" not in rated.headers.get("cache-control", "")
+
     async def test_list_entity_bad_type_returns_400(
         self, anon_client: AsyncClient
     ) -> None:

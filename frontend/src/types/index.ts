@@ -57,8 +57,6 @@ export interface AlbumDetail {
   album_type: string | null;
   cover_art_url: string | null;
   tracks: TrackResult[];
-  aggregate_score: number | null;
-  reviews: RatingRead[];
 }
 
 export interface TrackDetail {
@@ -72,8 +70,6 @@ export interface TrackDetail {
   duration_ms: number | null;
   track_number: number | null;
   disc_number: number | null;
-  aggregate_score: number | null;
-  reviews: RatingRead[];
 }
 
 // ── User search ───────────────────────────────────────────────────────────────

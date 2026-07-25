@@ -6,7 +6,6 @@ No database — sessions are mocked; MusicBrainz HTTP calls are patched.
 """
 
 import uuid
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -193,16 +192,11 @@ class TestColdAlbumLookup:
         session.flush = AsyncMock()
         session.add = added.append
 
-        ratings_stub = SimpleNamespace(aggregate_score=None, reviews=[])
-        with (
-            patch(
-                "app.services.catalog.mb.lookup_release_group",
-                new=AsyncMock(return_value=raw_rg),
-            ),
-            patch(
-                "app.services.catalog.rating_svc.list_for_entity",
-                new=AsyncMock(return_value=ratings_stub),
-            ),
+        # No ratings patch needed: album detail is catalog metadata only —
+        # reviews come from the ratings endpoint, not this service.
+        with patch(
+            "app.services.catalog.mb.lookup_release_group",
+            new=AsyncMock(return_value=raw_rg),
         ):
             detail = await get_album("rg-1", session)
 

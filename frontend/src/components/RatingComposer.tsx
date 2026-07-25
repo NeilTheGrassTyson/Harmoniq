@@ -20,11 +20,7 @@ const SCORES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 // the submit gate and the input constraints read from the same schema.
 const ratingSchema = z.object({
   score: z.number().int().min(1).max(10),
-  reviewText: z
-    .string()
-    .trim()
-    .min(REVIEW_MIN)
-    .max(REVIEW_MAX),
+  reviewText: z.string().trim().min(REVIEW_MIN).max(REVIEW_MAX),
   visibility: z.enum(["private", "friends", "public"]),
 });
 
