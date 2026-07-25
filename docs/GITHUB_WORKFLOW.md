@@ -20,13 +20,13 @@ Written 2026-07-25, after a branch-management incident described in
 
 ## 1. Branches
 
-| Branch          | Lifetime  | Purpose                                                        |
-| --------------- | --------- | -------------------------------------------------------------- |
-| `main`          | Permanent | Production. Deploys to Vercel + Railway. Always releasable.     |
-| `dev`           | Permanent | Integration. Where feature work accumulates before a release.   |
-| `feat/*`        | Temporary | One net-new feature. Deleted on merge.                          |
-| `fix/*`         | Temporary | One bug fix. Deleted on merge.                                  |
-| `docs/`, `chore/`, `refactor/`, `style/` | Temporary | Same rule — scoped to one change, deleted on merge. |
+| Branch                                   | Lifetime  | Purpose                                                       |
+| ---------------------------------------- | --------- | ------------------------------------------------------------- |
+| `main`                                   | Permanent | Production. Deploys to Vercel + Railway. Always releasable.   |
+| `dev`                                    | Permanent | Integration. Where feature work accumulates before a release. |
+| `feat/*`                                 | Temporary | One net-new feature. Deleted on merge.                        |
+| `fix/*`                                  | Temporary | One bug fix. Deleted on merge.                                |
+| `docs/`, `chore/`, `refactor/`, `style/` | Temporary | Same rule — scoped to one change, deleted on merge.           |
 
 **`main` and `dev` are permanent.** Neither is ever deleted, and neither is
 ever a temporary branch that happens to stick around. Everything else is
@@ -103,10 +103,10 @@ _why_, not _what_ — the diff already says what.
 
 Two workflows, both in `.github/workflows/`:
 
-| Workflow      | Triggers on                     | Jobs                                     |
-| ------------- | ------------------------------- | ---------------------------------------- |
-| `backend-ci`  | changes under `backend/**`      | Lint & type check (ruff, mypy) · Tests (pytest) |
-| `frontend-ci` | changes under `frontend/**`     | Lint, typecheck & format (ESLint, tsc, Prettier) · Build |
+| Workflow      | Triggers on                 | Jobs                                                     |
+| ------------- | --------------------------- | -------------------------------------------------------- |
+| `backend-ci`  | changes under `backend/**`  | Lint & type check (ruff, mypy) · Tests (pytest)          |
+| `frontend-ci` | changes under `frontend/**` | Lint, typecheck & format (ESLint, tsc, Prettier) · Build |
 
 Both run on pushes to `main` and `dev`, and on pull requests targeting
 `main` or `dev`. **`dev` must stay in those trigger lists.** They originally
@@ -143,32 +143,37 @@ receiving branch, where the next person inherits it.
 
 ## 5. Repository settings
 
-| Setting                          | Value | Why                                                       |
-| -------------------------------- | ----- | --------------------------------------------------------- |
+| Setting                          | Value  | Why                                                       |
+| -------------------------------- | ------ | --------------------------------------------------------- |
 | Default branch                   | `main` | Production is what a visitor should land on.              |
-| Automatically delete head branch | On    | Keeps merged `feat/*` branches from accumulating.         |
+| Automatically delete head branch | On     | Keeps merged `feat/*` branches from accumulating.         |
+| Branch protection on `dev`       | On     | Blocks deletion (including auto-delete) and force-pushes. |
 
-**Automatic head-branch deletion has one sharp edge.** It deletes the *head*
+**Automatic head-branch deletion has one sharp edge.** It deletes the _head_
 branch of any merged PR — and in a `dev → main` PR, the head branch is `dev`.
 So the setting that usefully cleans up feature branches will also delete the
 permanent integration branch, silently, the moment a release merges.
 
 Because auto-delete is deliberately kept on (it does the right thing for the
-disposable branches, which are the overwhelming majority), `dev` needs
-explicit protection from it. Two ways, in order of preference:
+disposable branches, which are the overwhelming majority), `dev` is
+protected from it by a branch protection rule — **applied 2026-07-25**.
+GitHub refuses to delete a protected branch, so feature branches keep
+collapsing normally while `dev` survives its own release PR. Verified by
+attempting the delete: GitHub returns `422 Cannot delete this branch`.
 
-1. **A branch protection rule on `dev`.** GitHub never auto-deletes a
-   protected branch, so feature branches keep collapsing normally while `dev`
-   survives. This is the durable fix and it costs nothing else.
-2. **Recreate `dev` immediately after every `dev → main` merge**, as a
-   standing manual step:
+The rule blocks deletions and force-pushes. It deliberately does **not**
+require status checks, because both workflows use `paths:` filters: a
+frontend-only PR never triggers the backend jobs, so a required backend
+check would sit permanently "expected" and block the merge forever. Review
+requirements are also off, since a solo founder cannot approve their own PR.
 
-   ```bash
-   git checkout main && git pull && git push origin main:refs/heads/dev
-   ```
+If protection is ever removed, the fallback is to recreate `dev` by hand
+after every `dev → main` merge — worse, because it depends on someone
+remembering every time:
 
-Option 1 is preferred precisely because option 2 depends on someone
-remembering, every time, forever.
+```bash
+git checkout main && git pull && git push origin main:refs/heads/dev
+```
 
 ---
 
@@ -194,8 +199,8 @@ significant mistake — should not exist only in conversation.
 `dev → main`. Auto-delete removed the head branch, which was `dev` itself.
 Nothing was lost (every commit was already in `main`), but the integration
 branch simply vanished, and local clones kept a stale `origin/dev` ref that
-made it look like it still existed. `dev` was recreated from `main` on
-2026-07-25.
+made it look like it still existed. `dev` was recreated from `main` and
+protected on 2026-07-25 (§5), so this cannot recur.
 
 **2026-07-20 — a PR merged with CI red.** The same `dev → main` PR merged
 with the frontend `Lint, typecheck & format` job failing: twelve files, most
@@ -222,5 +227,5 @@ gh pr create --base dev
 
 # Release
 gh pr create --base main --head dev
-# then confirm dev still exists; recreate it if not (see §5)
+# dev is protected, so the merge no longer deletes it (see §5)
 ```
