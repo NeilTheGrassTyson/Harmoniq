@@ -6,6 +6,7 @@ import CoverArt from "@/components/CoverArt";
 import RatingSection from "@/components/RatingSection";
 import SendMelodyPanel from "@/components/SendMelodyPanel";
 import { getTrack } from "@/lib/catalog";
+import { getEntityRatings } from "@/lib/ratings";
 
 function formatDuration(ms: number | null): string {
   if (ms === null) return "";
@@ -20,13 +21,23 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
   const { getToken } = await auth();
   const token = await getToken().catch(() => null);
 
+  // Catalog metadata (cached) and reviews (viewer-scoped, never cached) are
+  // separate requests, issued in parallel. A ratings failure degrades to an
+  // empty review list rather than breaking the page.
+  const ratingsPromise = getEntityRatings("track", mbid, token ?? undefined).catch(() => ({
+    aggregate_score: null,
+    reviews: [],
+  }));
+
   let track;
   try {
-    track = await getTrack(mbid, token ?? undefined);
+    track = await getTrack(mbid);
   } catch (err: unknown) {
     if ((err as { status?: number }).status === 404) notFound();
     throw err;
   }
+
+  const ratings = await ratingsPromise;
 
   return (
     <AppShell>
@@ -76,8 +87,8 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
         <RatingSection
           entityType="track"
           entityMbid={mbid}
-          initialReviews={track.reviews}
-          initialAggregate={track.aggregate_score}
+          initialReviews={ratings.reviews}
+          initialAggregate={ratings.aggregate_score}
         />
       </main>
     </AppShell>

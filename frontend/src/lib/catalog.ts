@@ -25,26 +25,22 @@ export function searchCatalog(query: string): Promise<SearchResponse> {
   return catalogGet<SearchResponse>(`/search?q=${encodeURIComponent(query)}`);
 }
 
+// Catalog detail is viewer-independent metadata — no auth token, no per-viewer
+// content, so it caches in the Next data cache. Reviews are fetched separately
+// via lib/ratings (never cached), which is what makes this safe.
+// Short TTL because these grow as on-demand ingestion runs.
+function catalogCache(): Pick<RequestInit, "cache" | "next"> {
+  return { next: { revalidate: 300, tags: ["catalog"] } };
+}
+
 export function getArtist(mbid: string): Promise<ArtistDetail> {
-  // Viewer-independent catalog metadata — cache in the Next data cache.
-  // Short TTL because the albums list grows as on-demand ingestion runs.
-  return catalogGet<ArtistDetail>(`/artists/${encodeURIComponent(mbid)}`, undefined, {
-    next: { revalidate: 300, tags: ["catalog"] },
-  });
+  return catalogGet<ArtistDetail>(`/artists/${encodeURIComponent(mbid)}`, undefined, catalogCache());
 }
 
-// Album and track detail responses embed visibility-scoped reviews
-// (rating_svc.list_for_entity filters per viewer) — caching them would
-// serve one viewer's reviews to another (ENGINEERING_BIBLE.md §8.1).
-// `no-store` is explicit so a future edit can't accidentally opt them in.
-export function getAlbum(mbid: string, token?: string): Promise<AlbumDetail> {
-  return catalogGet<AlbumDetail>(`/albums/${encodeURIComponent(mbid)}`, token, {
-    cache: "no-store",
-  });
+export function getAlbum(mbid: string): Promise<AlbumDetail> {
+  return catalogGet<AlbumDetail>(`/albums/${encodeURIComponent(mbid)}`, undefined, catalogCache());
 }
 
-export function getTrack(mbid: string, token?: string): Promise<TrackDetail> {
-  return catalogGet<TrackDetail>(`/tracks/${encodeURIComponent(mbid)}`, token, {
-    cache: "no-store",
-  });
+export function getTrack(mbid: string): Promise<TrackDetail> {
+  return catalogGet<TrackDetail>(`/tracks/${encodeURIComponent(mbid)}`, undefined, catalogCache());
 }
