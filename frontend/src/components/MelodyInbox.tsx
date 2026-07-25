@@ -63,7 +63,13 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
   const [error, setError] = useState<string | null>(null);
 
   const respondMutation = useMutation({
-    mutationFn: async ({ item, action }: { item: MelodyInboxItem; action: MelodyRespondAction }) => {
+    mutationFn: async ({
+      item,
+      action,
+    }: {
+      item: MelodyInboxItem;
+      action: MelodyRespondAction;
+    }) => {
       const token = await getToken();
       if (!token) throw new Error("Not signed in.");
       return { updated: await respondToMelody(token, item.id, action), action };
