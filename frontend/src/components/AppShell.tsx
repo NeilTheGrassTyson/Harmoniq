@@ -136,28 +136,17 @@ function NavLink({
   label: string;
   active: boolean;
 }) {
+  // Hover is a CSS concern: an active row keeps --color-nav-active and ignores
+  // hover, an inactive row picks up --color-nav-hover. Expressing it in classes
+  // instead of onMouseEnter/onMouseLeave also makes it work for touch and
+  // keyboard focus, which the JS handlers never covered.
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className="rounded-nav text-secondary hover:text-primary flex items-center"
-      style={{
-        padding: "7px 10px",
-        gap: 10,
-        fontSize: 13,
-        background: active ? "rgba(255,255,255,0.06)" : "transparent",
-        transition: "background 100ms ease, color 100ms ease",
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = active
-          ? "rgba(255,255,255,0.06)"
-          : "transparent";
-      }}
+      className={`rounded-nav text-secondary hover:text-primary flex items-center gap-[10px] px-[10px] py-[7px] text-[13px] transition-colors duration-100 ${
+        active ? "bg-nav-active" : "hover:bg-nav-hover"
+      }`}
     >
       {icon}
       <span>{label}</span>
@@ -204,38 +193,20 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex h-full flex-col">
       {/* ── Header (3-column grid) ─────────────────────────────────────── */}
-      <header
-        className="shrink-0 border-b"
-        style={{
-          borderColor: "rgba(255,255,255,0.07)",
-          padding: "0 20px",
-          height: 52,
-          display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
-          alignItems: "center",
-          gap: 12,
-          backgroundColor: "#0b0d12",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
+      <header className="border-hairline bg-canvas relative z-1 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b px-5">
         {/* Left: toggle + logo */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
             aria-expanded={open}
-            className="rounded-nav text-secondary hover:text-primary flex items-center justify-center"
-            style={{ width: 30, height: 30, color: "#8b93a3" }}
+            className="rounded-nav text-secondary hover:text-primary flex size-[30px] items-center justify-center"
           >
             <IconMenu />
           </button>
           <Link href="/" className="flex items-center gap-2">
-            <EqualizerGlyph fill="#2f8cff" size={16} />
-            <span
-              className="font-display text-primary select-none"
-              style={{ fontSize: 14, fontWeight: 500, letterSpacing: 0 }}
-            >
+            <EqualizerGlyph className="text-accent" size={16} />
+            <span className="font-display text-primary text-sm font-medium tracking-normal select-none">
               harmoniq
             </span>
           </Link>
@@ -247,7 +218,7 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
 
         {/* Right: notifications + profile */}
-        <div className="flex items-center justify-end" style={{ gap: 8 }}>
+        <div className="flex items-center justify-end gap-2">
           <NotificationBell />
           <NavAuth />
         </div>
@@ -257,17 +228,12 @@ export default function AppShell({ children }: AppShellProps) {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside
-          className="sidebar-panel shrink-0"
-          style={{
-            width: open ? SIDEBAR_WIDTH : 0,
-            backgroundColor: "#0e1015",
-            borderRight: "1px solid rgba(255,255,255,0.07)",
-          }}
+          className="sidebar-panel bg-sidebar border-hairline shrink-0 border-r"
+          // Width is the animated dimension, so it stays inline and in sync
+          // with the SIDEBAR_WIDTH constant the nav's min-width also reads.
+          style={{ width: open ? SIDEBAR_WIDTH : 0 }}
         >
-          <nav
-            className="flex flex-col"
-            style={{ padding: "16px 10px", gap: 2, minWidth: SIDEBAR_WIDTH }}
-          >
+          <nav className="flex flex-col gap-0.5 px-[10px] py-4" style={{ minWidth: SIDEBAR_WIDTH }}>
             <NavLink href="/" icon={<IconHome size={16} />} label="Home" active={isHomeActive} />
             <NavLink
               href="/search"

@@ -319,12 +319,12 @@ export default function ProfileEditPanel({
         />
         <div className="mt-1 min-h-[1.25rem] text-xs">
           {availability.kind === "invalid" && (
-            <span role="alert" style={{ color: "#f87171" }}>
+            <span role="alert" className="text-destructive">
               Letters, numbers, _ and - only · 3–30 characters.
             </span>
           )}
           {availability.kind === "taken" && (
-            <span role="alert" style={{ color: "#f87171" }}>
+            <span role="alert" className="text-destructive">
               That username is taken.
             </span>
           )}
@@ -439,12 +439,12 @@ export default function ProfileEditPanel({
           visibility setting.
         </p>
         {spotifyJustConnected && spotify?.connected && (
-          <p role="status" className="mt-1 text-xs" style={{ color: "#4ade80" }}>
+          <p role="status" className="text-accent mt-1 text-xs">
             Spotify connected.
           </p>
         )}
         {spotifyError && (
-          <p role="alert" className="mt-1 text-xs" style={{ color: "#f87171" }}>
+          <p role="alert" className="text-destructive mt-1 text-xs">
             {spotifyError}
           </p>
         )}

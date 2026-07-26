@@ -54,7 +54,7 @@ export default function MelodyCard({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center" style={{ gap: 8 }}>
-          {!compact && <EqualizerGlyph fill="#2f8cff" size={11} />}
+          {!compact && <EqualizerGlyph size={11} className="text-accent" />}
           <Link
             href={`/track/${track.mbid}`}
             className="text-primary hover:text-secondary block truncate"

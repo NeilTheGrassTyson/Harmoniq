@@ -82,7 +82,7 @@ export default function MelodySettings() {
         </Select>
       </div>
       {error && (
-        <p className="mt-2" style={{ color: "#f87171", fontSize: 13 }} role="alert">
+        <p className="text-destructive mt-2 text-[13px]" role="alert">
           {error}
         </p>
       )}

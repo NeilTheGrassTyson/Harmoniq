@@ -23,18 +23,7 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
 function Artwork({ src, alt }: { src: string | null; alt: string }) {
   const [failed, setFailed] = useState(false);
   if (!src || failed) {
-    return (
-      <span
-        style={{
-          display: "block",
-          width: 36,
-          height: 36,
-          flexShrink: 0,
-          backgroundColor: "#151821",
-          borderRadius: 6,
-        }}
-      />
-    );
+    return <span className="bg-tile rounded-nav block size-9 shrink-0" aria-hidden="true" />;
   }
   return (
     <span
@@ -103,7 +92,7 @@ function TrackRow({
           {track.artist_name}
         </span>
       </span>
-      {isNowPlaying && <EqualizerGlyph animated size={14} fill="#2f8cff" />}
+      {isNowPlaying && <EqualizerGlyph animated size={14} className="text-accent" />}
       <span className="text-tertiary" style={{ fontSize: 11, flexShrink: 0 }}>
         {meta}
       </span>

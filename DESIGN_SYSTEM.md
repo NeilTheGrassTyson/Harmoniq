@@ -377,6 +377,35 @@ around it — the stack sits in whitespace per §1.
 
 ---
 
-## 16. Provenance
+## 16. Tokens in practice
+
+The tokens above only hold if components actually reference them. Two habits
+caused every drift found in the July 2026 audit, so both are now rules:
+
+**Raw color literals are not allowed in components.** Use the Tailwind
+utility backed by the token — `bg-tile`, `text-secondary`, `border-hairline`,
+`text-accent`, `text-destructive` — never `style={{ color: "#8b93a3" }}`. A
+literal is invisible to a palette change and hides drift from review: the
+audit found a section label at weight 600 / 0.7px tracking (against §3's 500 /
+0.6px and its ceiling of 500), a `0 8px 24px` drop shadow on the notification
+popover (against §8's single-shadow rule), and an undocumented success green
+(`#4ade80`) that existed nowhere in §2. All three were inline styles.
+
+**Hover and focus belong in CSS, not JavaScript.** Use `hover:bg-nav-hover`
+and friends. Hover implemented with `onMouseEnter`/`onMouseLeave` — or worse,
+`useState` — re-renders on pointer movement, never fires for keyboard users,
+and strands touch devices in a stuck hover state.
+
+**Inline `style` is still correct for genuinely dynamic values** — the
+sidebar's animated width, a computed grid position. The test is whether the
+value could be a class: if it could, it should be.
+
+**A positive/confirmation state uses the accent** (`text-accent`), matching
+the onboarding form's "Available." Introducing a second hue for success would
+break §1's one-accent rule.
+
+---
+
+## 17. Provenance
 
 This file is the implementation source of truth for the `@theme` block in `frontend/src/app/globals.css` (Tailwind v4 — no `tailwind.config.js`) and for every new or retrofitted component. Token names in this doc map directly to the `--color-*`, `--radius-*`, and `--font-*` custom properties declared there. If a screen needs a value not listed here, that's a signal to add it deliberately — to this document first, then to `globals.css` — not to improvise locally and let the system drift.

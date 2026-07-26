@@ -7,49 +7,35 @@ import type { FriendEntry, HomeResponse, TrendingEntry } from "@/types";
 
 // ── Section label ─────────────────────────────────────────────────────────────
 
+// Section label: 11px display face, uppercase, 0.6px tracking (DESIGN_SYSTEM §3),
+// 14px to its content (§5).
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2
-      className="font-display text-tertiary"
-      style={{
-        fontSize: 11,
-        fontWeight: 500,
-        textTransform: "uppercase",
-        letterSpacing: "0.6px",
-        marginBottom: 14,
-      }}
-    >
+    <h2 className="font-display text-tertiary mb-[14px] text-[11px] font-medium tracking-[0.6px] uppercase">
       {children}
     </h2>
   );
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-tertiary" style={{ fontSize: 13 }}>
-      {children}
-    </p>
-  );
+  return <p className="text-tertiary text-[13px]">{children}</p>;
 }
+
+// Tile grid: reflows as the sidebar opens/closes, no fixed column count (§5).
+const TILE_GRID = "grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-5";
 
 // ── Tile grids ────────────────────────────────────────────────────────────────
 
 function TrendingGrid({ entries, error }: { entries: TrendingEntry[]; error: boolean }) {
   return (
-    <section style={{ marginBottom: 34 }}>
+    <section className="mb-[34px]">
       <SectionLabel>Trending</SectionLabel>
       {error ? (
         <EmptyState>Couldn&rsquo;t load this right now.</EmptyState>
       ) : entries.length === 0 ? (
         <EmptyState>No songs are trending yet.</EmptyState>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
-            gap: 20,
-          }}
-        >
+        <div className={TILE_GRID}>
           {entries.map((entry) => (
             <TrackTile
               key={entry.track.mbid}
@@ -86,13 +72,7 @@ function FriendsGrid({
       ) : entries.length === 0 ? (
         <EmptyState>{emptyMsg}</EmptyState>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
-            gap: 20,
-          }}
-        >
+        <div className={TILE_GRID}>
           {entries.map((entry) => (
             <TrackTile
               key={`${entry.rated_by.username}-${entry.track.mbid}`}
@@ -113,14 +93,10 @@ function FriendsGrid({
 
 function SignedOutLanding() {
   return (
-    <div className="flex flex-col items-center justify-center" style={{ paddingTop: 80, gap: 16 }}>
-      <EqualizerGlyph fill="#2f8cff" size={36} />
-      <p className="font-display text-primary" style={{ fontSize: 14, fontWeight: 500 }}>
-        harmoniq
-      </p>
-      <p className="text-secondary" style={{ fontSize: 13 }}>
-        Sign in to see what&rsquo;s trending.
-      </p>
+    <div className="flex flex-col items-center justify-center gap-4 pt-20">
+      <EqualizerGlyph className="text-accent" size={36} />
+      <p className="font-display text-primary text-sm font-medium">harmoniq</p>
+      <p className="text-secondary text-[13px]">Sign in to see what&rsquo;s trending.</p>
     </div>
   );
 }
@@ -159,7 +135,8 @@ export default async function Home() {
 
   return (
     <AppShell>
-      <div style={{ padding: "26px 22px 30px" }}>
+      {/* Body padding 26px 22px 30px (DESIGN_SYSTEM §5) */}
+      <div className="px-[22px] pt-[26px] pb-[30px]">
         <TrendingGrid entries={home.trending} error={home.trending_error} />
         <FriendsGrid
           entries={home.friends}

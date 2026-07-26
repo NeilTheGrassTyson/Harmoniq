@@ -60,7 +60,7 @@ export default function FollowButton({ username, initialIsFollowing, onChange }:
         {isFollowing ? "Following" : "Follow"}
       </button>
       {mutation.isError && (
-        <p role="alert" className="mt-1 text-xs" style={{ color: "#f87171" }}>
+        <p role="alert" className="text-destructive mt-1 text-xs">
           Something went wrong. Try again.
         </p>
       )}

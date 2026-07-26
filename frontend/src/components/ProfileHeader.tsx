@@ -108,23 +108,13 @@ export default function ProfileHeader({ profile, autoOpenEdit = false }: Profile
       </div>
 
       {/* ── Actions ────────────────────────────────────────────────────── */}
-      <div style={{ marginBottom: 32 }}>
+      <div className="mb-8">
         {profile.is_own_profile
           ? !editOpen && (
               <button
                 type="button"
                 onClick={() => setEditOpen(true)}
-                style={{
-                  display: "inline-block",
-                  padding: "5px 14px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#8b93a3",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  borderRadius: 8,
-                  background: "none",
-                  cursor: "pointer",
-                }}
+                className="text-secondary border-hairline rounded-control inline-block cursor-pointer border bg-none px-[14px] py-[5px] text-xs font-medium"
               >
                 Edit profile
               </button>

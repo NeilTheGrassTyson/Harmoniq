@@ -134,7 +134,7 @@ function ReviewItem({ review, viewerUsername, onDeleted, onVisibilityChanged }: 
       </div>
 
       {error && (
-        <p role="alert" className="mt-1 text-xs" style={{ color: "#f87171" }}>
+        <p role="alert" className="text-destructive mt-1 text-xs">
           {error}
         </p>
       )}

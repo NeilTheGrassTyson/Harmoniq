@@ -135,13 +135,12 @@ export default function NotificationBell() {
   };
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div ref={containerRef} className="relative">
       <button
         onClick={() => void toggle()}
         aria-label={unread > 0 ? "Notifications — new activity" : "Notifications"}
         aria-expanded={open}
-        className="rounded-nav text-secondary hover:text-primary flex items-center justify-center"
-        style={{ width: 30, height: 30, position: "relative" }}
+        className="rounded-nav text-secondary hover:text-primary relative flex size-[30px] items-center justify-center"
         data-testid="notification-bell"
       >
         <IconBell size={17} />
@@ -149,65 +148,35 @@ export default function NotificationBell() {
           <span
             data-testid="unread-dot"
             aria-hidden="true"
-            style={{
-              position: "absolute",
-              top: 5,
-              right: 6,
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "#2f8cff",
-            }}
+            className="bg-accent absolute top-[5px] right-[6px] size-1.5 rounded-full"
           />
         )}
       </button>
 
       {open && (
+        // Separation from the content beneath comes from the hairline border
+        // and the sidebar surface — not a drop shadow (DESIGN_SYSTEM §8).
         <div
-          className="border-hairline border"
+          className="border-hairline rounded-frame bg-sidebar absolute top-[38px] right-0 z-50 max-h-[420px] w-[340px] overflow-y-auto border"
           role="region"
           aria-label="Notifications"
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 38,
-            width: 340,
-            maxHeight: 420,
-            overflowY: "auto",
-            borderRadius: 14,
-            background: "#0e1015",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            zIndex: 50,
-          }}
         >
           {items === null ? (
-            <p className="text-tertiary" style={{ fontSize: 13, padding: 16 }}>
-              Loading…
-            </p>
+            <p className="text-tertiary p-4 text-[13px]">Loading…</p>
           ) : items.length === 0 ? (
-            <p className="text-tertiary" style={{ fontSize: 13, padding: 16 }}>
+            <p className="text-tertiary p-4 text-[13px]">
               Nothing new. When someone sends you a Melody or follows you, it shows here.
             </p>
           ) : (
             <>
-              <ul style={{ padding: 6 }}>
+              <ul className="p-1.5">
                 {items.map((item) => (
                   <li key={item.id}>
                     <button
                       onClick={() => void handleItemClick(item)}
-                      className="rounded-nav flex w-full items-center text-left"
-                      style={{
-                        gap: 10,
-                        padding: "10px 10px",
-                        background: "transparent",
-                        opacity: item.read ? 0.55 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                      }}
+                      className={`rounded-nav hover:bg-nav-hover flex w-full items-center gap-[10px] p-[10px] text-left ${
+                        item.read ? "opacity-55" : ""
+                      }`}
                     >
                       {item.type === "melody_received" && item.melody ? (
                         <CoverArt
@@ -216,15 +185,12 @@ export default function NotificationBell() {
                           size={36}
                         />
                       ) : (
-                        <span
-                          className="bg-tile flex shrink-0 items-center justify-center rounded-full"
-                          style={{ width: 36, height: 36, fontSize: 13 }}
-                        >
+                        <span className="bg-tile flex size-9 shrink-0 items-center justify-center rounded-full text-[13px]">
                           {item.actor.display_name.slice(0, 1).toUpperCase()}
                         </span>
                       )}
                       <span className="min-w-0 flex-1">
-                        <span className="text-primary block truncate" style={{ fontSize: 13 }}>
+                        <span className="text-primary block truncate text-[13px]">
                           {item.type === "melody_received" && item.melody ? (
                             <>
                               {item.actor.display_name} sent you a Melody —{" "}
@@ -234,10 +200,7 @@ export default function NotificationBell() {
                             <>{item.actor.display_name} followed you</>
                           )}
                         </span>
-                        <span
-                          className="text-tertiary block"
-                          style={{ fontSize: 11, marginTop: 2 }}
-                        >
+                        <span className="text-tertiary mt-0.5 block text-[11px]">
                           {timeAgo(item.created_at)}
                         </span>
                       </span>
@@ -245,22 +208,17 @@ export default function NotificationBell() {
                   </li>
                 ))}
               </ul>
-              <div
-                className="border-hairline flex items-center justify-between border-t"
-                style={{ padding: "8px 12px" }}
-              >
+              <div className="border-hairline flex items-center justify-between border-t px-3 py-2">
                 <Link
                   href="/melodies"
                   onClick={() => setOpen(false)}
-                  className="text-tertiary hover:text-secondary"
-                  style={{ fontSize: 12 }}
+                  className="text-tertiary hover:text-secondary text-xs"
                 >
                   Open Melodies
                 </Link>
                 <button
                   onClick={() => void handleMarkAll()}
-                  className="text-tertiary hover:text-secondary"
-                  style={{ fontSize: 12 }}
+                  className="text-tertiary hover:text-secondary text-xs"
                 >
                   Mark all read
                 </button>
