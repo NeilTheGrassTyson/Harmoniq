@@ -1,17 +1,10 @@
 import { SignUp } from "@clerk/nextjs";
+import AuthScreen from "@/components/AuthScreen";
 
 export default function SignUpPage() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#0b0d12",
-      }}
-    >
+    <AuthScreen caption="Music, shared between people who trust each other's taste.">
       <SignUp />
-    </main>
+    </AuthScreen>
   );
 }

@@ -63,9 +63,7 @@ describe("usePolledListening", () => {
 
   it("keeps the last known-good value when a poll fails", async () => {
     vi.useRealTimers();
-    mockGetListening
-      .mockResolvedValueOnce(UPDATED)
-      .mockRejectedValue(new Error("network error"));
+    mockGetListening.mockResolvedValueOnce(UPDATED).mockRejectedValue(new Error("network error"));
     const { result } = renderHook(
       () => usePolledListening({ username: "alice", initial: INITIAL, intervalMs: 50 }),
       { wrapper: queryWrapper() }

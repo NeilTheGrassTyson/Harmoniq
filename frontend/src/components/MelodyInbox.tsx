@@ -63,7 +63,13 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
   const [error, setError] = useState<string | null>(null);
 
   const respondMutation = useMutation({
-    mutationFn: async ({ item, action }: { item: MelodyInboxItem; action: MelodyRespondAction }) => {
+    mutationFn: async ({
+      item,
+      action,
+    }: {
+      item: MelodyInboxItem;
+      action: MelodyRespondAction;
+    }) => {
       const token = await getToken();
       if (!token) throw new Error("Not signed in.");
       return { updated: await respondToMelody(token, item.id, action), action };
@@ -118,7 +124,7 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
   return (
     <div className="flex flex-col" style={{ gap: 10, paddingTop: 16 }}>
       {error && (
-        <p style={{ color: "#f87171", fontSize: 13 }} role="alert">
+        <p className="text-destructive text-[13px]" role="alert">
           {error}
         </p>
       )}

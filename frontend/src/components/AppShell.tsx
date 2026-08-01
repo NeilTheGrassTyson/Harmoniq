@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavAuth from "@/components/NavAuth";
 import NotificationBell from "@/components/NotificationBell";
@@ -136,28 +136,17 @@ function NavLink({
   label: string;
   active: boolean;
 }) {
+  // Hover is a CSS concern: an active row keeps --color-nav-active and ignores
+  // hover, an inactive row picks up --color-nav-hover. Expressing it in classes
+  // instead of onMouseEnter/onMouseLeave also makes it work for touch and
+  // keyboard focus, which the JS handlers never covered.
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className="rounded-nav text-secondary hover:text-primary flex items-center"
-      style={{
-        padding: "7px 10px",
-        gap: 10,
-        fontSize: 13,
-        background: active ? "rgba(255,255,255,0.06)" : "transparent",
-        transition: "background 100ms ease, color 100ms ease",
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = active
-          ? "rgba(255,255,255,0.06)"
-          : "transparent";
-      }}
+      className={`rounded-nav text-secondary hover:text-primary flex items-center gap-[10px] px-[10px] py-[7px] text-[13px] transition-colors duration-100 ${
+        active ? "bg-nav-active" : "hover:bg-nav-hover"
+      }`}
     >
       {icon}
       <span>{label}</span>
@@ -169,31 +158,32 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-const SIDEBAR_WIDTH = 220;
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT_QUERY = "(min-width: 768px)";
 
 export default function AppShell({ children }: AppShellProps) {
-  const [open, setOpen] = useState(true);
+  // null = "no explicit choice yet", so the CSS default for the current
+  // breakpoint applies (see .sidebar-panel in globals.css). Once the user
+  // toggles, their choice wins at every width.
+  const [open, setOpen] = useState<boolean | null>(null);
   const pathname = usePathname();
   const { isSignedIn, user } = useUser();
   const username = user?.username ?? null;
 
-  // Auto-collapse on narrow viewports. SSR always starts open; the layout
-  // effect corrects synchronously before first paint (a rAF callback proved
-  // unreliable here — it can land after paint or be cancelled by a remount,
-  // leaving the sidebar open at phone widths).
-  useLayoutEffect(() => {
-    const collapseIfNarrow = () => {
-      if (window.innerWidth < MOBILE_BREAKPOINT) {
-        setOpen(false);
-      }
-    };
-    collapseIfNarrow();
-    window.addEventListener("resize", collapseIfNarrow, { passive: true });
-    return () => {
-      window.removeEventListener("resize", collapseIfNarrow);
-    };
+  // Mirrors the CSS breakpoint purely so aria-expanded and the button label
+  // can describe the sidebar's actual state. It drives no layout — the panel
+  // is sized by CSS — so settling one paint after mount is harmless, and
+  // matchMedia fires only when the breakpoint is crossed rather than on every
+  // resize frame.
+  const [wideViewport, setWideViewport] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    const sync = () => setWideViewport(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
   }, []);
+
+  const effectiveOpen = open ?? wideViewport;
 
   const isHomeActive = pathname === "/";
   const isSearchActive = pathname.startsWith("/search");
@@ -204,50 +194,34 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <div className="flex h-full flex-col">
       {/* ── Header (3-column grid) ─────────────────────────────────────── */}
-      <header
-        className="shrink-0 border-b"
-        style={{
-          borderColor: "rgba(255,255,255,0.07)",
-          padding: "0 20px",
-          height: 52,
-          display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
-          alignItems: "center",
-          gap: 12,
-          backgroundColor: "#0b0d12",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
+      <header className="border-hairline bg-canvas relative z-1 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b px-5">
         {/* Left: toggle + logo */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
-            aria-expanded={open}
-            className="rounded-nav text-secondary hover:text-primary flex items-center justify-center"
-            style={{ width: 30, height: 30, color: "#8b93a3" }}
+            onClick={() => setOpen(!effectiveOpen)}
+            aria-label={effectiveOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-expanded={effectiveOpen}
+            className="rounded-nav text-secondary hover:text-primary flex size-[30px] items-center justify-center"
           >
             <IconMenu />
           </button>
           <Link href="/" className="flex items-center gap-2">
-            <EqualizerGlyph fill="#2f8cff" size={16} />
-            <span
-              className="font-display text-primary select-none"
-              style={{ fontSize: 14, fontWeight: 500, letterSpacing: 0 }}
-            >
+            <EqualizerGlyph className="text-accent" size={16} />
+            {/* Below sm the glyph carries the mark alone — at 390px the
+                wordmark competes with the search field for the same row. */}
+            <span className="font-display text-primary hidden text-sm font-medium tracking-normal select-none sm:inline">
               harmoniq
             </span>
           </Link>
         </div>
 
         {/* Center: search */}
-        <div className="w-full" style={{ maxWidth: 360 }}>
+        <div className="w-full max-w-[360px]">
           <SearchBar />
         </div>
 
         {/* Right: notifications + profile */}
-        <div className="flex items-center justify-end" style={{ gap: 8 }}>
+        <div className="flex items-center justify-end gap-2">
           <NotificationBell />
           <NavAuth />
         </div>
@@ -257,17 +231,11 @@ export default function AppShell({ children }: AppShellProps) {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside
-          className="sidebar-panel shrink-0"
-          style={{
-            width: open ? SIDEBAR_WIDTH : 0,
-            backgroundColor: "#0e1015",
-            borderRight: "1px solid rgba(255,255,255,0.07)",
-          }}
+          className="sidebar-panel bg-sidebar border-hairline shrink-0 border-r"
+          // Absent until the user chooses, so the CSS breakpoint default holds.
+          data-open={open === null ? undefined : open}
         >
-          <nav
-            className="flex flex-col"
-            style={{ padding: "16px 10px", gap: 2, minWidth: SIDEBAR_WIDTH }}
-          >
+          <nav className="flex min-w-[var(--sidebar-width)] flex-col gap-0.5 px-[10px] py-4">
             <NavLink href="/" icon={<IconHome size={16} />} label="Home" active={isHomeActive} />
             <NavLink
               href="/search"

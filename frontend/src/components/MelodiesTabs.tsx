@@ -26,13 +26,11 @@ export default function MelodiesTabs({
       <button
         onClick={() => setTab(key)}
         aria-pressed={active}
-        className={active ? "text-primary" : "text-tertiary hover:text-secondary"}
-        style={{
-          fontSize: 13,
-          fontWeight: active ? 500 : 400,
-          padding: "6px 0",
-          borderBottom: active ? "1.5px solid #2f8cff" : "1.5px solid transparent",
-        }}
+        className={`border-b-[1.5px] py-1.5 text-[13px] ${
+          active
+            ? "text-primary border-accent font-medium"
+            : "text-tertiary hover:text-secondary border-transparent"
+        }`}
       >
         {label}
       </button>

@@ -23,41 +23,25 @@ type SearchState =
   | { kind: "results"; people: UserSearchResult[]; music: SearchResponse | null }
   | { kind: "empty" };
 
+// Weight and tracking follow DESIGN_SYSTEM §3 (500 / 0.6px), matching the
+// SearchBar dropdown and Home. This label previously rendered at 600/0.7px,
+// which both drifted from the other section labels and broke §3's ceiling of
+// 500 on every weight in the system.
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.7px",
-        color: "#757c8c",
-        marginBottom: 4,
-        fontFamily: "var(--font-space-grotesk), system-ui, sans-serif",
-      }}
-    >
+    <p className="font-display text-tertiary mb-1 text-[11px] font-medium tracking-[0.6px] uppercase">
       {children}
     </p>
   );
 }
 
+// Hover was previously React state, so pointing at a row re-rendered it. It's
+// a CSS concern — and as a class it covers keyboard focus too.
 function ResultRow({ children, href }: { children: React.ReactNode; href: string }) {
-  const [hovered, setHovered] = useState(false);
   return (
     <Link
       href={href}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "9px 12px",
-        borderRadius: 8,
-        textDecoration: "none",
-        background: hovered ? "rgba(255,255,255,0.04)" : "transparent",
-        transition: "background 80ms ease",
-      }}
+      className="rounded-control hover:bg-nav-hover flex items-center gap-3 px-3 py-[9px] no-underline transition-colors duration-75"
     >
       {children}
     </Link>
@@ -74,32 +58,14 @@ function ArtworkBlock({
   round?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
+  // Artists circular, releases at the control radius (DESIGN_SYSTEM §4).
+  const radius = round ? "rounded-full" : "rounded-control";
+
   if (!src || failed) {
-    return (
-      <span
-        style={{
-          display: "block",
-          width: 40,
-          height: 40,
-          flexShrink: 0,
-          backgroundColor: "#151821",
-          borderRadius: round ? "50%" : 8,
-        }}
-      />
-    );
+    return <span className={`bg-tile block size-10 shrink-0 ${radius}`} aria-hidden="true" />;
   }
   return (
-    <span
-      style={{
-        display: "block",
-        position: "relative",
-        width: 40,
-        height: 40,
-        flexShrink: 0,
-        overflow: "hidden",
-        borderRadius: round ? "50%" : 8,
-      }}
-    >
+    <span className={`relative block size-10 shrink-0 overflow-hidden ${radius}`}>
       <Image
         src={src}
         alt={alt}
@@ -114,45 +80,18 @@ function ArtworkBlock({
 }
 
 function PrimaryText({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        display: "block",
-        fontSize: 14,
-        fontWeight: 500,
-        color: "#f2f3f5",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </span>
-  );
+  return <span className="text-primary block truncate text-sm font-medium">{children}</span>;
 }
 
 function SubText({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        display: "block",
-        fontSize: 12,
-        color: "#757c8c",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </span>
-  );
+  return <span className="text-tertiary block truncate text-xs">{children}</span>;
 }
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section style={{ marginBottom: 28 }}>
+    <section className="mb-7">
       <SectionLabel>{label}</SectionLabel>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>{children}</ul>
+      <ul className="m-0 list-none p-0">{children}</ul>
     </section>
   );
 }
@@ -207,38 +146,20 @@ function SearchContent() {
   }
 
   return (
-    <main style={{ padding: "26px 22px 30px", maxWidth: 680 }}>
+    <main className="max-w-[680px] px-[22px] pt-[26px] pb-[30px]">
       {q.length < 2 && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingTop: 80,
-            gap: 12,
-            color: "#8b93a3",
-          }}
-        >
-          <EqualizerGlyph size={36} fill="#8b93a3" />
-          <p
-            style={{
-              margin: 0,
-              fontSize: 14,
-              fontFamily: "var(--font-space-grotesk), system-ui, sans-serif",
-            }}
-          >
-            Search for music or people
-          </p>
+        <div className="text-secondary flex flex-col items-center justify-center gap-3 pt-20">
+          <EqualizerGlyph size={36} />
+          <p className="font-display m-0 text-sm">Search for music or people</p>
         </div>
       )}
 
       {state.kind === "loading" && q.length >= 2 && (
-        <p style={{ fontSize: 13, color: "#757c8c" }}>Searching…</p>
+        <p className="text-tertiary text-[13px]">Searching…</p>
       )}
 
       {state.kind === "empty" && (
-        <p style={{ fontSize: 13, color: "#757c8c" }}>No results for &ldquo;{q}&rdquo;.</p>
+        <p className="text-tertiary text-[13px]">No results for &ldquo;{q}&rdquo;.</p>
       )}
 
       {state.kind === "results" && (
@@ -249,7 +170,7 @@ function SearchContent() {
                 <li key={u.username}>
                   <ResultRow href={`/u/${u.username}`}>
                     <AvatarImage src={u.avatar_url} username={u.username} size={40} />
-                    <span style={{ minWidth: 0 }}>
+                    <span className="min-w-0">
                       <PrimaryText>{u.display_name}</PrimaryText>
                       <SubText>@{u.username}</SubText>
                     </span>
@@ -265,7 +186,7 @@ function SearchContent() {
                 <li key={a.mbid}>
                   <ResultRow href={`/artist/${a.mbid}`}>
                     <ArtworkBlock src={a.image_url} alt={a.name} round />
-                    <span style={{ minWidth: 0 }}>
+                    <span className="min-w-0">
                       <PrimaryText>{a.name}</PrimaryText>
                       {a.disambiguation && <SubText>{a.disambiguation}</SubText>}
                     </span>
@@ -281,7 +202,7 @@ function SearchContent() {
                 <li key={a.mbid}>
                   <ResultRow href={`/album/${a.mbid}`}>
                     <ArtworkBlock src={a.cover_art_url} alt={a.title} />
-                    <span style={{ minWidth: 0 }}>
+                    <span className="min-w-0">
                       <PrimaryText>{a.title}</PrimaryText>
                       <SubText>
                         {[a.artist_name, a.release_year].filter(Boolean).join(" · ")}
@@ -298,7 +219,7 @@ function SearchContent() {
               {state.music.tracks.slice(0, MAX_PER_SECTION).map((t) => (
                 <li key={t.mbid}>
                   <ResultRow href={`/track/${t.mbid}`}>
-                    <span style={{ minWidth: 0, flex: 1 }}>
+                    <span className="min-w-0 flex-1">
                       <PrimaryText>{t.title}</PrimaryText>
                       <SubText>
                         {[t.artist_name, t.album_title].filter(Boolean).join(" · ")}

@@ -41,19 +41,18 @@ type PanelState =
   | { kind: "empty"; query: string }
   | { kind: "results"; people: UserSearchResult[]; music: SearchResponse | null };
 
+// Shared row/section classes. Hover lives in CSS rather than onMouseEnter /
+// onMouseLeave handlers so it also covers touch and keyboard focus.
+const ROW =
+  "text-primary hover:bg-nav-hover flex cursor-pointer items-center gap-[10px] px-[14px] py-2 text-[13px] no-underline";
+const ROW_TITLE = "block truncate font-medium";
+const ROW_SUB = "text-tertiary block truncate text-[11px]";
+const PANEL_MSG = "text-tertiary px-[14px] py-[10px] text-[13px]";
+const SECTION_DIVIDER = "border-hairline border-t";
+
 function ResultLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p
-      style={{
-        padding: "10px 14px 4px",
-        fontSize: 11,
-        fontWeight: 500,
-        textTransform: "uppercase",
-        letterSpacing: "0.6px",
-        color: "#757c8c",
-        fontFamily: "var(--font-space-grotesk), system-ui, sans-serif",
-      }}
-    >
+    <p className="font-display text-tertiary px-[14px] pt-[10px] pb-1 text-[11px] font-medium tracking-[0.6px] uppercase">
       {children}
     </p>
   );
@@ -155,52 +154,8 @@ export default function SearchBar() {
   // of them is duplicate content that occludes the page.
   const showPanel = derivedPanel.kind !== "idle" && pathname !== "/search";
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 8,
-    padding: "6px 12px",
-    fontSize: 13,
-    color: "#f2f3f5",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-  };
-
-  const panelStyle: React.CSSProperties = {
-    position: "absolute",
-    top: "calc(100% + 4px)",
-    left: 0,
-    zIndex: 50,
-    width: "100%",
-    minWidth: 280,
-    backgroundColor: "#0e1015",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 8,
-    overflow: "hidden",
-  };
-
-  const rowStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "8px 14px",
-    fontSize: 13,
-    color: "#f2f3f5",
-    textDecoration: "none",
-    cursor: "pointer",
-  };
-
-  const hoverHandlers = {
-    onMouseEnter: (e: React.MouseEvent<HTMLAnchorElement>) => {
-      (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
-    },
-    onMouseLeave: (e: React.MouseEvent<HTMLAnchorElement>) => {
-      (e.currentTarget as HTMLElement).style.background = "transparent";
-    },
-  };
-
   return (
-    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
+    <div ref={containerRef} className="relative w-full">
       <input
         type="search"
         value={query}
@@ -220,28 +175,23 @@ export default function SearchBar() {
         aria-label="Search artists, albums, tracks, and people"
         aria-expanded={showPanel}
         aria-haspopup="listbox"
-        className="search-focus"
-        style={{ ...inputStyle, outline: "none" }}
+        className="search-focus bg-control border-hairline rounded-control text-primary w-full border px-3 py-1.5 text-[13px] outline-none"
         autoComplete="off"
         spellCheck={false}
       />
 
       {showPanel && (
-        <div style={panelStyle}>
-          {derivedPanel.kind === "loading" && (
-            <p style={{ padding: "10px 14px", fontSize: 13, color: "#757c8c" }}>Searching…</p>
-          )}
+        <div className="bg-sidebar border-hairline rounded-control absolute top-[calc(100%+4px)] left-0 z-50 w-full min-w-[280px] overflow-hidden border">
+          {derivedPanel.kind === "loading" && <p className={PANEL_MSG}>Searching…</p>}
 
           {derivedPanel.kind === "error" && (
-            <p style={{ padding: "10px 14px", fontSize: 13, color: "#757c8c" }}>
+            <p className={PANEL_MSG}>
               Couldn&rsquo;t reach the search service right now. Try again in a moment.
             </p>
           )}
 
           {derivedPanel.kind === "empty" && (
-            <p style={{ padding: "10px 14px", fontSize: 13, color: "#757c8c" }}>
-              No results for &ldquo;{derivedPanel.query}&rdquo;.
-            </p>
+            <p className={PANEL_MSG}>No results for &ldquo;{derivedPanel.query}&rdquo;.</p>
           )}
 
           {derivedPanel.kind === "results" && (
@@ -253,37 +203,11 @@ export default function SearchBar() {
                   <ul>
                     {derivedPanel.people.map((u) => (
                       <li key={u.username}>
-                        <Link
-                          href={`/u/${u.username}`}
-                          onClick={dismiss}
-                          style={rowStyle}
-                          {...hoverHandlers}
-                        >
+                        <Link href={`/u/${u.username}`} onClick={dismiss} className={ROW}>
                           <AvatarImage src={u.avatar_url} username={u.username} size={28} />
-                          <span style={{ minWidth: 0 }}>
-                            <span
-                              style={{
-                                display: "block",
-                                fontWeight: 500,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {u.display_name}
-                            </span>
-                            <span
-                              style={{
-                                display: "block",
-                                fontSize: 11,
-                                color: "#757c8c",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              @{u.username}
-                            </span>
+                          <span className="min-w-0">
+                            <span className={ROW_TITLE}>{u.display_name}</span>
+                            <span className={ROW_SUB}>@{u.username}</span>
                           </span>
                         </Link>
                       </li>
@@ -296,49 +220,17 @@ export default function SearchBar() {
               {derivedPanel.music !== null && (
                 <>
                   {derivedPanel.music.artists.length > 0 && (
-                    <section
-                      style={
-                        derivedPanel.people.length > 0
-                          ? { borderTop: "1px solid rgba(255,255,255,0.07)" }
-                          : undefined
-                      }
-                    >
+                    <section className={derivedPanel.people.length > 0 ? SECTION_DIVIDER : ""}>
                       <ResultLabel>Artists</ResultLabel>
                       <ul>
                         {derivedPanel.music.artists.map((a) => (
                           <li key={a.mbid}>
-                            <Link
-                              href={`/artist/${a.mbid}`}
-                              onClick={dismiss}
-                              style={rowStyle}
-                              {...hoverHandlers}
-                            >
+                            <Link href={`/artist/${a.mbid}`} onClick={dismiss} className={ROW}>
                               <ArtworkThumb src={a.image_url} alt={a.name} round />
-                              <span style={{ minWidth: 0 }}>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontWeight: 500,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {a.name}
-                                </span>
+                              <span className="min-w-0">
+                                <span className={ROW_TITLE}>{a.name}</span>
                                 {a.disambiguation && (
-                                  <span
-                                    style={{
-                                      display: "block",
-                                      fontSize: 11,
-                                      color: "#757c8c",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    {a.disambiguation}
-                                  </span>
+                                  <span className={ROW_SUB}>{a.disambiguation}</span>
                                 )}
                               </span>
                             </Link>
@@ -349,40 +241,16 @@ export default function SearchBar() {
                   )}
 
                   {derivedPanel.music.albums.length > 0 && (
-                    <section style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                    <section className={SECTION_DIVIDER}>
                       <ResultLabel>Albums</ResultLabel>
                       <ul>
                         {derivedPanel.music.albums.map((a) => (
                           <li key={a.mbid}>
-                            <Link
-                              href={`/album/${a.mbid}`}
-                              onClick={dismiss}
-                              style={rowStyle}
-                              {...hoverHandlers}
-                            >
+                            <Link href={`/album/${a.mbid}`} onClick={dismiss} className={ROW}>
                               <ArtworkThumb src={a.cover_art_url} alt={a.title} />
-                              <span style={{ minWidth: 0 }}>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontWeight: 500,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {a.title}
-                                </span>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontSize: 11,
-                                    color: "#757c8c",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
+                              <span className="min-w-0">
+                                <span className={ROW_TITLE}>{a.title}</span>
+                                <span className={ROW_SUB}>
                                   {[a.artist_name, a.release_year].filter(Boolean).join(" · ")}
                                 </span>
                               </span>
@@ -394,66 +262,23 @@ export default function SearchBar() {
                   )}
 
                   {derivedPanel.music.tracks.length > 0 && (
-                    <section style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                    <section className={SECTION_DIVIDER}>
                       <ResultLabel>Tracks</ResultLabel>
                       <ul>
                         {derivedPanel.music.tracks.map((t) => (
                           <li key={t.mbid}>
-                            <Link
-                              href={`/track/${t.mbid}`}
-                              onClick={dismiss}
-                              style={rowStyle}
-                              {...hoverHandlers}
-                            >
-                              <span
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  flexShrink: 0,
-                                  color: "#343b4d",
-                                  backgroundColor: "#151821",
-                                  borderRadius: 6,
-                                }}
-                              >
+                            <Link href={`/track/${t.mbid}`} onClick={dismiss} className={ROW}>
+                              <span className="rounded-nav bg-tile text-icon-trend flex size-8 shrink-0 items-center justify-center">
                                 <MusicNoteIcon />
                               </span>
-                              <span style={{ minWidth: 0, flex: 1 }}>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontWeight: 500,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {t.title}
-                                </span>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontSize: 11,
-                                    color: "#757c8c",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
+                              <span className="min-w-0 flex-1">
+                                <span className={ROW_TITLE}>{t.title}</span>
+                                <span className={ROW_SUB}>
                                   {[t.artist_name, t.album_title].filter(Boolean).join(" · ")}
                                 </span>
                               </span>
                               {t.duration_ms !== null && (
-                                <span
-                                  style={{
-                                    flexShrink: 0,
-                                    fontSize: 11,
-                                    color: "#757c8c",
-                                    fontVariantNumeric: "tabular-nums",
-                                  }}
-                                >
+                                <span className="text-tertiary shrink-0 text-[11px] tabular-nums">
                                   {formatDuration(t.duration_ms)}
                                 </span>
                               )}
@@ -483,36 +308,15 @@ function ArtworkThumb({
   round?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const radius = round ? "50%" : 6;
+  // Artists render circular, releases at the nav radius (DESIGN_SYSTEM §4).
+  const radius = round ? "rounded-full" : "rounded-nav";
 
   if (!src || failed) {
-    return (
-      <span
-        style={{
-          display: "block",
-          width: 32,
-          height: 32,
-          flexShrink: 0,
-          backgroundColor: "#151821",
-          borderRadius: radius,
-        }}
-        aria-hidden="true"
-      />
-    );
+    return <span className={`bg-tile block size-8 shrink-0 ${radius}`} aria-hidden="true" />;
   }
 
   return (
-    <span
-      style={{
-        display: "block",
-        position: "relative",
-        width: 32,
-        height: 32,
-        flexShrink: 0,
-        overflow: "hidden",
-        borderRadius: radius,
-      }}
-    >
+    <span className={`relative block size-8 shrink-0 overflow-hidden ${radius}`}>
       <Image
         src={src}
         alt={alt}

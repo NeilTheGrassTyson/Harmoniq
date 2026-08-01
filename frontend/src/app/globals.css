@@ -71,10 +71,29 @@ body {
   box-sizing: border-box;
 }
 
-/* Sidebar width transition is easier to define here than in arbitrary Tailwind */
+/* Sidebar: closed below the md breakpoint, open from md up. The default is
+   expressed in CSS so the server-rendered markup is already correct at every
+   width — deriving it from a JS measurement flashes a 220px sidebar across
+   more than half a phone screen before hydration corrects it. An explicit
+   user toggle sets data-open, which wins at any width. */
 .sidebar-panel {
+  width: 0;
   transition: width 200ms ease;
   overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .sidebar-panel {
+    width: var(--sidebar-width);
+  }
+}
+
+.sidebar-panel[data-open="true"] {
+  width: var(--sidebar-width);
+}
+
+.sidebar-panel[data-open="false"] {
+  width: 0;
 }
 
 /* Focus ring — the only permitted shadow in the design system (DESIGN_SYSTEM.md §8)
@@ -99,6 +118,23 @@ body {
   transform: translateY(-2px);
 }
 
+/* Loading placeholder pulse — functional motion (signals work in progress),
+   not decoration, so it is a stated exception to the motion rules
+   (DESIGN_SYSTEM.md §8). Opacity only: no shimmer sweep, no gradient. */
+.skeleton-pulse {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tile-hover,
   .sidebar-panel {
@@ -108,6 +144,9 @@ body {
     transform: none;
   }
   .eq-bar {
+    animation: none;
+  }
+  .skeleton-pulse {
     animation: none;
   }
 }
@@ -167,4 +206,7 @@ body {
   --input: rgba(255, 255, 255, 0.07);
   --ring: #2f8cff;
   --radius: 8px;
+  /* Sidebar width — read by .sidebar-panel and by the nav's min-width, so the
+     panel and its contents can never disagree (DESIGN_SYSTEM.md §10). */
+  --sidebar-width: 220px;
 }

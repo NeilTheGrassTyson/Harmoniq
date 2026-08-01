@@ -19,30 +19,28 @@ export default function TrackTile({
   href,
   sharedBy,
 }: TrackTileProps) {
+  // Friend-sourced tiles are distinguished by artwork tint and a small dot,
+  // not by a colored border (DESIGN_SYSTEM §7).
   const isFriend = !!sharedBy;
-  const tileBg = isFriend ? "#121a2a" : "#151821";
-  const glyphFill = isFriend ? "#34507c" : "#343b4d";
+  const tileBg = isFriend ? "bg-tile-friend" : "bg-tile";
+  const glyphColor = isFriend ? "text-icon-friend" : "text-icon-trend";
 
   return (
     <Link href={href} className="tile-hover block min-w-0">
       {/* Artwork square */}
-      <div
-        className="rounded-control relative w-full overflow-hidden"
-        style={{ aspectRatio: "1 / 1", backgroundColor: tileBg }}
-      >
+      <div className={`rounded-control relative aspect-square w-full overflow-hidden ${tileBg}`}>
         {/* Equalizer glyph is always present as the lower layer.
             CoverArt (fill mode) covers it when artwork loads;
             if src is absent or the load fails, the glyph stays visible. */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <EqualizerGlyph fill={glyphFill} size={40} />
+          <EqualizerGlyph size={40} className={glyphColor} />
         </div>
 
         <CoverArt src={coverArtUrl} alt={title} fill />
 
         {isFriend && (
           <span
-            className="absolute right-2 bottom-2 block rounded-full" /* unslop-ignore — 6px status dot, circular per DESIGN_SYSTEM §4 */
-            style={{ width: 6, height: 6, backgroundColor: "#5a8fd6" }}
+            className="bg-friend-dot absolute right-2 bottom-2 block size-1.5 rounded-full" /* unslop-ignore — 6px status dot, circular per DESIGN_SYSTEM §4 */
             aria-hidden="true"
           />
         )}
@@ -50,31 +48,12 @@ export default function TrackTile({
 
       {/* Text below — no border, no card background, no shadow */}
       <div className="mt-2 min-w-0">
-        <p
-          className="font-display text-primary truncate"
-          style={{ fontSize: 14, fontWeight: 500, lineHeight: "1.3" }}
-        >
-          {title}
-        </p>
-        {artistName && (
-          <p
-            className="text-secondary truncate"
-            style={{ fontSize: 12, lineHeight: "1.4", marginTop: 2 }}
-          >
-            {artistName}
-          </p>
-        )}
+        <p className="font-display text-primary truncate text-sm/[1.3] font-medium">{title}</p>
+        {artistName && <p className="text-secondary mt-0.5 truncate text-xs/[1.4]">{artistName}</p>}
         {sharedBy && (
-          <p className="text-secondary truncate" style={{ fontSize: 11, marginTop: 2 }}>
+          <p className="text-secondary mt-0.5 truncate text-[11px]">
             <span
-              className="inline-block rounded-full" /* unslop-ignore — 5px inline dot, circular per DESIGN_SYSTEM §4 */
-              style={{
-                width: 5,
-                height: 5,
-                backgroundColor: "#5a8fd6",
-                marginRight: 5,
-                verticalAlign: "middle",
-              }}
+              className="bg-friend-dot mr-[5px] inline-block size-[5px] rounded-full align-middle" /* unslop-ignore — 5px inline dot, circular per DESIGN_SYSTEM §4 */
             />
             @{sharedBy.username}
           </p>

@@ -109,7 +109,7 @@ export default function SendMelodyPanel({ track }: SendMelodyPanelProps) {
           </div>
 
           {error && (
-            <p className="mt-3" style={{ color: "#f87171", fontSize: 13 }} role="alert">
+            <p className="text-destructive mt-3 text-[13px]" role="alert">
               {error}
             </p>
           )}
