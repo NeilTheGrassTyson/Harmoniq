@@ -10,13 +10,11 @@ import type { OwnProfileResponse, ProfileResponse } from "@/types";
 
 interface ProfileHeaderProps {
   profile: ProfileResponse;
-  /** Opens the edit panel on first render — used after the Spotify OAuth callback returns here. */
-  autoOpenEdit?: boolean;
 }
 
-export default function ProfileHeader({ profile, autoOpenEdit = false }: ProfileHeaderProps) {
+export default function ProfileHeader({ profile }: ProfileHeaderProps) {
   const router = useRouter();
-  const [editOpen, setEditOpen] = useState(autoOpenEdit);
+  const [editOpen, setEditOpen] = useState(false);
 
   // Optimistic local copies so the read-view updates instantly on save,
   // without waiting on a server round-trip.
@@ -135,7 +133,6 @@ export default function ProfileHeader({ profile, autoOpenEdit = false }: Profile
         {profile.is_own_profile && editOpen && (
           <ProfileEditPanel
             initial={{ username: profile.username, displayName, avatarUrl }}
-            spotifyJustConnected={autoOpenEdit}
             onCancel={() => setEditOpen(false)}
             onSaved={handleSaved}
           />

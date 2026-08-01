@@ -45,16 +45,6 @@ vi.mock("@/lib/users", () => ({
   checkUsernameAvailable: (...args: unknown[]) => mockCheckUsernameAvailable(...args),
 }));
 
-const mockGetSpotifyConnection = vi.fn();
-const mockGetSpotifyConnectUrl = vi.fn();
-const mockDisconnectSpotify = vi.fn();
-
-vi.mock("@/lib/spotify", () => ({
-  getSpotifyConnection: (...args: unknown[]) => mockGetSpotifyConnection(...args),
-  getSpotifyConnectUrl: (...args: unknown[]) => mockGetSpotifyConnectUrl(...args),
-  disconnectSpotify: (...args: unknown[]) => mockDisconnectSpotify(...args),
-}));
-
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 function makeOwnProfile(overrides: Partial<OwnProfileResponse> = {}): OwnProfileResponse {
@@ -91,11 +81,6 @@ async function renderPanel(onSaved = vi.fn(), onCancel = vi.fn()) {
 describe("ProfileEditPanel — load and hydrate", () => {
   beforeEach(() => {
     mockGetOwnProfile.mockResolvedValue(makeOwnProfile());
-    mockGetSpotifyConnection.mockResolvedValue({
-      connected: false,
-      spotify_user_id: null,
-      connected_at: null,
-    });
     mockUpdateProfile.mockReset();
     mockUploadAvatar.mockReset();
     mockCheckUsernameAvailable.mockReset();
@@ -108,26 +93,11 @@ describe("ProfileEditPanel — load and hydrate", () => {
     const bioField = screen.getByLabelText("Bio", { selector: "textarea" }) as HTMLTextAreaElement;
     expect(bioField.value).toBe("Existing bio");
   });
-
-  it("loads Spotify connection status separately", async () => {
-    mockGetSpotifyConnection.mockResolvedValue({
-      connected: true,
-      spotify_user_id: "spotify_alice",
-      connected_at: "2026-01-01T00:00:00Z",
-    });
-    await renderPanel();
-    expect(await screen.findByText(/connected as/i)).toBeTruthy();
-  });
 });
 
 describe("ProfileEditPanel — save", () => {
   beforeEach(() => {
     mockGetOwnProfile.mockResolvedValue(makeOwnProfile());
-    mockGetSpotifyConnection.mockResolvedValue({
-      connected: false,
-      spotify_user_id: null,
-      connected_at: null,
-    });
     mockUpdateProfile.mockReset();
   });
 
@@ -168,11 +138,6 @@ describe("ProfileEditPanel — save", () => {
 describe("ProfileEditPanel — avatar validation", () => {
   beforeEach(() => {
     mockGetOwnProfile.mockResolvedValue(makeOwnProfile());
-    mockGetSpotifyConnection.mockResolvedValue({
-      connected: false,
-      spotify_user_id: null,
-      connected_at: null,
-    });
     mockUploadAvatar.mockReset();
   });
 
@@ -200,11 +165,6 @@ describe("ProfileEditPanel — avatar validation", () => {
 describe("ProfileEditPanel — username availability", () => {
   beforeEach(() => {
     mockGetOwnProfile.mockResolvedValue(makeOwnProfile());
-    mockGetSpotifyConnection.mockResolvedValue({
-      connected: false,
-      spotify_user_id: null,
-      connected_at: null,
-    });
     mockCheckUsernameAvailable.mockReset();
   });
 
@@ -214,7 +174,7 @@ describe("ProfileEditPanel — username availability", () => {
 
   it("debounces the availability check and shows Available", async () => {
     mockCheckUsernameAvailable.mockResolvedValue({ available: true });
-    // Load with real timers first (getOwnProfile/getSpotifyConnection resolve
+    // Load with real timers first (getOwnProfile resolves
     // via microtasks, not fake timers) — only switch to fake timers to
     // control the 300ms debounce below.
     await renderPanel();
@@ -246,49 +206,5 @@ describe("ProfileEditPanel — username availability", () => {
     });
 
     expect(screen.getByText("That username is taken.")).toBeTruthy();
-  });
-});
-
-describe("ProfileEditPanel — Spotify connect/disconnect", () => {
-  beforeEach(() => {
-    mockGetOwnProfile.mockResolvedValue(makeOwnProfile());
-    mockGetSpotifyConnectUrl.mockReset();
-    mockDisconnectSpotify.mockReset();
-  });
-
-  it("Connect Spotify redirects to the OAuth URL", async () => {
-    mockGetSpotifyConnection.mockResolvedValue({
-      connected: false,
-      spotify_user_id: null,
-      connected_at: null,
-    });
-    mockGetSpotifyConnectUrl.mockResolvedValue({ url: "https://accounts.spotify.com/authorize" });
-    const assignSpy = vi.fn();
-    // @ts-expect-error -- jsdom doesn't implement navigation; stub it for this assertion
-    delete window.location;
-    // @ts-expect-error -- minimal stub
-    window.location = { assign: assignSpy };
-
-    await renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: "Connect Spotify" }));
-
-    await waitFor(() =>
-      expect(assignSpy).toHaveBeenCalledWith("https://accounts.spotify.com/authorize")
-    );
-  });
-
-  it("Disconnect calls disconnectSpotify and updates the section", async () => {
-    mockGetSpotifyConnection.mockResolvedValue({
-      connected: true,
-      spotify_user_id: "spotify_alice",
-      connected_at: "2026-01-01T00:00:00Z",
-    });
-    mockDisconnectSpotify.mockResolvedValue(undefined);
-
-    await renderPanel();
-    fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
-
-    await waitFor(() => expect(mockDisconnectSpotify).toHaveBeenCalledWith("mock-token"));
-    expect(await screen.findByRole("button", { name: "Connect Spotify" })).toBeTruthy();
   });
 });

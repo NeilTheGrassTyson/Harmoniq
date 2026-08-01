@@ -15,7 +15,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import AppShell from "@/components/AppShell";
 import { completeSpotifyCallback } from "@/lib/spotify";
-import { getOwnProfile } from "@/lib/users";
 
 type CallbackState = "working" | "denied" | "error";
 
@@ -58,8 +57,9 @@ function SpotifyCallbackContent() {
         const token = await getToken();
         if (!token) throw new Error("Not signed in.");
         await completeSpotifyCallback(token, code, stateParam);
-        const { username } = await getOwnProfile(token);
-        router.replace(`/u/${username}?spotify=connected`);
+        // Back to where the connection is managed. No profile lookup needed
+        // for this any more — /settings is the same URL for every user.
+        router.replace("/settings?spotify=connected");
       } catch {
         setExchangeFailed(true);
       }

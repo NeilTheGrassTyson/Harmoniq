@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { checkUsernameAvailable, getOwnProfile, updateProfile, uploadAvatar } from "@/lib/users";
-import { disconnectSpotify, getSpotifyConnection, getSpotifyConnectUrl } from "@/lib/spotify";
-import type { OwnProfileResponse, SpotifyConnectionStatus, VisibilityScope } from "@/types";
+import type { OwnProfileResponse, VisibilityScope } from "@/types";
 
 const USERNAME_RE = /^[a-zA-Z0-9_-]{3,30}$/;
 
@@ -36,18 +35,11 @@ interface ProfileEditPanelProps {
     displayName: string;
     avatarUrl: string | null;
   };
-  /** True immediately after the Spotify OAuth callback redirects back here. */
-  spotifyJustConnected?: boolean;
   onCancel: () => void;
   onSaved: (updated: OwnProfileResponse) => void;
 }
 
-export default function ProfileEditPanel({
-  initial,
-  spotifyJustConnected = false,
-  onCancel,
-  onSaved,
-}: ProfileEditPanelProps) {
+export default function ProfileEditPanel({ initial, onCancel, onSaved }: ProfileEditPanelProps) {
   const { getToken } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -73,10 +65,6 @@ export default function ProfileEditPanel({
   const [originalUsername, setOriginalUsername] = useState(initial.username);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [spotify, setSpotify] = useState<SpotifyConnectionStatus | null>(null);
-  const [spotifyBusy, setSpotifyBusy] = useState(false);
-  const [spotifyError, setSpotifyError] = useState<string | null>(null);
-
   // Load full profile (visibility settings + bio aren't in the page's ProfileResponse)
   useEffect(() => {
     getToken()
@@ -96,49 +84,6 @@ export default function ProfileEditPanel({
       .catch(() => setSaveError("Couldn't load your profile."))
       .finally(() => setLoading(false));
   }, [getToken]);
-
-  // Spotify connection status — loaded separately so a Spotify hiccup never
-  // blocks the profile form.
-  useEffect(() => {
-    getToken()
-      .then(async (token) => {
-        if (!token) return;
-        const status = await getSpotifyConnection(token);
-        setSpotify(status);
-      })
-      .catch(() => setSpotify(null));
-  }, [getToken]);
-
-  const handleSpotifyConnect = async () => {
-    setSpotifyBusy(true);
-    setSpotifyError(null);
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Not authenticated");
-      const { url } = await getSpotifyConnectUrl(token);
-      window.location.assign(url);
-    } catch (err: unknown) {
-      setSpotifyError(
-        err instanceof Error ? err.message : "Spotify integration isn't available right now."
-      );
-      setSpotifyBusy(false);
-    }
-  };
-
-  const handleSpotifyDisconnect = async () => {
-    setSpotifyBusy(true);
-    setSpotifyError(null);
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("Not authenticated");
-      await disconnectSpotify(token);
-      setSpotify({ connected: false, spotify_user_id: null, connected_at: null });
-    } catch {
-      setSpotifyError("Couldn't disconnect. Try again.");
-    } finally {
-      setSpotifyBusy(false);
-    }
-  };
 
   const handleUsernameChange = useCallback(
     (value: string) => {
@@ -389,65 +334,6 @@ export default function ProfileEditPanel({
         ))}
 
         <p className="text-tertiary text-xs">Friends means people you both follow.</p>
-      </div>
-
-      {/* Connected accounts */}
-      <div>
-        <p className="text-tertiary mb-3 text-xs font-medium tracking-widest uppercase">
-          Connected accounts
-        </p>
-        {spotify?.connected ? (
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-secondary text-sm">
-              Spotify — connected as <span className="text-primary">{spotify.spotify_user_id}</span>
-              {spotify.connected_at && (
-                <span className="text-tertiary">
-                  {" "}
-                  · since{" "}
-                  {new Date(spotify.connected_at).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
-              )}
-            </p>
-            <button
-              type="button"
-              onClick={handleSpotifyDisconnect}
-              disabled={spotifyBusy}
-              className="rounded-control border-hairline text-secondary hover:text-primary border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-            >
-              {spotifyBusy ? "Working…" : "Disconnect"}
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-secondary text-sm">Spotify</p>
-            <button
-              type="button"
-              onClick={handleSpotifyConnect}
-              disabled={spotifyBusy}
-              className="rounded-control border-hairline text-secondary hover:text-primary border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-            >
-              {spotifyBusy ? "Working…" : "Connect Spotify"}
-            </button>
-          </div>
-        )}
-        <p className="text-tertiary mt-2 text-xs">
-          Listening activity is shown on your profile according to your Listening activity
-          visibility setting.
-        </p>
-        {spotifyJustConnected && spotify?.connected && (
-          <p role="status" className="text-accent mt-1 text-xs">
-            Spotify connected.
-          </p>
-        )}
-        {spotifyError && (
-          <p role="alert" className="text-destructive mt-1 text-xs">
-            {spotifyError}
-          </p>
-        )}
       </div>
 
       {/* Save / Cancel */}

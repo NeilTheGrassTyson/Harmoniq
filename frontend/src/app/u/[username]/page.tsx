@@ -16,13 +16,8 @@ function formatDate(iso: string): string {
   });
 }
 
-export default async function ProfilePage(props: {
-  params: Promise<{ username: string }>;
-  searchParams: Promise<{ spotify?: string }>;
-}) {
+export default async function ProfilePage(props: { params: Promise<{ username: string }> }) {
   const { username } = await props.params;
-  const { spotify } = await props.searchParams;
-  const spotifyJustConnected = spotify === "connected";
   const { getToken } = await auth();
   const token = await getToken().catch(() => null);
 
@@ -53,10 +48,7 @@ export default async function ProfilePage(props: {
   return (
     <AppShell>
       <div style={{ padding: "26px 22px 30px", maxWidth: 720 }}>
-        <ProfileHeader
-          profile={profile}
-          autoOpenEdit={spotifyJustConnected && profile.is_own_profile}
-        />
+        <ProfileHeader profile={profile} />
 
         {/* ── Listening activity (Spotify, display-only) ─────────────────── */}
         {listening !== null && (

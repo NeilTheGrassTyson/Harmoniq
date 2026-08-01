@@ -474,3 +474,46 @@ itself, avoiding any client-side Suspense-boundary concern.
 No backend changes were required for this amendment — `GET /users/me` /
 `PATCH /users/me` and `GET /users/{username}` are unchanged; the edit panel
 simply calls the same endpoints the old settings page called.
+
+---
+
+# Amendments — 2026-08-01 (Founder-approved)
+
+## A5. Connected accounts returns to `/settings`
+
+A4 moved profile editing inline and carried the Spotify connected-accounts
+controls along with it. This amendment reverses that part of A4 only: the
+"Connected accounts" section moves back to `/settings`, restoring the layout
+phase-1-spotify-listening.md describes. Everything else in A4 stands —
+avatar, display name, username, bio, and the four visibility scopes still
+edit inline on `/u/{username}`.
+
+**Reasoning.** A third-party connection is account-level state, not part of
+how a profile presents itself. Grouping it with the profile's own fields
+conflated two different things: what an account *is linked to* versus what a
+profile *shows*. The visibility scope governing listening activity stays with
+the profile, where it belongs — linking an account still publishes nothing on
+its own (HARMONIQ.md §6).
+
+**Changes:**
+
+- New `frontend/src/components/ConnectedAccounts.tsx` — owns the Spotify
+  status fetch, connect/disconnect handlers, and the section's own error and
+  confirmation states. `ProfileEditPanel` no longer imports `@/lib/spotify`.
+- `/settings` renders `<ConnectedAccounts />` above `<MelodySettings />` and
+  reads `?spotify=connected` server-side, passing it down as a plain
+  `justConnected` prop — no `useSearchParams`, so no client Suspense
+  boundary is needed (the same reasoning A4 applied on the profile route).
+- The callback page redirects to `/settings?spotify=connected` on success,
+  as it did before A4. The `GET /users/me` lookup A4 added is dropped: the
+  destination no longer depends on the username, removing a network
+  round-trip from the OAuth return path. The "Back to settings" links the
+  callback already showed on its error and denied states are now
+  self-consistent.
+- `ProfileHeader`'s `autoOpenEdit` prop and the profile route's `spotify`
+  search param are removed. Both existed solely to reopen the edit panel on
+  the OAuth return; with the section gone from that panel, they had no
+  remaining purpose.
+
+No backend changes. The Spotify endpoints, the token exchange, and the
+`visibility_activity` scope are all untouched.

@@ -42,16 +42,11 @@ let capturedEditPanelProps:
   | {
       onCancel: () => void;
       onSaved: (updated: OwnProfileResponse) => void;
-      spotifyJustConnected?: boolean;
     }
   | undefined;
 
 vi.mock("@/components/ProfileEditPanel", () => ({
-  default: (props: {
-    onCancel: () => void;
-    onSaved: (updated: OwnProfileResponse) => void;
-    spotifyJustConnected?: boolean;
-  }) => {
+  default: (props: { onCancel: () => void; onSaved: (updated: OwnProfileResponse) => void }) => {
     capturedEditPanelProps = props;
     return <div data-testid="edit-panel" />;
   },
@@ -129,17 +124,6 @@ describe("ProfileHeader — own profile", () => {
     expect(screen.getByTestId("edit-panel")).toBeTruthy();
   });
 
-  it("starts open when autoOpenEdit is true", () => {
-    render(<ProfileHeader profile={makeOwnProfile()} autoOpenEdit />);
-    expect(screen.getByTestId("edit-panel")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Edit profile" })).toBeNull();
-  });
-
-  it("passes spotifyJustConnected through to the edit panel when auto-opened", () => {
-    render(<ProfileHeader profile={makeOwnProfile()} autoOpenEdit />);
-    expect(capturedEditPanelProps?.spotifyJustConnected).toBe(true);
-  });
-
   it('shows "Add a bio" when bio is null, which opens the panel', () => {
     render(<ProfileHeader profile={makeOwnProfile({ bio: null })} />);
     const addBio = screen.getByRole("button", { name: "Add a bio" });
@@ -154,7 +138,8 @@ describe("ProfileHeader — own profile", () => {
   });
 
   it("onSaved updates displayed name/bio optimistically and closes the panel", () => {
-    render(<ProfileHeader profile={makeOwnProfile()} autoOpenEdit />);
+    render(<ProfileHeader profile={makeOwnProfile()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
     act(() => {
       capturedEditPanelProps?.onSaved(
         makeOwnProfileUpdate({ display_name: "New Name", bio: "New bio" })
@@ -166,7 +151,8 @@ describe("ProfileHeader — own profile", () => {
   });
 
   it("onSaved with an unchanged username calls router.refresh", () => {
-    render(<ProfileHeader profile={makeOwnProfile()} autoOpenEdit />);
+    render(<ProfileHeader profile={makeOwnProfile()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
     act(() => {
       capturedEditPanelProps?.onSaved(makeOwnProfileUpdate({ username: "alice" }));
     });
@@ -175,7 +161,8 @@ describe("ProfileHeader — own profile", () => {
   });
 
   it("onSaved with a changed username navigates to the new profile URL", () => {
-    render(<ProfileHeader profile={makeOwnProfile()} autoOpenEdit />);
+    render(<ProfileHeader profile={makeOwnProfile()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
     act(() => {
       capturedEditPanelProps?.onSaved(makeOwnProfileUpdate({ username: "alice2" }));
     });
@@ -184,7 +171,8 @@ describe("ProfileHeader — own profile", () => {
   });
 
   it("onCancel closes the panel", () => {
-    render(<ProfileHeader profile={makeOwnProfile()} autoOpenEdit />);
+    render(<ProfileHeader profile={makeOwnProfile()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
     expect(screen.getByTestId("edit-panel")).toBeTruthy();
     act(() => {
       capturedEditPanelProps?.onCancel();

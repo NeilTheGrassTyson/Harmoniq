@@ -39,7 +39,7 @@ vi.mock("@/components/AppShell", () => ({
 const mockProfileHeaderProps = vi.fn();
 
 vi.mock("@/components/ProfileHeader", () => ({
-  default: (props: { autoOpenEdit?: boolean }) => {
+  default: (props: unknown) => {
     mockProfileHeaderProps(props);
     return <div data-testid="profile-header" />;
   },
@@ -85,10 +85,9 @@ const baseProfile = {
   follow: { is_following: false, follows_you: false, is_friend: false },
 };
 
-async function renderPage(searchParams: { spotify?: string } = {}) {
+async function renderPage() {
   const jsx = await ProfilePage({
     params: Promise.resolve({ username: "testuser" }),
-    searchParams: Promise.resolve(searchParams),
   });
   render(jsx);
 }
@@ -107,28 +106,6 @@ describe("Profile page — ProfileHeader wiring", () => {
     expect(screen.getByTestId("profile-header")).toBeTruthy();
     expect(mockProfileHeaderProps).toHaveBeenCalledWith(
       expect.objectContaining({ profile: baseProfile })
-    );
-  });
-
-  it("does not auto-open edit when ?spotify=connected is absent", async () => {
-    await renderPage();
-    expect(mockProfileHeaderProps).toHaveBeenCalledWith(
-      expect.objectContaining({ autoOpenEdit: false })
-    );
-  });
-
-  it("auto-opens edit when ?spotify=connected and viewing own profile", async () => {
-    mockGetProfile.mockResolvedValue({ ...baseProfile, is_own_profile: true });
-    await renderPage({ spotify: "connected" });
-    expect(mockProfileHeaderProps).toHaveBeenCalledWith(
-      expect.objectContaining({ autoOpenEdit: true })
-    );
-  });
-
-  it("does not auto-open edit for ?spotify=connected on someone else's profile", async () => {
-    await renderPage({ spotify: "connected" }); // baseProfile.is_own_profile === false
-    expect(mockProfileHeaderProps).toHaveBeenCalledWith(
-      expect.objectContaining({ autoOpenEdit: false })
     );
   });
 });
