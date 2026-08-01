@@ -5,7 +5,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 async function catalogGet<T>(
   path: string,
   token?: string,
-  init?: Pick<RequestInit, "cache" | "next">
+  init?: Pick<RequestInit, "cache" | "next" | "signal">
 ): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -21,8 +21,12 @@ async function catalogGet<T>(
   return response.json() as Promise<T>;
 }
 
-export function searchCatalog(query: string): Promise<SearchResponse> {
-  return catalogGet<SearchResponse>(`/search?q=${encodeURIComponent(query)}`);
+export function searchCatalog(query: string, signal?: AbortSignal): Promise<SearchResponse> {
+  // The signal lets callers abort a superseded request (new keystroke) so
+  // abandoned prefix queries stop holding the backend's MusicBrainz budget.
+  return catalogGet<SearchResponse>(`/search?q=${encodeURIComponent(query)}`, undefined, {
+    signal,
+  });
 }
 
 export function getArtist(mbid: string): Promise<ArtistDetail> {
