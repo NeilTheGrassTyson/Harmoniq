@@ -21,20 +21,17 @@ def upgrade() -> None:
     # the local-first search path. pg_trgm is a trusted extension on Neon.
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
     op.execute(
-        "CREATE INDEX ix_artists_name_trgm ON artists "
-        "USING gin (name gin_trgm_ops)"
+        "CREATE INDEX ix_artists_name_trgm ON artists USING gin (name gin_trgm_ops)"
     )
     # Aliases (VARCHAR[]) are matched in the query via array_to_string but
     # deliberately NOT indexed: array_to_string is STABLE, not IMMUTABLE, so
     # an expression index would need a custom wrapper function. Artists is
     # the smallest catalog table; revisit if artist-search latency grows.
     op.execute(
-        "CREATE INDEX ix_albums_title_trgm ON albums "
-        "USING gin (title gin_trgm_ops)"
+        "CREATE INDEX ix_albums_title_trgm ON albums USING gin (title gin_trgm_ops)"
     )
     op.execute(
-        "CREATE INDEX ix_tracks_title_trgm ON tracks "
-        "USING gin (title gin_trgm_ops)"
+        "CREATE INDEX ix_tracks_title_trgm ON tracks USING gin (title gin_trgm_ops)"
     )
 
 
