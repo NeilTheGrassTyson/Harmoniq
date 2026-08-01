@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 
 // --- Mocks ---
@@ -138,5 +138,47 @@ describe("AppShell sidebar navigation", () => {
     mockUsePathname.mockReturnValue("/u/otheruser");
     render(<AppShell>content</AppShell>);
     expect(screen.getByRole("link", { name: "Profile" }).getAttribute("aria-current")).toBeNull();
+  });
+});
+
+describe("AppShell sidebar open state", () => {
+  beforeEach(() => {
+    mockUsePathname.mockReturnValue("/");
+    mockUseUser.mockReturnValue(signedIn);
+    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true, getToken: vi.fn() });
+  });
+
+  // The panel must ship with no data-open so the CSS breakpoint decides. If
+  // this attribute is ever present on first render, server-rendered HTML is
+  // asserting a width it cannot know, and phones get a sidebar that covers
+  // half the screen until hydration corrects it.
+  it("leaves the breakpoint default in force until the user toggles", () => {
+    const { container } = render(<AppShell>content</AppShell>);
+    const panel = container.querySelector(".sidebar-panel");
+    expect(panel).not.toBeNull();
+    expect(panel!.hasAttribute("data-open")).toBe(false);
+  });
+
+  it("pins an explicit state on the panel once toggled", () => {
+    const { container } = render(<AppShell>content</AppShell>);
+    const panel = container.querySelector(".sidebar-panel")!;
+
+    // matchMedia is stubbed to match, so the effective state starts open.
+    fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(panel.getAttribute("data-open")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    expect(panel.getAttribute("data-open")).toBe("true");
+  });
+
+  it("reports the sidebar state through aria-expanded", () => {
+    render(<AppShell>content</AppShell>);
+    const toggle = screen.getByRole("button", { name: "Collapse sidebar" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(toggle);
+    expect(
+      screen.getByRole("button", { name: "Expand sidebar" }).getAttribute("aria-expanded")
+    ).toBe("false");
   });
 });

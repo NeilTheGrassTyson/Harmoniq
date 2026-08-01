@@ -193,6 +193,25 @@ Four fixed links rendered inside `AppShell`'s collapsible sidebar. Implemented i
 
 **Signed-out behavior:** Profile link is conditionally rendered only when `useUser()` returns `isSignedIn === true` with a non-null `user.username`. Home, Search, and Settings are unconditional.
 
+**Responsive default (breakpoint: 768px / Tailwind `md`).** The sidebar is
+closed below `md` and open from `md` up. That default lives in CSS
+(`.sidebar-panel` in `globals.css`, sized by `--sidebar-width`), **not** in a
+JavaScript measurement of `window.innerWidth`. The distinction matters: markup
+rendered on the server has no viewport to measure, so a JS-derived default
+ships every phone a 220px sidebar — more than half a 390px screen — which then
+snaps shut on hydration. Server-rendered HTML must already be correct at every
+width.
+
+An explicit toggle sets `data-open` on the panel, which overrides the
+breakpoint default at any width. The state is tri-valued (`true` / `false` /
+`null` for "no choice yet") so an untouched sidebar keeps following the
+breakpoint. A chosen state persists across a resize rather than being
+overridden — the user's explicit action outranks the default.
+
+The `md` breakpoint is also where the header wordmark appears; below `sm` the
+equalizer glyph carries the mark alone so it doesn't compete with the search
+field for the same row.
+
 ---
 
 ## 11. Search
@@ -396,9 +415,16 @@ and friends. Hover implemented with `onMouseEnter`/`onMouseLeave` — or worse,
 `useState` — re-renders on pointer movement, never fires for keyboard users,
 and strands touch devices in a stuck hover state.
 
-**Inline `style` is still correct for genuinely dynamic values** — the
-sidebar's animated width, a computed grid position. The test is whether the
-value could be a class: if it could, it should be.
+**Inline `style` is still correct for genuinely dynamic values** — a computed
+grid position, a progress width driven by real data. The test is whether the
+value could be a class or a CSS custom property: if it could, it should be.
+
+**Responsive behavior belongs in CSS, for the same reason.** A breakpoint
+resolved in JavaScript can't be right in server-rendered HTML, because there
+is no viewport at render time — it can only be corrected after hydration, and
+the correction is visible. Prefer a media query or a `md:` utility; reach for
+`matchMedia` only for things CSS genuinely cannot express, such as the value
+of an ARIA attribute.
 
 **A positive/confirmation state uses the accent** (`text-accent`), matching
 the onboarding form's "Available." Introducing a second hue for success would

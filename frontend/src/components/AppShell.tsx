@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import NavAuth from "@/components/NavAuth";
 import NotificationBell from "@/components/NotificationBell";
@@ -158,31 +158,32 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-const SIDEBAR_WIDTH = 220;
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT_QUERY = "(min-width: 768px)";
 
 export default function AppShell({ children }: AppShellProps) {
-  const [open, setOpen] = useState(true);
+  // null = "no explicit choice yet", so the CSS default for the current
+  // breakpoint applies (see .sidebar-panel in globals.css). Once the user
+  // toggles, their choice wins at every width.
+  const [open, setOpen] = useState<boolean | null>(null);
   const pathname = usePathname();
   const { isSignedIn, user } = useUser();
   const username = user?.username ?? null;
 
-  // Auto-collapse on narrow viewports. SSR always starts open; the layout
-  // effect corrects synchronously before first paint (a rAF callback proved
-  // unreliable here — it can land after paint or be cancelled by a remount,
-  // leaving the sidebar open at phone widths).
-  useLayoutEffect(() => {
-    const collapseIfNarrow = () => {
-      if (window.innerWidth < MOBILE_BREAKPOINT) {
-        setOpen(false);
-      }
-    };
-    collapseIfNarrow();
-    window.addEventListener("resize", collapseIfNarrow, { passive: true });
-    return () => {
-      window.removeEventListener("resize", collapseIfNarrow);
-    };
+  // Mirrors the CSS breakpoint purely so aria-expanded and the button label
+  // can describe the sidebar's actual state. It drives no layout — the panel
+  // is sized by CSS — so settling one paint after mount is harmless, and
+  // matchMedia fires only when the breakpoint is crossed rather than on every
+  // resize frame.
+  const [wideViewport, setWideViewport] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    const sync = () => setWideViewport(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
   }, []);
+
+  const effectiveOpen = open ?? wideViewport;
 
   const isHomeActive = pathname === "/";
   const isSearchActive = pathname.startsWith("/search");
@@ -197,23 +198,25 @@ export default function AppShell({ children }: AppShellProps) {
         {/* Left: toggle + logo */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
-            aria-expanded={open}
+            onClick={() => setOpen(!effectiveOpen)}
+            aria-label={effectiveOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-expanded={effectiveOpen}
             className="rounded-nav text-secondary hover:text-primary flex size-[30px] items-center justify-center"
           >
             <IconMenu />
           </button>
           <Link href="/" className="flex items-center gap-2">
             <EqualizerGlyph className="text-accent" size={16} />
-            <span className="font-display text-primary text-sm font-medium tracking-normal select-none">
+            {/* Below sm the glyph carries the mark alone — at 390px the
+                wordmark competes with the search field for the same row. */}
+            <span className="font-display text-primary hidden text-sm font-medium tracking-normal select-none sm:inline">
               harmoniq
             </span>
           </Link>
         </div>
 
         {/* Center: search */}
-        <div className="w-full" style={{ maxWidth: 360 }}>
+        <div className="w-full max-w-[360px]">
           <SearchBar />
         </div>
 
@@ -229,11 +232,10 @@ export default function AppShell({ children }: AppShellProps) {
         {/* Sidebar */}
         <aside
           className="sidebar-panel bg-sidebar border-hairline shrink-0 border-r"
-          // Width is the animated dimension, so it stays inline and in sync
-          // with the SIDEBAR_WIDTH constant the nav's min-width also reads.
-          style={{ width: open ? SIDEBAR_WIDTH : 0 }}
+          // Absent until the user chooses, so the CSS breakpoint default holds.
+          data-open={open === null ? undefined : open}
         >
-          <nav className="flex flex-col gap-0.5 px-[10px] py-4" style={{ minWidth: SIDEBAR_WIDTH }}>
+          <nav className="flex min-w-[var(--sidebar-width)] flex-col gap-0.5 px-[10px] py-4">
             <NavLink href="/" icon={<IconHome size={16} />} label="Home" active={isHomeActive} />
             <NavLink
               href="/search"
