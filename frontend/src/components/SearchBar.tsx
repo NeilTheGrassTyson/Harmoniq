@@ -107,9 +107,14 @@ export default function SearchBar() {
     }
 
     const timeout = setTimeout(async () => {
-      // Sync URL on the /search page so the page body stays in sync
+      // On /search the page body owns fetching and rendering results — the
+      // bar only syncs the URL. Fetching here too would issue a duplicate
+      // request for every keystroke. Panel state is reset so no stale
+      // dropdown reappears when navigating to another page.
       if (pathname === "/search") {
         router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+        setPanel({ kind: "idle" });
+        return;
       }
 
       setPanel({ kind: "loading" });
