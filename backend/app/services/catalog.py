@@ -6,6 +6,7 @@ All three entity types (artist, album, track) are keyed on their MusicBrainz ID
 Ingestion is always upsert-on-MBID: existing rows are updated, not duplicated.
 """
 
+import asyncio
 import logging
 import time
 import uuid
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.services.musicbrainz as mb
 import app.services.rating as rating_svc
+from app.database import AsyncSessionLocal
 from app.models.catalog import Album, Artist, Track
 from app.schemas.catalog import (
     AlbumDetail,
@@ -356,8 +358,115 @@ async def _resolve_artist_id(
 
 # ── Search ─────────────────────────────────────────────────────────────────────
 
+# Background ingest tasks hold their own session and commit independently of
+# any request. The lock serializes them: search ingestion is cache-warming,
+# not response data, so there is no reason to hold multiple Neon connections
+# for it — and serializing avoids duplicate-MBID insert races between
+# overlapping searches. The set keeps strong references so tasks aren't
+# garbage-collected mid-flight.
+_ingest_lock = asyncio.Lock()
+_ingest_tasks: set[asyncio.Task[None]] = set()
 
-async def search_and_ingest(query: str, session: AsyncSession) -> SearchResponse:
+
+def _schedule_ingest(
+    raw_artists: list[dict[str, Any]],
+    raw_albums: list[dict[str, Any]],
+    raw_tracks: list[dict[str, Any]],
+) -> None:
+    task = asyncio.create_task(
+        _ingest_in_background(raw_artists, raw_albums, raw_tracks)
+    )
+    _ingest_tasks.add(task)
+    task.add_done_callback(_ingest_tasks.discard)
+
+
+async def wait_for_pending_ingests() -> None:
+    """Await any scheduled background ingests. For scripts and tests that
+    need search ingestion to have completed before touching the same rows."""
+    if _ingest_tasks:
+        await asyncio.gather(*list(_ingest_tasks))
+
+
+async def _ingest_in_background(
+    raw_artists: list[dict[str, Any]],
+    raw_albums: list[dict[str, Any]],
+    raw_tracks: list[dict[str, Any]],
+) -> None:
+    async with _ingest_lock:
+        try:
+            async with AsyncSessionLocal() as session:
+                await _ingest_search_results(
+                    session, raw_artists, raw_albums, raw_tracks
+                )
+                await session.commit()
+        except Exception:
+            # Best-effort by design: the response was already served from the
+            # MusicBrainz payload; a failed ingest only delays local caching
+            # until the next search or detail-page visit.
+            logger.exception("Background ingest of search results failed")
+
+
+async def _ingest_search_results(
+    session: AsyncSession,
+    raw_artists: list[dict[str, Any]],
+    raw_albums: list[dict[str, Any]],
+    raw_tracks: list[dict[str, Any]],
+) -> None:
+    # ── Ingest artists ────────────────────────────────────────────────────────
+    for raw in raw_artists:
+        try:
+            await _upsert_artist(session, raw)
+        except Exception:
+            logger.error(
+                "Failed to ingest artist mbid=%s", raw.get("id"), exc_info=True
+            )
+
+    # ── Ingest albums ─────────────────────────────────────────────────────────
+    for raw in raw_albums:
+        try:
+            artist_mbid = _primary_artist_mbid(raw)
+            raw_artist_credit = (
+                raw.get("artist-credit", [{}])[0].get("artist")
+                if raw.get("artist-credit")
+                else None
+            )
+            artist_id = await _resolve_artist_id(
+                session, artist_mbid, raw_artist_credit
+            )
+            await _upsert_album(session, raw, artist_id)
+        except Exception:
+            logger.error("Failed to ingest album mbid=%s", raw.get("id"), exc_info=True)
+
+    # ── Ingest tracks ─────────────────────────────────────────────────────────
+    for raw in raw_tracks:
+        try:
+            artist_mbid = _primary_artist_mbid(raw)
+            raw_artist_credit = (
+                raw.get("artist-credit", [{}])[0].get("artist")
+                if raw.get("artist-credit")
+                else None
+            )
+            artist_id = await _resolve_artist_id(
+                session, artist_mbid, raw_artist_credit
+            )
+
+            rg_mbid = _release_group_mbid(raw)
+            album_id: uuid.UUID | None = None
+            if rg_mbid:
+                alb_result = await session.execute(
+                    select(Album).where(Album.mbid == rg_mbid)
+                )
+                alb = alb_result.scalar_one_or_none()
+                album_id = alb.id if alb else None
+
+            await _upsert_track(session, raw, artist_id, album_id)
+        except Exception:
+            logger.error("Failed to ingest track mbid=%s", raw.get("id"), exc_info=True)
+
+    await session.flush()
+
+
+async def search_and_ingest(query: str) -> SearchResponse:
     cache_key = query.strip().lower()
     cached = _search_cache.get(cache_key)
     if cached is not None:
@@ -402,61 +511,11 @@ async def search_and_ingest(query: str, session: AsyncSession) -> SearchResponse
         type_check=lambda t: not t.get("video"),
     )
 
-    # ── Ingest artists ────────────────────────────────────────────────────────
-    artist_rows: list[Artist] = []
-    for raw in raw_artists:
-        try:
-            artist_rows.append(await _upsert_artist(session, raw))
-        except Exception:
-            logger.error(
-                "Failed to ingest artist mbid=%s", raw.get("id"), exc_info=True
-            )
-
-    # ── Ingest albums ─────────────────────────────────────────────────────────
-    album_rows: list[Album] = []
-    for raw in raw_albums:
-        try:
-            artist_mbid = _primary_artist_mbid(raw)
-            raw_artist_credit = (
-                raw.get("artist-credit", [{}])[0].get("artist")
-                if raw.get("artist-credit")
-                else None
-            )
-            artist_id = await _resolve_artist_id(
-                session, artist_mbid, raw_artist_credit
-            )
-            album_rows.append(await _upsert_album(session, raw, artist_id))
-        except Exception:
-            logger.error("Failed to ingest album mbid=%s", raw.get("id"), exc_info=True)
-
-    # ── Ingest tracks ─────────────────────────────────────────────────────────
-    track_rows: list[Track] = []
-    for raw in raw_tracks:
-        try:
-            artist_mbid = _primary_artist_mbid(raw)
-            raw_artist_credit = (
-                raw.get("artist-credit", [{}])[0].get("artist")
-                if raw.get("artist-credit")
-                else None
-            )
-            artist_id = await _resolve_artist_id(
-                session, artist_mbid, raw_artist_credit
-            )
-
-            rg_mbid = _release_group_mbid(raw)
-            album_id: uuid.UUID | None = None
-            if rg_mbid:
-                alb_result = await session.execute(
-                    select(Album).where(Album.mbid == rg_mbid)
-                )
-                alb = alb_result.scalar_one_or_none()
-                album_id = alb.id if alb else None
-
-            track_rows.append(await _upsert_track(session, raw, artist_id, album_id))
-        except Exception:
-            logger.error("Failed to ingest track mbid=%s", raw.get("id"), exc_info=True)
-
-    await session.flush()
+    # Ingestion happens off the response path: it never feeds the response
+    # below (built from the raw MusicBrainz payload), and measured 3-4.5s of
+    # sequential Neon round-trips when it ran inline.
+    if raw_artists or raw_albums or raw_tracks:
+        _schedule_ingest(raw_artists, raw_albums, raw_tracks)
 
     # ── Build response from raw MB data (no extra DB round-trip) ─────────────
     artist_results = [

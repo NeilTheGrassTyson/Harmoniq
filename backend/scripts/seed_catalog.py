@@ -405,7 +405,10 @@ def build_list(tier: str) -> list[str]:
 async def seed_artist(name: str) -> bool:
     """Ingest one artist + full discography. Returns True on success."""
     async with AsyncSessionLocal() as session:
-        response = await catalog_svc.search_and_ingest(name, session)
+        response = await catalog_svc.search_and_ingest(name)
+        # Search ingestion is a background task; wait it out so it can't
+        # race this session's writes on the same artist rows.
+        await catalog_svc.wait_for_pending_ingests()
         if not response.artists:
             logger.warning("no MusicBrainz artist found for %r — skipped", name)
             return False
