@@ -26,6 +26,9 @@ _CACHE_ARTIST = "public, max-age=300, stale-while-revalidate=3600"
 _NO_STORE = "private, no-store"
 
 
+# Local-first: the session serves the Postgres query path. The MusicBrainz
+# fallback still ingests via a background task with its own session, never
+# on the response path.
 @router.get("/search", response_model=SearchResponse)
 async def search(
     session: DbSession,
@@ -33,7 +36,7 @@ async def search(
     q: str = Query(min_length=2, description="Search query"),
 ) -> SearchResponse:
     try:
-        result = await catalog_svc.search_and_ingest(q, session)
+        result = await catalog_svc.search(q, session)
         response.headers["Cache-Control"] = _CACHE_SEARCH
         return result
     except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as exc:

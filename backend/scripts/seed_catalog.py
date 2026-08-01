@@ -405,7 +405,10 @@ def build_list(tier: str) -> list[str]:
 async def seed_artist(name: str) -> bool:
     """Ingest one artist + full discography. Returns True on success."""
     async with AsyncSessionLocal() as session:
-        response = await catalog_svc.search_and_ingest(name, session)
+        response = await catalog_svc.search_and_ingest(name)
+        # Search ingestion is a background task; wait it out so it can't
+        # race this session's writes on the same artist rows.
+        await catalog_svc.wait_for_pending_ingests()
         if not response.artists:
             logger.warning("no MusicBrainz artist found for %r — skipped", name)
             return False
@@ -430,6 +433,12 @@ async def seed_artist(name: str) -> bool:
         await session.commit()
 
         album_count = len(detail.albums) if detail else 0
+        if album_count == 0:
+            # Every artist on the curated list has standard releases, so zero
+            # albums means the discography browse failed and get_artist
+            # degraded silently — raise so the retry loop re-attempts instead
+            # of recording a hollow seed.
+            raise RuntimeError(f"no albums synced for {match.name!r}")
         logger.info("seeded %r — %d albums", match.name, album_count)
         return True
 

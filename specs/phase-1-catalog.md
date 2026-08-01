@@ -38,9 +38,10 @@ across the product.
 - Track (Recording) entity: title, MBID, primary album, primary artist,
   duration in milliseconds, track number, disc number.
 - On-demand ingestion: when a search query is issued and MusicBrainz returns
-  results, those entities are written to the local DB before the response is
-  returned to the client. Subsequent requests for the same entity are served
-  from the local DB.
+  results, those entities are written to the local DB — as a background task
+  after the response is returned (superseded by Amendment D1, 2026-08-01;
+  originally inline before the response). Subsequent requests for the same
+  entity are served from the local DB.
 - Deduplication: if an entity with the same MBID already exists in the DB,
   the ingestion step updates it rather than inserting a duplicate.
 - Detail pages for artists, albums, and tracks — each displaying the entity's
@@ -423,3 +424,31 @@ This amendment does **not** touch cover-art sourcing or verification —
 `_CAA_URL` is still built unconditionally from the MBID with no existence
 check, per an explicit Founder decision to scope this pass to search
 relevance only. Any cover-art fix remains a separate, future piece of work.
+
+---
+
+# Amendments — 2026-08-01 (Founder-directed)
+
+## D1. Search ingestion moved off the response path
+
+The "Functional requirements" bullet stating that searched entities "are
+written to the local DB before the response is returned to the client" is
+superseded. Instrumented measurement against production Neon and live
+MusicBrainz showed the inline ingest cost 3.2–4.5s per uncached search
+(33–49 sequential statements at ~70ms Neon round-trip each) while never
+feeding the response, which is built entirely from the raw MusicBrainz
+payload.
+
+`search_and_ingest` now serves the response first and schedules ingestion
+as a background task with its own session (`_schedule_ingest` in
+`app/services/catalog.py`). Background ingests are serialized by a lock and
+best-effort: a failure is logged and only delays local caching until the
+next search or detail-page visit. Everything else in the ingestion contract
+(upsert-on-MBID, relevance filtering before ingest, `last_fetched_at`)
+is unchanged. The search endpoint no longer opens a database session.
+
+## D2. SearchBar no longer fetches on /search
+
+On `/search` the page body and the header SearchBar both fetched the same
+query; the bar's fetch fed a dropdown that is never shown on that page.
+The bar now only syncs the URL there — the page body owns the fetch.

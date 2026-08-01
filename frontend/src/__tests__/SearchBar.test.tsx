@@ -7,9 +7,14 @@ import SearchBar from "@/components/SearchBar";
 const mockPush = vi.fn();
 let mockPathname = "/";
 
+// The router object must be referentially stable, as Next's real useRouter
+// is — a fresh object per render would re-trigger every effect that lists
+// `router` in its deps, diverging from production behavior.
+const mockRouter = { push: mockPush };
+
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => mockRouter,
 }));
 
 vi.mock("next/link", () => ({
@@ -130,6 +135,29 @@ describe("SearchBar — People section", () => {
     expect(screen.getByText("The Beatles")).toBeTruthy();
   });
 
+  it("aborts the in-flight request when a new keystroke supersedes it", async () => {
+    mockSearchCatalog.mockClear();
+    render(<SearchBar />);
+    const input = screen.getByRole("searchbox");
+
+    fireEvent.change(input, { target: { value: "beat" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    const firstSignal = mockSearchCatalog.mock.calls[0][1] as AbortSignal;
+    expect(firstSignal.aborted).toBe(false);
+
+    fireEvent.change(input, { target: { value: "beatles" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(firstSignal.aborted).toBe(true);
+    const secondSignal = mockSearchCatalog.mock.calls[1][1] as AbortSignal;
+    expect(secondSignal.aborted).toBe(false);
+  });
+
   it("links each user result to /u/[username]", async () => {
     mockSearchUsers.mockResolvedValue(sampleUsers);
 
@@ -151,6 +179,8 @@ describe("SearchBar — URL sync on /search", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockPush.mockClear();
+    mockSearchCatalog.mockClear();
+    mockSearchUsers.mockClear();
     mockSearchCatalog.mockResolvedValue(emptyMusic);
     mockSearchUsers.mockResolvedValue(sampleUsers);
   });
@@ -172,6 +202,22 @@ describe("SearchBar — URL sync on /search", () => {
     });
 
     expect(mockPush).toHaveBeenCalledWith("/search?q=beatles");
+  });
+
+  it("does NOT fetch results when typing on /search — the page body owns the fetch", async () => {
+    mockPathname = "/search";
+
+    render(<SearchBar />);
+    const input = screen.getByRole("searchbox");
+
+    fireEvent.change(input, { target: { value: "beatles" } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(mockSearchCatalog).not.toHaveBeenCalled();
+    expect(mockSearchUsers).not.toHaveBeenCalled();
   });
 
   it("does NOT push URL when typing on pages other than /search", async () => {

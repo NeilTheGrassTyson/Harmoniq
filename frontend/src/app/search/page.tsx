@@ -111,10 +111,15 @@ function SearchContent() {
   useEffect(() => {
     if (q.length < 2) return;
 
-    let cancelled = false;
+    // Aborting (rather than just ignoring) a superseded request frees the
+    // backend from serving abandoned prefix queries.
+    const controller = new AbortController();
 
-    Promise.allSettled([searchCatalog(q), searchUsers(q)]).then(([musicSettled, usersSettled]) => {
-      if (cancelled) return;
+    Promise.allSettled([
+      searchCatalog(q, controller.signal),
+      searchUsers(q, controller.signal),
+    ]).then(([musicSettled, usersSettled]) => {
+      if (controller.signal.aborted) return;
 
       setFetched({
         q,
@@ -124,7 +129,7 @@ function SearchContent() {
     });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [q]);
 

@@ -106,18 +106,29 @@ export default function SearchBar() {
       return;
     }
 
+    // Aborts the in-flight fetch when a newer keystroke supersedes it, so
+    // abandoned prefix queries don't occupy the backend.
+    const controller = new AbortController();
     const timeout = setTimeout(async () => {
-      // Sync URL on the /search page so the page body stays in sync
+      // On /search the page body owns fetching and rendering results — the
+      // bar only syncs the URL. Fetching here too would issue a duplicate
+      // request for every keystroke. Panel state is reset so no stale
+      // dropdown reappears when navigating to another page.
       if (pathname === "/search") {
         router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+        setPanel({ kind: "idle" });
+        return;
       }
 
       setPanel({ kind: "loading" });
 
       const [musicSettled, usersSettled] = await Promise.allSettled([
-        searchCatalog(trimmed),
-        searchUsers(trimmed),
+        searchCatalog(trimmed, controller.signal),
+        searchUsers(trimmed, controller.signal),
       ]);
+
+      // Superseded — a newer effect run owns the panel now.
+      if (controller.signal.aborted) return;
 
       const music = musicSettled.status === "fulfilled" ? musicSettled.value : null;
       const people = usersSettled.status === "fulfilled" ? usersSettled.value : [];
@@ -140,7 +151,10 @@ export default function SearchBar() {
       setPanel({ kind: "results", people, music });
     }, 300);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [query, pathname, router]);
 
   // Close the panel WITHOUT clearing the query: clearing would re-trigger

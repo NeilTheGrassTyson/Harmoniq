@@ -221,6 +221,9 @@ class TestCatalogSearchEndpoint:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[]),
             ),
+            # Ingestion is scheduled off the response path with its own
+            # session — patched so tests never open a real DB connection.
+            patch("app.services.catalog._schedule_ingest"),
         ):
             resp = await client.get(
                 "/api/v1/catalog/search",

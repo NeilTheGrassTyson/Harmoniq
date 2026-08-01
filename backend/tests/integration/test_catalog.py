@@ -210,9 +210,13 @@ class TestRelationships:
 
 @pytest.mark.integration
 class TestSearchAndIngest:
-    """search_and_ingest must never hit the live MusicBrainz API in tests."""
+    """search_and_ingest must never hit the live MusicBrainz API in tests.
 
-    async def test_search_writes_entities_to_db(self, db_session: AsyncSession) -> None:
+    Ingestion runs off the response path: search_and_ingest schedules it as a
+    background task (patched out here), and DB-write behavior is covered by
+    calling _ingest_search_results directly with the test session."""
+
+    async def test_search_returns_results_and_schedules_ingest(self) -> None:
         with (
             patch(
                 "app.services.catalog.mb.search_artists",
@@ -226,23 +230,43 @@ class TestSearchAndIngest:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[_TRACK_RAW]),
             ),
+            patch("app.services.catalog._schedule_ingest") as schedule,
         ):
             # Use a unique query to bypass the module-level search cache.
-            result = await catalog_svc.search_and_ingest(
-                "radiohead_tc_unique_q1", db_session
-            )
+            result = await catalog_svc.search_and_ingest("radiohead_tc_unique_q1")
 
         assert len(result.artists) == 1
         assert result.artists[0].name == "Radiohead"
         assert len(result.albums) == 1
         assert len(result.tracks) == 1
 
-        db_result = await db_session.execute(
-            select(Artist).where(Artist.mbid == _ARTIST_MBID)
-        )
-        assert db_result.scalar_one_or_none() is not None
+        schedule.assert_called_once_with([_ARTIST_RAW], [_ALBUM_RAW], [_TRACK_RAW])
 
-    async def test_search_empty_results_handled(self, db_session: AsyncSession) -> None:
+    async def test_ingest_search_results_writes_entities(
+        self, db_session: AsyncSession
+    ) -> None:
+        await catalog_svc._ingest_search_results(
+            db_session, [_ARTIST_RAW], [_ALBUM_RAW], [_TRACK_RAW]
+        )
+
+        artist = (
+            await db_session.execute(select(Artist).where(Artist.mbid == _ARTIST_MBID))
+        ).scalar_one_or_none()
+        album = (
+            await db_session.execute(select(Album).where(Album.mbid == _ALBUM_MBID))
+        ).scalar_one_or_none()
+        track = (
+            await db_session.execute(select(Track).where(Track.mbid == _TRACK_MBID))
+        ).scalar_one_or_none()
+
+        assert artist is not None
+        assert album is not None
+        assert album.artist_id == artist.id
+        assert track is not None
+        assert track.artist_id == artist.id
+        assert track.album_id == album.id
+
+    async def test_search_empty_results_schedule_nothing(self) -> None:
         with (
             patch(
                 "app.services.catalog.mb.search_artists",
@@ -256,14 +280,14 @@ class TestSearchAndIngest:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[]),
             ),
+            patch("app.services.catalog._schedule_ingest") as schedule,
         ):
-            result = await catalog_svc.search_and_ingest(
-                "emptysearch_unique_q2", db_session
-            )
+            result = await catalog_svc.search_and_ingest("emptysearch_unique_q2")
 
         assert result.artists == []
         assert result.albums == []
         assert result.tracks == []
+        schedule.assert_not_called()
 
     async def test_resolve_artist_id_ingests_if_missing(
         self, db_session: AsyncSession
@@ -292,9 +316,10 @@ class TestSearchAndIngest:
 
 @pytest.mark.integration
 class TestSearchRelevanceFiltering:
-    async def test_low_score_artist_filtered_out(
-        self, db_session: AsyncSession
-    ) -> None:
+    """Filtering runs before ingestion is scheduled, so a filtered hit must
+    appear in neither the response nor the scheduled ingest payload."""
+
+    async def test_low_score_artist_filtered_out(self) -> None:
         low_score = {**_ARTIST_RAW, "id": "low-score-artist-mbid", "score": 10}
         with (
             patch(
@@ -309,22 +334,17 @@ class TestSearchRelevanceFiltering:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[]),
             ),
+            patch("app.services.catalog._schedule_ingest") as schedule,
         ):
-            result = await catalog_svc.search_and_ingest(
-                "relevance_low_score_q1", db_session
-            )
+            result = await catalog_svc.search_and_ingest("relevance_low_score_q1")
 
         assert len(result.artists) == 1
         assert result.artists[0].mbid == _ARTIST_MBID
 
-        db_result = await db_session.execute(
-            select(Artist).where(Artist.mbid == "low-score-artist-mbid")
-        )
-        assert db_result.scalar_one_or_none() is None
+        (ingested_artists, _, _) = schedule.call_args.args
+        assert [a["id"] for a in ingested_artists] == [_ARTIST_MBID]
 
-    async def test_album_filtered_when_artist_credit_is_housekeeping(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_album_filtered_when_artist_credit_is_housekeeping(self) -> None:
         """A legitimately-titled album by a '[unknown]' artist-credit must still
         be dropped — the housekeeping filter runs on the artist credit, not
         the album title itself."""
@@ -349,22 +369,19 @@ class TestSearchRelevanceFiltering:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[]),
             ),
+            patch("app.services.catalog._schedule_ingest") as schedule,
         ):
             result = await catalog_svc.search_and_ingest(
-                "relevance_album_housekeeping_q1", db_session
+                "relevance_album_housekeeping_q1"
             )
 
         assert len(result.albums) == 1
         assert result.albums[0].mbid == _ALBUM_MBID
 
-        db_result = await db_session.execute(
-            select(Album).where(Album.mbid == "housekeeping-album-mbid")
-        )
-        assert db_result.scalar_one_or_none() is None
+        (_, ingested_albums, _) = schedule.call_args.args
+        assert [a["id"] for a in ingested_albums] == [_ALBUM_MBID]
 
-    async def test_track_filtered_when_artist_credit_is_housekeeping(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_track_filtered_when_artist_credit_is_housekeeping(self) -> None:
         housekeeping_track = {
             **_TRACK_RAW,
             "id": "housekeeping-track-mbid",
@@ -385,22 +402,19 @@ class TestSearchRelevanceFiltering:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[_TRACK_RAW, housekeeping_track]),
             ),
+            patch("app.services.catalog._schedule_ingest") as schedule,
         ):
             result = await catalog_svc.search_and_ingest(
-                "relevance_track_housekeeping_q1", db_session
+                "relevance_track_housekeeping_q1"
             )
 
         assert len(result.tracks) == 1
         assert result.tracks[0].mbid == _TRACK_MBID
 
-        db_result = await db_session.execute(
-            select(Track).where(Track.mbid == "housekeeping-track-mbid")
-        )
-        assert db_result.scalar_one_or_none() is None
+        (_, _, ingested_tracks) = schedule.call_args.args
+        assert [t["id"] for t in ingested_tracks] == [_TRACK_MBID]
 
-    async def test_results_sorted_by_score_descending(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_results_sorted_by_score_descending(self) -> None:
         low = {**_ARTIST_RAW, "id": "artist-score-60", "name": "Score60", "score": 60}
         high = {**_ARTIST_RAW, "id": "artist-score-95", "name": "Score95", "score": 95}
         mid = {**_ARTIST_RAW, "id": "artist-score-75", "name": "Score75", "score": 75}
@@ -417,16 +431,13 @@ class TestSearchRelevanceFiltering:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[]),
             ),
+            patch("app.services.catalog._schedule_ingest"),
         ):
-            result = await catalog_svc.search_and_ingest(
-                "relevance_sort_order_q1", db_session
-            )
+            result = await catalog_svc.search_and_ingest("relevance_sort_order_q1")
 
         assert [a.name for a in result.artists] == ["Score95", "Score75", "Score60"]
 
-    async def test_results_capped_at_five_per_category(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_results_capped_at_five_per_category(self) -> None:
         artists = [
             {
                 **_ARTIST_RAW,
@@ -449,10 +460,9 @@ class TestSearchRelevanceFiltering:
                 "app.services.catalog.mb.search_recordings",
                 new=AsyncMock(return_value=[]),
             ),
+            patch("app.services.catalog._schedule_ingest"),
         ):
-            result = await catalog_svc.search_and_ingest(
-                "relevance_cap_five_q1", db_session
-            )
+            result = await catalog_svc.search_and_ingest("relevance_cap_five_q1")
 
         assert len(result.artists) == 5
         assert [a.name for a in result.artists] == [
