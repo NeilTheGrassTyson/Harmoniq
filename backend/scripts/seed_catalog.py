@@ -433,6 +433,12 @@ async def seed_artist(name: str) -> bool:
         await session.commit()
 
         album_count = len(detail.albums) if detail else 0
+        if album_count == 0:
+            # Every artist on the curated list has standard releases, so zero
+            # albums means the discography browse failed and get_artist
+            # degraded silently — raise so the retry loop re-attempts instead
+            # of recording a hollow seed.
+            raise RuntimeError(f"no albums synced for {match.name!r}")
         logger.info("seeded %r — %d albums", match.name, album_count)
         return True
 

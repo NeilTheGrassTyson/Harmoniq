@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     # ── MusicBrainz ──────────────────────────────────────────────────────────
     musicbrainz_user_agent: str  # "AppName/Version contact@example.com"
 
+    # ── Search ───────────────────────────────────────────────────────────────
+    # Local-first catalog search (specs/local-first-search.md). Off restores
+    # the MusicBrainz-first path unchanged — the rollback lever.
+    search_local_first: bool = True
+
     # ── Home sections ────────────────────────────────────────────────────────
     # Number of entries returned per section on the Home page.
     home_trending_count: int = 10

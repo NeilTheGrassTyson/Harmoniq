@@ -14,11 +14,12 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, case, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.services.musicbrainz as mb
 import app.services.rating as rating_svc
+from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.catalog import Album, Artist, Track
 from app.schemas.catalog import (
@@ -561,6 +562,226 @@ async def search_and_ingest(query: str) -> SearchResponse:
     )
     _search_cache[cache_key] = (time.monotonic(), result)
     return result
+
+
+# ── Local-first search (specs/local-first-search.md, approved 2026-08-01) ─────
+
+# A query "strongly" matches an artist at this trigram similarity; that
+# artist's own albums and tracks then populate those categories (entity-aware
+# ranking — the fix for title-match junk on artist-name queries).
+_STRONG_ARTIST_SIMILARITY = 0.4
+# Local results below this total (with no strong artist) are "thin" and fall
+# back to MusicBrainz.
+_MIN_LOCAL_RESULTS = 3
+# An exact prefix match ranks near the top even when the query is a short
+# fragment with weak trigram overlap ("rad" → "Radiohead").
+_PREFIX_BOOST = 0.9
+# Title-similarity candidacy for albums/tracks rides on the `%` operator,
+# which enforces pg_trgm's similarity_threshold (default 0.3) and is the
+# form the GIN trigram indexes accelerate.
+
+
+def _not_housekeeping(column: Any) -> Any:
+    """SQL predicate mirroring _is_housekeeping_name for local rows."""
+    return not_(and_(column.like("[%"), column.like("%]")))
+
+
+async def search(query: str, session: AsyncSession) -> SearchResponse:
+    """Local-first search: serve from Postgres when the catalog can answer,
+    fall back to MusicBrainz (which background-ingests, widening the local
+    catalog) when results are thin."""
+    cache_key = query.strip().lower()
+    cached = _search_cache.get(cache_key)
+    if cached is not None:
+        cached_at, response = cached
+        if time.monotonic() - cached_at < _SEARCH_CACHE_TTL:
+            logger.debug("search cache hit: %s", cache_key)
+            return response
+
+    if settings.search_local_first:
+        local = await _search_local(session, query)
+        if local is not None:
+            _search_cache[cache_key] = (time.monotonic(), local)
+            return local
+
+    return await search_and_ingest(query)
+
+
+async def _search_local(session: AsyncSession, query: str) -> SearchResponse | None:
+    """Query the local catalog. Returns None when results are too thin to
+    serve (the caller then falls back to MusicBrainz)."""
+    q = query.strip()
+    if not q:
+        return None
+
+    # ── Artists: trigram on name + flattened aliases, prefix-boosted ─────────
+    alias_text = func.array_to_string(Artist.aliases, " ")
+    # LIKE wildcards in user input are literal characters, not patterns —
+    # the trigram operators treat them literally already.
+    escaped = q.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    prefix = escaped + "%"
+    score = func.greatest(
+        func.similarity(Artist.name, q),
+        func.similarity(alias_text, q),
+        case(
+            (func.lower(Artist.name).like(prefix, escape="\\"), _PREFIX_BOOST),
+            else_=0.0,
+        ),
+    ).label("score")
+
+    artist_rows = (
+        await session.execute(
+            select(Artist, score)
+            .where(
+                or_(
+                    Artist.name.op("%")(q),
+                    func.lower(Artist.name).like(prefix, escape="\\"),
+                    alias_text.op("%")(q),
+                ),
+                _not_housekeeping(Artist.name),
+            )
+            .order_by(score.desc(), Artist.name.asc())
+            .limit(_MAX_RESULTS_PER_CATEGORY)
+        )
+    ).all()
+
+    strong_ids = [
+        artist.id
+        for artist, sim in artist_rows
+        if sim is not None and sim >= _STRONG_ARTIST_SIMILARITY
+    ]
+
+    # ── Albums: the matched artists' own releases, or title matches ──────────
+    # On a strong artist match the category is relationship-only: padding a
+    # sparse discography with title-similarity hits would re-admit exactly
+    # the "release titled like the artist" junk this path exists to kill
+    # (verified live 2026-08-01: seeded artists without local tracklists got
+    # title-junk tracks under the union approach).
+    album_rows: list[tuple[Album, str | None]] = []
+    if strong_ids:
+        album_rows = [
+            (album, artist_name)
+            for album, artist_name in (
+                await session.execute(
+                    select(Album, Artist.name)
+                    .join(Artist, Album.artist_id == Artist.id)
+                    .where(
+                        Album.artist_id.in_(strong_ids),
+                        Album.album_type.in_(_DISPLAY_ALBUM_TYPES),
+                    )
+                    .order_by(Album.release_year.desc().nulls_last(), Album.title.asc())
+                    .limit(_MAX_RESULTS_PER_CATEGORY)
+                )
+            ).all()
+        ]
+    else:
+        album_rows = [
+            (album, artist_name)
+            for album, artist_name in (
+                await session.execute(
+                    select(Album, Artist.name)
+                    .outerjoin(Artist, Album.artist_id == Artist.id)
+                    .where(
+                        Album.title.op("%")(q),
+                        Album.album_type.in_(_DISPLAY_ALBUM_TYPES),
+                        or_(
+                            Artist.name.is_(None),
+                            _not_housekeeping(Artist.name),
+                        ),
+                    )
+                    .order_by(func.similarity(Album.title, q).desc(), Album.title.asc())
+                    .limit(_MAX_RESULTS_PER_CATEGORY)
+                )
+            ).all()
+        ]
+
+    # ── Tracks: same relationship-or-title shape as albums ───────────────────
+    track_cols = (Track, Artist.name, Album.title, Album.mbid)
+    track_rows: list[tuple[Track, str | None, str | None, str | None]] = []
+    if strong_ids:
+        track_rows = [
+            tuple(row)
+            for row in (
+                await session.execute(
+                    select(*track_cols)
+                    .join(Artist, Track.artist_id == Artist.id)
+                    .outerjoin(Album, Track.album_id == Album.id)
+                    .where(Track.artist_id.in_(strong_ids))
+                    .order_by(
+                        Album.release_year.desc().nulls_last(),
+                        Track.disc_number.asc().nulls_last(),
+                        Track.track_number.asc().nulls_last(),
+                        Track.title.asc(),
+                    )
+                    .limit(_MAX_RESULTS_PER_CATEGORY)
+                )
+            ).all()
+        ]
+    else:
+        track_rows = [
+            tuple(row)
+            for row in (
+                await session.execute(
+                    select(*track_cols)
+                    .outerjoin(Artist, Track.artist_id == Artist.id)
+                    .outerjoin(Album, Track.album_id == Album.id)
+                    .where(
+                        Track.title.op("%")(q),
+                        or_(
+                            Artist.name.is_(None),
+                            _not_housekeeping(Artist.name),
+                        ),
+                    )
+                    .order_by(func.similarity(Track.title, q).desc(), Track.title.asc())
+                    .limit(_MAX_RESULTS_PER_CATEGORY)
+                )
+            ).all()
+        ]
+
+    # A strong artist match with no local releases is a half-ingested artist
+    # (e.g. a failed discography sync during seeding): a bare artist row
+    # would render worse than the MusicBrainz fallback, which also
+    # re-ingests and heals the gap.
+    if strong_ids and not album_rows and not track_rows:
+        return None
+
+    total = len(artist_rows) + len(album_rows) + len(track_rows)
+    if not strong_ids and total < _MIN_LOCAL_RESULTS:
+        return None
+
+    return SearchResponse(
+        artists=[
+            ArtistResult(
+                mbid=artist.mbid,
+                name=artist.name,
+                disambiguation=artist.disambiguation,
+                image_url=artist.image_url,
+            )
+            for artist, _ in artist_rows
+        ],
+        albums=[
+            AlbumResult(
+                mbid=album.mbid,
+                title=album.title,
+                artist_name=artist_name,
+                release_year=album.release_year,
+                album_type=album.album_type,
+                cover_art_url=album.cover_art_url,
+            )
+            for album, artist_name in album_rows
+        ],
+        tracks=[
+            TrackResult(
+                mbid=track.mbid,
+                title=track.title,
+                artist_name=artist_name,
+                album_title=album_title,
+                album_mbid=album_mbid,
+                duration_ms=track.duration_ms,
+            )
+            for track, artist_name, album_title, album_mbid in track_rows
+        ],
+    )
 
 
 # ── Discography sync ───────────────────────────────────────────────────────────

@@ -1,8 +1,11 @@
 # Local-First Catalog Search
 
-> **Status: DRAFT — awaiting Founder approval.** Written 2026-08-01 from
+> **Status: Approved by Founder 2026-08-01.** Written 2026-08-01 from
 > instrumented measurements against production Neon and live MusicBrainz
-> (appendix at the bottom). Nothing in this spec is implemented.
+> (appendix at the bottom). Open questions resolved with the recommended
+> defaults recorded inline (single blended response; tracks local-only on
+> strong artist match; thresholds as proposed; one-time seeding at
+> approval).
 
 ---
 
@@ -171,12 +174,23 @@ curated rather than scraped — consistency over novelty.
   `search/page.tsx` / `lib/catalog.ts` (AbortController).
 - Neon supports `pg_trgm` natively; `CREATE EXTENSION IF NOT EXISTS` is
   allowed on the current plan.
+- Implementation note (2026-08-01): aliases are matched via
+  `array_to_string` in the query but not indexed — `array_to_string` is
+  STABLE, not IMMUTABLE, so an expression index would require a custom
+  wrapper function (rejected per HARMONIQ.md §4). Artists is the smallest
+  catalog table; revisit if artist-search latency grows with scale.
 - The search endpoint reacquires a DB session dependency (dropped in D1) —
   local-first queries need one; ingestion stays on its own background
   session.
 - Local ranking sketch: `GREATEST(similarity(name, :q), exact-prefix
-  boost)`, artists first; albums/tracks = union of (owned-by-matched-artist
-  → rank 0) and (title-similarity ≥ 0.3 → rank 1), each capped at 5.
+  boost)`, artists first; albums/tracks = owned-by-matched-artist when a
+  strong artist match exists, otherwise title-similarity ≥ 0.3, capped at 5.
+- Implementation note (2026-08-01): the original sketch unioned title
+  matches behind the artist's own releases as filler. Live verification
+  showed that padding a sparse artist (e.g. seeded without tracklists)
+  re-admits the title-junk this spec exists to kill, so on a strong artist
+  match the albums/tracks categories are relationship-only — title
+  similarity applies only when no artist matched strongly.
 - MusicBrainz remains the source of truth for *existence*; local Postgres
   is a cache with relationships, not a fork of the database. No MusicBrainz
   data is used for model training (ENGINEERING_BIBLE §13) — this spec

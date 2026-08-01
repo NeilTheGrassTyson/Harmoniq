@@ -26,16 +26,17 @@ _CACHE_ARTIST = "public, max-age=300, stale-while-revalidate=3600"
 _NO_STORE = "private, no-store"
 
 
-# No DB session here: search responds from MusicBrainz data and schedules
-# ingestion as a background task with its own session, so the request never
-# opens a database connection.
+# Local-first: the session serves the Postgres query path. The MusicBrainz
+# fallback still ingests via a background task with its own session, never
+# on the response path.
 @router.get("/search", response_model=SearchResponse)
 async def search(
+    session: DbSession,
     response: Response,
     q: str = Query(min_length=2, description="Search query"),
 ) -> SearchResponse:
     try:
-        result = await catalog_svc.search_and_ingest(q)
+        result = await catalog_svc.search(q, session)
         response.headers["Cache-Control"] = _CACHE_SEARCH
         return result
     except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as exc:

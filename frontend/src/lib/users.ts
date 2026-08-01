@@ -99,9 +99,13 @@ export async function updateProfile(
 }
 
 /** Search users by username or display name. No auth required. */
-export async function searchUsers(query: string): Promise<UserSearchResult[]> {
+export async function searchUsers(
+  query: string,
+  signal?: AbortSignal
+): Promise<UserSearchResult[]> {
   const res = await fetch(`${API_BASE}/api/v1/users/search?q=${encodeURIComponent(query)}`, {
     cache: "no-store",
+    signal,
   });
   if (!res.ok) throw new Error("User search failed");
   return res.json() as Promise<UserSearchResult[]>;
