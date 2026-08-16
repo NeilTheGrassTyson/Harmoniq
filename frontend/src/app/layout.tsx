@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/next";
 import QueryProvider from "@/components/QueryProvider";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import "./globals.css";
@@ -35,6 +36,7 @@ export default function RootLayout({
       <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
         <body className="bg-canvas text-primary h-full antialiased">
           <QueryProvider>{children}</QueryProvider>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
