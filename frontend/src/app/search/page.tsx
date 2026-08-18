@@ -20,8 +20,15 @@ const MAX_PER_SECTION = 10;
 type SearchState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "results"; people: UserSearchResult[]; music: SearchResponse | null }
-  | { kind: "empty" };
+  | { kind: "results"; people: UserSearchResult[]; music: SearchResponse | null; partial: Partial }
+  | { kind: "empty" }
+  // Both sides of the search failed. Distinct from "empty": we never got an
+  // answer, and reporting that as "no results" sends the user looking for a
+  // different query when the real problem is that nothing was reached.
+  | { kind: "error" };
+
+/** Which halves of the search failed, so a partial answer says so. */
+type Partial = { music: boolean; people: boolean };
 
 // Weight and tracking follow DESIGN_SYSTEM §3 (500 / 0.6px), matching the
 // SearchBar dropdown and Home. This label previously rendered at 600/0.7px,
@@ -106,6 +113,7 @@ function SearchContent() {
     q: string;
     people: UserSearchResult[];
     music: SearchResponse | null;
+    failed: Partial;
   } | null>(null);
 
   useEffect(() => {
@@ -125,6 +133,10 @@ function SearchContent() {
         q,
         people: usersSettled.status === "fulfilled" ? usersSettled.value : [],
         music: musicSettled.status === "fulfilled" ? musicSettled.value : null,
+        failed: {
+          music: musicSettled.status === "rejected",
+          people: usersSettled.status === "rejected",
+        },
       });
     });
 
@@ -144,10 +156,21 @@ function SearchContent() {
       (fetched.music.artists.length > 0 ||
         fetched.music.albums.length > 0 ||
         fetched.music.tracks.length > 0);
-    state =
-      fetched.people.length === 0 && !hasMusic
-        ? { kind: "empty" }
-        : { kind: "results", people: fetched.people, music: fetched.music };
+    const nothingToShow = fetched.people.length === 0 && !hasMusic;
+    const anyFailed = fetched.failed.music || fetched.failed.people;
+
+    if (nothingToShow) {
+      // "No results" is a claim about the catalog. Only make it when both
+      // halves actually answered.
+      state = anyFailed ? { kind: "error" } : { kind: "empty" };
+    } else {
+      state = {
+        kind: "results",
+        people: fetched.people,
+        music: fetched.music,
+        partial: fetched.failed,
+      };
+    }
   }
 
   return (
@@ -165,6 +188,12 @@ function SearchContent() {
 
       {state.kind === "empty" && (
         <p className="text-tertiary text-[13px]">No results for &ldquo;{q}&rdquo;.</p>
+      )}
+
+      {state.kind === "error" && (
+        <p role="alert" className="text-tertiary text-[13px]">
+          Couldn&rsquo;t reach the search service right now. Try again in a moment.
+        </p>
       )}
 
       {state.kind === "results" && (
@@ -234,6 +263,16 @@ function SearchContent() {
                 </li>
               ))}
             </Section>
+          )}
+
+          {/* A half-answer says so, rather than passing itself off as the
+              whole result set. */}
+          {(state.partial.music || state.partial.people) && (
+            <p role="alert" className="text-tertiary mt-4 text-[13px]">
+              {state.partial.music
+                ? "Music results couldn\u2019t be loaded."
+                : "People results couldn\u2019t be loaded."}
+            </p>
           )}
         </>
       )}

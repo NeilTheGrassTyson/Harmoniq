@@ -79,6 +79,52 @@ describe("SearchPage", () => {
     expect(screen.getByText("Search for music or people")).toBeTruthy();
   });
 
+  it("reports a failed search instead of calling it empty", async () => {
+    mockQ = "beatles";
+    mockSearchCatalog.mockRejectedValue(new Error("Failed to fetch"));
+    mockSearchUsers.mockRejectedValue(new Error("Failed to fetch"));
+
+    render(<SearchPage />);
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    expect(screen.getByText(/couldn.t reach the search service/i)).toBeTruthy();
+    expect(screen.queryByText(/no results for/i)).toBeNull();
+  });
+
+  it("reports an error when one half fails and the other returns nothing", async () => {
+    mockQ = "beatles";
+    mockSearchCatalog.mockRejectedValue(new Error("503"));
+    mockSearchUsers.mockResolvedValue([]);
+
+    render(<SearchPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/couldn.t reach the search service/i)).toBeTruthy()
+    );
+    expect(screen.queryByText(/no results for/i)).toBeNull();
+  });
+
+  it("says so when only half the search answered but there are results", async () => {
+    mockQ = "beatles";
+    mockSearchCatalog.mockRejectedValue(new Error("503"));
+    mockSearchUsers.mockResolvedValue([
+      { username: "beatles_fan", display_name: "Beatles Fan", avatar_url: null },
+    ]);
+
+    render(<SearchPage />);
+
+    await waitFor(() => expect(screen.getByText("Beatles Fan")).toBeTruthy());
+    expect(screen.getByText(/music results couldn.t be loaded/i)).toBeTruthy();
+  });
+
+  it("still says no results when both halves answered with nothing", async () => {
+    mockQ = "zzzznotathing";
+
+    render(<SearchPage />);
+
+    await waitFor(() => expect(screen.getByText(/no results for/i)).toBeTruthy());
+  });
+
   it("renders People results when q >= 2 chars and users are returned", async () => {
     mockQ = "beatles";
     mockSearchUsers.mockResolvedValue([

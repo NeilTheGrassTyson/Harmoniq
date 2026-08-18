@@ -39,7 +39,13 @@ type PanelState =
   | { kind: "loading" }
   | { kind: "error" }
   | { kind: "empty"; query: string }
-  | { kind: "results"; people: UserSearchResult[]; music: SearchResponse | null };
+  | {
+      kind: "results";
+      people: UserSearchResult[];
+      music: SearchResponse | null;
+      // Which half failed, when the other still had something to show.
+      partial: { music: boolean; people: boolean };
+    };
 
 // Shared row/section classes. Hover lives in CSS rather than onMouseEnter /
 // onMouseLeave handlers so it also covers touch and keyboard focus.
@@ -132,9 +138,12 @@ export default function SearchBar() {
 
       const music = musicSettled.status === "fulfilled" ? musicSettled.value : null;
       const people = usersSettled.status === "fulfilled" ? usersSettled.value : [];
-      const bothFailed = musicSettled.status === "rejected" && usersSettled.status === "rejected";
+      const failed = {
+        music: musicSettled.status === "rejected",
+        people: usersSettled.status === "rejected",
+      };
 
-      if (bothFailed) {
+      if (failed.music && failed.people) {
         setPanel({ kind: "error" });
         return;
       }
@@ -144,11 +153,16 @@ export default function SearchBar() {
         (music.artists.length > 0 || music.albums.length > 0 || music.tracks.length > 0);
 
       if (people.length === 0 && !hasMusic) {
-        setPanel({ kind: "empty", query: trimmed });
+        // Nothing to show. If either half never answered, this is a failed
+        // search, not an empty one — saying "no results" would send the user
+        // hunting for a better query against a service that isn't answering.
+        setPanel(
+          failed.music || failed.people ? { kind: "error" } : { kind: "empty", query: trimmed }
+        );
         return;
       }
 
-      setPanel({ kind: "results", people, music });
+      setPanel({ kind: "results", people, music, partial: failed });
     }, 300);
 
     return () => {
@@ -303,6 +317,14 @@ export default function SearchBar() {
                     </section>
                   )}
                 </>
+              )}
+
+              {(derivedPanel.partial.music || derivedPanel.partial.people) && (
+                <p className={`${PANEL_MSG} ${SECTION_DIVIDER}`}>
+                  {derivedPanel.partial.music
+                    ? "Music results couldn\u2019t be loaded."
+                    : "People results couldn\u2019t be loaded."}
+                </p>
               )}
             </div>
           )}

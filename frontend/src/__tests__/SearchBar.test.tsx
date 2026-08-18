@@ -135,6 +135,38 @@ describe("SearchBar — People section", () => {
     expect(screen.getByText("The Beatles")).toBeTruthy();
   });
 
+  it("reports an error when one half fails and the other returns nothing", async () => {
+    mockSearchCatalog.mockRejectedValue(new Error("503"));
+    mockSearchUsers.mockResolvedValue([]);
+
+    render(<SearchBar />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "beatles" } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.getByText(/couldn.t reach the search service/i)).toBeTruthy();
+    expect(screen.queryByText(/no results for/i)).toBeNull();
+  });
+
+  it("flags the half that failed when the other half has results", async () => {
+    mockSearchCatalog.mockRejectedValue(new Error("503"));
+    mockSearchUsers.mockResolvedValue([
+      { username: "beatles_fan", display_name: "Beatles Fan", avatar_url: null },
+    ]);
+
+    render(<SearchBar />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "beatles" } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(screen.getByText("Beatles Fan")).toBeTruthy();
+    expect(screen.getByText(/music results couldn.t be loaded/i)).toBeTruthy();
+  });
+
   it("aborts the in-flight request when a new keystroke supersedes it", async () => {
     mockSearchCatalog.mockClear();
     render(<SearchBar />);
