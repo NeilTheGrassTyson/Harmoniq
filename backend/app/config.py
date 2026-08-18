@@ -66,7 +66,17 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_allowed_origins.split(",")]
+        # Trailing slashes are stripped and blank entries dropped: an Origin
+        # header is a bare scheme://host[:port], so "https://app.example.com/"
+        # never matches one and CORSMiddleware rejects every browser request
+        # with no error the operator can see (docs/deployment.md records this
+        # costing a live debugging session). Normalising here means the env
+        # var can be written either way.
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.cors_allowed_origins.split(",")
+            if origin.strip().rstrip("/")
+        ]
 
 
 settings = Settings()  # type: ignore[call-arg]

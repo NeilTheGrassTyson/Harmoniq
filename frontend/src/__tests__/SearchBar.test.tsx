@@ -167,6 +167,28 @@ describe("SearchBar — People section", () => {
     expect(screen.getByText(/music results couldn.t be loaded/i)).toBeTruthy();
   });
 
+  it("closes the panel on an outside tap, not just an outside click", async () => {
+    mockSearchUsers.mockResolvedValue([
+      { username: "beatles_fan", display_name: "Beatles Fan", avatar_url: null },
+    ]);
+
+    render(<SearchBar />);
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "beatles" } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.getByText("Beatles Fan")).toBeTruthy();
+
+    // touchstart only — iOS Safari does not synthesise mousedown for a tap on
+    // non-clickable page background, so mousedown alone leaves this open.
+    await act(async () => {
+      fireEvent.touchStart(document.body);
+    });
+
+    expect(screen.queryByText("Beatles Fan")).toBeNull();
+  });
+
   it("aborts the in-flight request when a new keystroke supersedes it", async () => {
     mockSearchCatalog.mockClear();
     render(<SearchBar />);

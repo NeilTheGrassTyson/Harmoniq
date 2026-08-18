@@ -90,14 +90,22 @@ export default function SearchBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Dismiss on outside interaction. touchstart is listened for alongside
+  // mousedown because iOS Safari only synthesises mouse events for taps on
+  // elements it considers clickable — a tap on plain page background never
+  // fires mousedown there, leaving the panel stuck open over the content.
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handler = (e: Event) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setPanel({ kind: "idle" });
       }
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, []);
 
   useEffect(() => {
