@@ -434,6 +434,13 @@ The Clerk JWT template is not configured. See step 5 (Clerk configuration →
 JWT template). After configuring it, sign out and sign back in so a new token
 is issued.
 
+**Continue stays greyed out on `/onboarding`**  
+Fixed in ADR 0010 — the submit gate no longer depends on react-hook-form's
+async validity state. If it recurs, check the form for a
+`setValue(..., { shouldValidate: true })` racing the user's own keystrokes,
+and confirm the display name field is non-empty (email/password sign-ups
+arrive from Clerk with no first or last name to seed it).
+
 **Avatar upload returns 503**  
 R2 credentials are not configured. See step 6. Avatar upload is optional for
 local development.

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
@@ -25,7 +25,10 @@ type AvailabilityState =
   | { kind: "checking" }
   | { kind: "available" }
   | { kind: "taken" }
-  | { kind: "invalid" };
+  | { kind: "invalid" }
+  // The check itself failed (offline, rate limited, backend down). Distinct
+  // from "taken": the server never gave an answer, so this must not block.
+  | { kind: "error" };
 
 export default function OnboardingPage() {
   const { getToken } = useAuth();
@@ -38,8 +41,12 @@ export default function OnboardingPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Derive the default display name from the Clerk profile once it loads.
+  // Falls back to the Clerk username, since email/password sign-ups arrive
+  // with no first or last name at all.
   const clerkName =
-    isLoaded && user ? [user.firstName, user.lastName].filter(Boolean).join(" ") : "";
+    isLoaded && user
+      ? (([user.firstName, user.lastName].filter(Boolean).join(" ") || user.username) ?? "")
+      : "";
 
   const form = useForm<OnboardingValues>({
     resolver: zodResolver(onboardingSchema),
@@ -48,10 +55,16 @@ export default function OnboardingPage() {
   });
 
   // Seed the display name from Clerk unless the user already edited it.
+  // Deliberately without shouldValidate: a validation kicked off here races
+  // the ones the user's own keystrokes start, and the loser of that race
+  // used to pin formState.isValid to false for the rest of the session —
+  // leaving Continue greyed out with nothing on screen explaining why. The
+  // submit gate below reads the values directly instead, so nothing depends
+  // on RHF's async validity bookkeeping.
   const nameEditedRef = useRef(false);
   useEffect(() => {
     if (!nameEditedRef.current && clerkName && !form.getValues("displayName")) {
-      form.setValue("displayName", clerkName, { shouldValidate: true });
+      form.setValue("displayName", clerkName);
     }
   }, [clerkName, form]);
 
@@ -61,10 +74,14 @@ export default function OnboardingPage() {
 
   // Debounced availability check — server-side truth, outside the zod schema.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The username the newest check was started for. A slower earlier request
+  // must not overwrite the result for what's in the field now.
+  const inFlightRef = useRef<string | null>(null);
 
   const handleUsernameChange = useCallback((value: string) => {
     setSubmitError(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    inFlightRef.current = value;
 
     if (!value) {
       setAvailability({ kind: "idle" });
@@ -79,11 +96,21 @@ export default function OnboardingPage() {
     debounceRef.current = setTimeout(async () => {
       try {
         const result = await checkUsernameAvailable(value);
+        if (inFlightRef.current !== value) return;
         setAvailability(result.available ? { kind: "available" } : { kind: "taken" });
       } catch {
-        setAvailability({ kind: "idle" });
+        if (inFlightRef.current !== value) return;
+        setAvailability({ kind: "error" });
       }
     }, 300);
+  }, []);
+
+  // Clear the debounce on unmount so a late callback can't set state on a
+  // component that's already gone.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   const onSubmit = async (values: OnboardingValues) => {
@@ -102,10 +129,29 @@ export default function OnboardingPage() {
     }
   };
 
-  // RHF's isSubmitting doubles as the double-submit guard: handleSubmit
-  // won't re-enter while the previous submission promise is pending.
-  const canSubmit =
-    form.formState.isValid && availability.kind === "available" && !form.formState.isSubmitting;
+  // The submit gate is computed from the current values, not from
+  // formState.isValid — see the seeding comment above. handleSubmit still
+  // runs the resolver before onSubmit, so this only ever opens the button;
+  // it can't let an invalid value through.
+  const values = useWatch({ control: form.control });
+  const parsed = onboardingSchema.safeParse(values);
+  const isSubmitting = form.formState.isSubmitting;
+  // "error" counts as passable: the server is the authority on uniqueness and
+  // answers again on submit, so a check we couldn't complete is not a wall.
+  const usernameSettled = availability.kind === "available" || availability.kind === "error";
+  const canSubmit = parsed.success && usernameSettled && !isSubmitting;
+
+  // Named so the button is never inert without a reason on screen.
+  const blockedReason = (() => {
+    if (canSubmit || isSubmitting) return null;
+    if (!values?.username) return "Choose a username to continue.";
+    if (availability.kind === "invalid" || availability.kind === "taken") return null;
+    if (availability.kind === "checking") return "Checking that username…";
+    if (!onboardingSchema.shape.displayName.safeParse(values?.displayName ?? "").success) {
+      return "Add a display name — it's how you appear on Harmoniq.";
+    }
+    return null;
+  })();
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-16">
@@ -151,6 +197,12 @@ export default function OnboardingPage() {
                       That username is taken.
                     </span>
                   )}
+                  {availability.kind === "error" && (
+                    <span className="text-tertiary">
+                      Couldn&apos;t check that username. You can continue — we&apos;ll confirm it
+                      when you finish.
+                    </span>
+                  )}
                   {availability.kind === "available" && (
                     <span className="text-accent">Available.</span>
                   )}
@@ -184,6 +236,7 @@ export default function OnboardingPage() {
                     }}
                     placeholder="Your name"
                     maxLength={50}
+                    required
                     className="h-auto px-3 py-2 text-sm"
                   />
                 </FormControl>
@@ -197,13 +250,18 @@ export default function OnboardingPage() {
             </p>
           )}
 
-          <Button
-            type="submit"
-            disabled={!canSubmit}
-            className="h-auto w-full px-4 py-2.5 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {form.formState.isSubmitting ? "Creating account…" : "Continue"}
-          </Button>
+          <div className="space-y-2">
+            <Button
+              type="submit"
+              disabled={!canSubmit}
+              className="h-auto w-full px-4 py-2.5 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isSubmitting ? "Creating account…" : "Continue"}
+            </Button>
+            <p aria-live="polite" className="text-tertiary text-center text-xs">
+              {blockedReason}
+            </p>
+          </div>
         </form>
       </Form>
     </main>

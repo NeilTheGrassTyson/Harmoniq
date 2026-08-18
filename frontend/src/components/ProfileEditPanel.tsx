@@ -27,7 +27,10 @@ type AvailabilityState =
   | { kind: "available" }
   | { kind: "taken" }
   | { kind: "invalid" }
-  | { kind: "unchanged" };
+  | { kind: "unchanged" }
+  // The check itself failed. Distinct from "taken" — the server never
+  // answered, so it must not be reported as an unavailable username.
+  | { kind: "error" };
 
 interface ProfileEditPanelProps {
   initial: {
@@ -111,7 +114,7 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
           const result = await checkUsernameAvailable(value);
           setAvailability(result.available ? { kind: "available" } : { kind: "taken" });
         } catch {
-          setAvailability({ kind: "idle" });
+          setAvailability({ kind: "error" });
         }
       }, 300);
     },
@@ -275,6 +278,9 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
           )}
           {availability.kind === "available" && <span className="text-accent">Available.</span>}
           {availability.kind === "checking" && <span className="text-tertiary">Checking…</span>}
+          {availability.kind === "error" && (
+            <span className="text-tertiary">Couldn&apos;t check that username. Try again.</span>
+          )}
         </div>
       </div>
 

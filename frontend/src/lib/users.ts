@@ -58,13 +58,21 @@ export async function createUser(
   });
 }
 
-/** Check whether a username is available. No auth required — rate-limited by IP. */
+/**
+ * Check whether a username is available. No auth required — rate-limited by IP.
+ *
+ * Throws when the server didn't answer (offline, 429, 5xx). A failed check is
+ * not the same as an unavailable username, and callers must not present it as
+ * one — the availability endpoint is advisory, and the write path re-checks.
+ */
 export async function checkUsernameAvailable(username: string): Promise<UsernameCheckResponse> {
   const res = await fetch(
     `${API_BASE}/api/v1/users/check-username?q=${encodeURIComponent(username)}`,
     { cache: "no-store" }
   );
-  if (!res.ok) return { available: false };
+  if (!res.ok) {
+    throw Object.assign(new Error(res.statusText), { status: res.status });
+  }
   return res.json() as Promise<UsernameCheckResponse>;
 }
 
