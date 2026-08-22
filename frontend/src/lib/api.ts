@@ -1,9 +1,8 @@
+import { API_BASE } from "@/lib/apiBase";
 /**
  * Thin wrapper around fetch for Harmoniq API calls.
  * Attaches the Clerk session token to every request.
  */
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 interface RequestOptions extends RequestInit {
   token?: string;

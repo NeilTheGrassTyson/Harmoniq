@@ -5,8 +5,7 @@ import type {
   MelodySentItem,
   MelodySentResponse,
 } from "@/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { API_BASE } from "@/lib/apiBase";
 
 async function melodiesGet<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API_BASE}/api/v1/melodies${path}`, {

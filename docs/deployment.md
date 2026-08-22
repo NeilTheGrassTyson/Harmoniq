@@ -25,6 +25,9 @@ Harmoniq uses a split deployment:
    - `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` = `/`
    - `NEXT_PUBLIC_API_URL` = your Railway backend URL
 
+   `NEXT_PUBLIC_*` values are **inlined at build time**. Changing one and
+   redeploying the existing build output does nothing — trigger a new build.
+
 ### Ongoing deployment
 
 Push to `main` → Vercel deploys automatically.  
@@ -33,6 +36,15 @@ Push to any other branch → Vercel creates a preview URL.
 ### Custom domain
 
 Settings → Domains → Add your domain. Vercel handles HTTPS automatically.
+
+**Then add the new origin to `CORS_ALLOWED_ORIGINS` on Railway and redeploy
+the backend.** A custom domain is a new origin as far as the browser is
+concerned, and the backend will reject every request from it until it is
+listed. Nothing about the site looks broken from the server — pages render,
+because server-side rendering bypasses CORS entirely — while every
+interactive feature in the browser fails silently. Add the apex and `www`
+separately (`https://example.com` and `https://www.example.com` are distinct
+origins) unless one redirects to the other before any page loads.
 
 ---
 
@@ -109,7 +121,9 @@ Before deploying to production, confirm:
 
 - [ ] `DATABASE_URL` uses the Neon **production** branch connection string
 - [ ] `CLERK_JWKS_URL` matches the production Clerk application
-- [ ] `CORS_ALLOWED_ORIGINS` lists only the Vercel production domain
+- [ ] `CORS_ALLOWED_ORIGINS` lists every origin the app is actually served
+      from — the custom domain (apex **and** `www`) as well as the
+      `.vercel.app` domain, comma-separated, no trailing slashes
 - [ ] `APP_ENV=production` (disables `/docs` and `/redoc` endpoints)
 - [ ] `DEBUG=false`
 - [ ] No `.env` files committed to git
@@ -147,7 +161,26 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   match (`https://your-app.vercel.app/` ≠ `https://your-app.vercel.app`
   as far as `CORSMiddleware` is concerned) — the frontend UI feature-gates
   on it, so this shows up as buttons staying disabled/greyed out rather
-  than a visible network error.
+  than a visible network error. Normalised away in `config.py` since
+  2026-08-18, but the shape of the failure is the one to remember.
+- **An origin missing from `CORS_ALLOWED_ORIGINS` entirely** (2026-08-22).
+  Pages render, but every call the browser makes fails: search returns
+  nothing, and onboarding shows "Couldn't check that username" followed by
+  a bare "Load failed" on Continue. Server-rendered pages and the `proxy.ts`
+  gate keep working because server-side requests are not subject to CORS,
+  which makes it read as an application bug. Cause: the `harmoniq.live`
+  custom domain was added to Vercel but never added to the Railway variable.
+  Confirm from any terminal — the header is the whole answer:
+
+  ```bash
+  curl -i -H "Origin: https://harmoniq.live" \
+    "https://harmoniq-production-ac1f.up.railway.app/api/v1/health"
+  ```
+
+  No `access-control-allow-origin` in the response → the origin is not
+  allowed. The backend now logs a warning naming any rejected origin (see
+  `app/core/cors.py`), so check Railway's Deploy Logs first; it prints the
+  exact string to paste into the variable.
 - **`CLERK_JWKS_URL` left as the literal placeholder value** (i.e. never
   swapped in your real Clerk instance subdomain) causes account creation
   to fail as an opaque `TypeError: Failed to fetch` in the browser, with

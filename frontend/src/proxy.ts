@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { API_BASE } from "@/lib/apiBase";
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -18,8 +19,6 @@ const isPublicRoute = createRouteMatcher([
   // Profile pages — publicly readable
   "/u/(.*)",
 ]);
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 // True/false when the backend answered definitively, null when it couldn't
 // (no token, network failure, 5xx, rate limit) so the caller can fail open.

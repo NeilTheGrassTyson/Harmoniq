@@ -6,8 +6,7 @@ import type {
   UsernameCheckResponse,
   UserSearchResult,
 } from "@/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { API_BASE, REQUEST_TIMEOUT_MS } from "@/lib/apiBase";
 
 async function authedGet<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -29,6 +28,9 @@ async function authedMutation<T>(
   token: string,
   body?: unknown
 ): Promise<T> {
+  // Bounded: a cold or hung backend would otherwise leave the caller's
+  // submitting state stuck on forever with nothing on screen changing. The
+  // abort surfaces as an error with no `status`, i.e. a network failure.
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
@@ -36,6 +38,7 @@ async function authedMutation<T>(
       "Content-Type": "application/json",
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
@@ -68,7 +71,7 @@ export async function createUser(
 export async function checkUsernameAvailable(username: string): Promise<UsernameCheckResponse> {
   const res = await fetch(
     `${API_BASE}/api/v1/users/check-username?q=${encodeURIComponent(username)}`,
-    { cache: "no-store" }
+    { cache: "no-store", signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }
   );
   if (!res.ok) {
     throw Object.assign(new Error(res.statusText), { status: res.status });

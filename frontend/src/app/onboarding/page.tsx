@@ -9,6 +9,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { friendlyError } from "@/lib/apiBase";
 import { checkUsernameAvailable, createUser } from "@/lib/users";
 
 const USERNAME_RE = /^[a-zA-Z0-9_-]{3,30}$/;
@@ -124,8 +125,11 @@ export default function OnboardingPage() {
       await user?.reload();
       router.replace(`/u/${profile.username}`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
-      setSubmitError(message);
+      // Never the raw message: a fetch that never reached the backend throws
+      // "Load failed" in Safari and "Failed to fetch" in Chrome, and putting
+      // either in front of someone trying to sign up tells them nothing.
+      // Server-sent detail messages ("That username is taken.") pass through.
+      setSubmitError(friendlyError(err));
     }
   };
 

@@ -191,7 +191,11 @@ describe("OnboardingPage", () => {
   });
 
   it("surfaces a backend rejection instead of failing silently", async () => {
-    mockCreateUser.mockRejectedValue(new Error("That username is taken."));
+    // Shaped like a real rejection from lib/users: an HTTP error carries the
+    // status alongside the server's own user-facing detail message.
+    mockCreateUser.mockRejectedValue(
+      Object.assign(new Error("That username is taken."), { status: 409 })
+    );
     renderPage();
     await resolveClerk({ firstName: "Dad", lastName: "Jordan" });
     await typeUsername("dadrocks");
@@ -204,6 +208,31 @@ describe("OnboardingPage", () => {
     await waitFor(() =>
       expect(screen.getAllByText("That username is taken.").length).toBeGreaterThan(0)
     );
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  // Regression: harmoniq.live was rejecting every browser call, and the raw
+  // fetch rejection went straight to the screen. A friend trying to sign up
+  // saw "Load failed" under the form and had no idea what it meant.
+  it("shows a readable message when the backend can't be reached", async () => {
+    // What Safari throws when a fetch never completes — note there is no
+    // `status`, because no response ever arrived.
+    mockCreateUser.mockRejectedValue(new TypeError("Load failed"));
+    renderPage();
+    await resolveClerk({ firstName: "Cooper", lastName: "Gallinson" });
+    await typeUsername("cgallins");
+    await waitFor(() => expect(continueButton().disabled).toBe(false));
+
+    await act(async () => {
+      fireEvent.click(continueButton());
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Couldn't reach Harmoniq. Check your connection and try again.")
+      ).toBeTruthy()
+    );
+    expect(screen.queryByText("Load failed")).toBeNull();
     expect(mockReplace).not.toHaveBeenCalled();
   });
 });

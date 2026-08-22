@@ -8,6 +8,7 @@ import VisibilitySelect from "@/components/VisibilitySelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { isNetworkError } from "@/lib/apiBase";
 import { checkUsernameAvailable, getOwnProfile, updateProfile, uploadAvatar } from "@/lib/users";
 import type { OwnProfileResponse, VisibilityScope } from "@/types";
 
@@ -178,8 +179,13 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
       });
       onSaved(updated);
     } catch (err: unknown) {
+      // A request that never reached the backend throws a raw "Load failed"
+      // (Safari) or "Failed to fetch" (Chrome); neither belongs on screen.
       setSaveError(
-        err instanceof Error ? err.message : "Something went wrong. Your changes weren't saved."
+        isNetworkError(err)
+          ? "Couldn't reach Harmoniq. Your changes weren't saved — check your connection and try again."
+          : (err instanceof Error && err.message) ||
+              "Something went wrong. Your changes weren't saved."
       );
     } finally {
       setSaving(false);
