@@ -39,6 +39,15 @@ export function isNetworkError(err: unknown): boolean {
   return !(typeof err === "object" && err !== null && "status" in err);
 }
 
+/** The HTTP status an error came from, or undefined if it never got a response. */
+export function errorStatus(err: unknown): number | undefined {
+  if (typeof err === "object" && err !== null && "status" in err) {
+    const { status } = err as { status: unknown };
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
+}
+
 /**
  * A message safe to show a user.
  *
@@ -46,13 +55,17 @@ export function isNetworkError(err: unknown): boolean {
  * Chrome's "Failed to fetch", neither of which means anything to the person
  * reading it. Server-sent `detail` messages are already written for users
  * ("That username is taken.") and pass through unchanged.
+ *
+ * `fallback` is the caller's own copy for an error carrying no usable message
+ * — it should say what didn't happen ("Couldn't delete. Try again."), which a
+ * generic string can't.
  */
-export function friendlyError(err: unknown): string {
+export function friendlyError(err: unknown, fallback?: string): string {
   if (isNetworkError(err)) {
     return "Couldn't reach Harmoniq. Check your connection and try again.";
   }
   const message = err instanceof Error ? err.message : "";
-  return message || "Something went wrong. Please try again.";
+  return message || fallback || "Something went wrong. Please try again.";
 }
 
 /** How long to wait for the backend before treating a request as failed. */

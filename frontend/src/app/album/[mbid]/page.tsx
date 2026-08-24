@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import CoverArt from "@/components/CoverArt";
 import RatingSection from "@/components/RatingSection";
 import { getAlbum } from "@/lib/catalog";
+import { errorStatus } from "@/lib/apiBase";
 
 function formatDuration(ms: number | null): string {
   if (ms === null) return "";
@@ -23,7 +24,7 @@ export default async function AlbumPage(props: { params: Promise<{ mbid: string 
   try {
     album = await getAlbum(mbid, token ?? undefined);
   } catch (err: unknown) {
-    if ((err as { status?: number }).status === 404) notFound();
+    if (errorStatus(err) === 404) notFound();
     throw err;
   }
 

@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { disconnectSpotify, getSpotifyConnection, getSpotifyConnectUrl } from "@/lib/spotify";
 import type { SpotifyConnectionStatus } from "@/types";
+import { friendlyError } from "@/lib/apiBase";
 
 interface ConnectedAccountsProps {
   /** True immediately after the Spotify OAuth callback redirects back here. */
@@ -44,9 +45,7 @@ export default function ConnectedAccounts({ justConnected = false }: ConnectedAc
       const { url } = await getSpotifyConnectUrl(token);
       window.location.assign(url);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Spotify integration isn't available right now."
-      );
+      setError(friendlyError(err, "Spotify integration isn't available right now."));
       setBusy(false);
     }
   };

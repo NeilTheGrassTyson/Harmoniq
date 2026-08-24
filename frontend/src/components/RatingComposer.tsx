@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import VisibilitySelect from "@/components/VisibilitySelect";
 import { submitRating } from "@/lib/ratings";
 import type { RatingRead, VisibilityScope } from "@/types";
+import { friendlyError } from "@/lib/apiBase";
 
 const REVIEW_MIN = 15;
 const REVIEW_MAX = 2000;
@@ -89,10 +90,7 @@ export default function RatingComposer({
       onSubmitted?.(rating);
     } catch (err: unknown) {
       form.setError("root", {
-        message:
-          err instanceof Error
-            ? err.message
-            : "Something went wrong. Your review wasn't saved. Try again.",
+        message: friendlyError(err, "Something went wrong. Your review wasn't saved. Try again."),
       });
     }
   };

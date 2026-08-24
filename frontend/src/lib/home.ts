@@ -10,7 +10,9 @@ export async function getHome(token: string): Promise<HomeResponse> {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error(`Home request failed: ${response.status}`);
+    throw Object.assign(new Error(`Home request failed: ${response.status}`), {
+      status: response.status,
+    });
   }
   return response.json() as Promise<HomeResponse>;
 }

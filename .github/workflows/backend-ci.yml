@@ -62,7 +62,6 @@ jobs:
       CLERK_JWKS_URL: https://example.clerk.accounts.dev/.well-known/jwks.json
       MUSICBRAINZ_USER_AGENT: "Harmoniq/0.1.0 (ci@harmoniq.test)"
       APP_ENV: test
-      DEBUG: "false"
       # Allow Testcontainers to detect the Docker host automatically.
       TESTCONTAINERS_RYUK_DISABLED: "false"
 

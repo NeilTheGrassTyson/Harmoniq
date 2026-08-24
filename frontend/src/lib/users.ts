@@ -118,7 +118,9 @@ export async function searchUsers(
     cache: "no-store",
     signal,
   });
-  if (!res.ok) throw new Error("User search failed");
+  if (!res.ok) {
+    throw Object.assign(new Error("User search failed"), { status: res.status });
+  }
   return res.json() as Promise<UserSearchResult[]>;
 }
 

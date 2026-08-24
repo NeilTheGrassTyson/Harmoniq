@@ -5,6 +5,7 @@ import { useState } from "react";
 import MelodyCard from "@/components/MelodyCard";
 import { sendMelody } from "@/lib/melodies";
 import type { TrackSummary } from "@/types";
+import { friendlyError } from "@/lib/apiBase";
 
 interface SendMelodyPanelProps {
   track: Omit<TrackSummary, "id">;
@@ -38,7 +39,7 @@ export default function SendMelodyPanel({ track }: SendMelodyPanelProps) {
       setSentTo(item.recipient.username);
       setRecipient("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setError(friendlyError(err, "Something went wrong. Try again."));
     } finally {
       setSending(false);
     }

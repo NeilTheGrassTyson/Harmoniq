@@ -4,6 +4,7 @@ import AppShell from "@/components/AppShell";
 import CoverArt from "@/components/CoverArt";
 import { getArtist } from "@/lib/catalog";
 import type { AlbumResult } from "@/types";
+import { errorStatus } from "@/lib/apiBase";
 
 // Discography sections, in display order. The backend only returns these
 // three types (live/compilation/etc. are filtered out at the source).
@@ -45,7 +46,7 @@ export default async function ArtistPage(props: { params: Promise<{ mbid: string
   try {
     artist = await getArtist(mbid);
   } catch (err: unknown) {
-    const status = (err as { status?: number }).status;
+    const status = errorStatus(err);
     if (status === 404) notFound();
     throw err;
   }

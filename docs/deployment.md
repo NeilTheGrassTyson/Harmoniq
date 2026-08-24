@@ -21,9 +21,12 @@ Harmoniq uses a split deployment:
    - `CLERK_SECRET_KEY`
    - `NEXT_PUBLIC_CLERK_SIGN_IN_URL` = `/sign-in`
    - `NEXT_PUBLIC_CLERK_SIGN_UP_URL` = `/sign-up`
-   - `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` = `/`
-   - `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL` = `/`
    - `NEXT_PUBLIC_API_URL` = your Railway backend URL
+
+   Do **not** set `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL` or
+   `..._AFTER_SIGN_UP_URL`. `@clerk/nextjs` 7 ignores both — they were replaced
+   by `..._FALLBACK_REDIRECT_URL` / `..._FORCE_REDIRECT_URL`, and the default
+   (`/`) is what we want anyway. Delete them from the Vercel project if present.
 
    `NEXT_PUBLIC_*` values are **inlined at build time**. Changing one and
    redeploying the existing build output does nothing — trigger a new build.
@@ -59,10 +62,25 @@ origins) unless one redirects to the other before any page loads.
 4. In the service's Variables tab, add:
    - `DATABASE_URL` (from Neon — use the pooled connection string)
    - `CLERK_JWKS_URL`
-   - `CORS_ALLOWED_ORIGINS` = your Vercel production URL (no trailing slash)
+   - `CORS_ALLOWED_ORIGINS` = every origin the frontend is served from, no
+     trailing slashes — currently
+     `https://harmoniq.live,https://www.harmoniq.live`
    - `MUSICBRAINZ_USER_AGENT`
-   - `APP_ENV` = `production`
-   - `DEBUG` = `false`
+   - `APP_ENV` = `production` (must be exactly this — the value is validated,
+     and it is what disables `/docs` and `/redoc`)
+   - `CLERK_SECRET_KEY` — without it the `onboarded` flag never syncs back to
+     Clerk and users are re-gated to `/onboarding`
+   - `CLERK_WEBHOOK_SECRET` — without it every inbound Clerk webhook fails
+   - `TOKEN_ENCRYPTION_KEY` — Fernet key; see the troubleshooting note below
+   - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+     `R2_BUCKET_NAME`, `R2_PUBLIC_URL` — without these avatar upload fails
+   - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` —
+     without these account linking is unavailable
+
+   Everything from `CLERK_SECRET_KEY` down fails *silently* at runtime rather
+   than loudly at startup: the service boots fine and the feature is simply
+   dead. There is no `DEBUG` variable — verbose logging is derived from
+   `APP_ENV`.
 5. Railway reads `railway.json` and runs `alembic upgrade head` as a release
    command before traffic shifts to each new revision.
 
@@ -125,7 +143,9 @@ Before deploying to production, confirm:
       from — the custom domain (apex **and** `www`) as well as the
       `.vercel.app` domain, comma-separated, no trailing slashes
 - [ ] `APP_ENV=production` (disables `/docs` and `/redoc` endpoints)
-- [ ] `DEBUG=false`
+- [ ] The four silently-optional groups are set if you want those features:
+      `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET`, `R2_*`, `SPOTIFY_*` +
+      `TOKEN_ENCRYPTION_KEY`
 - [ ] No `.env` files committed to git
 
 ---
@@ -158,7 +178,7 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   Check Railway's Deployments tab and remove any crashed ones; confirm
   you're down to exactly one active replica.
 - **Trailing slash in `CORS_ALLOWED_ORIGINS`** silently breaks the origin
-  match (`https://your-app.vercel.app/` ≠ `https://your-app.vercel.app`
+  match (`https://harmoniq.live/` ≠ `https://harmoniq.live`
   as far as `CORSMiddleware` is concerned) — the frontend UI feature-gates
   on it, so this shows up as buttons staying disabled/greyed out rather
   than a visible network error. Normalised away in `config.py` since

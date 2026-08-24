@@ -9,10 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { isNetworkError } from "@/lib/apiBase";
-import { checkUsernameAvailable, getOwnProfile, updateProfile, uploadAvatar } from "@/lib/users";
+import { getOwnProfile, updateProfile, uploadAvatar } from "@/lib/users";
+import { USERNAME_RE, useUsernameAvailability } from "@/lib/useUsernameAvailability";
 import type { OwnProfileResponse, VisibilityScope } from "@/types";
-
-const USERNAME_RE = /^[a-zA-Z0-9_-]{3,30}$/;
 
 // One schema for the editable text fields — the save gate and the input
 // constraints read from the same rules instead of scattered checks.
@@ -21,17 +20,6 @@ const profileSchema = z.object({
   username: z.string().regex(USERNAME_RE),
   bio: z.string().max(280),
 });
-
-type AvailabilityState =
-  | { kind: "idle" }
-  | { kind: "checking" }
-  | { kind: "available" }
-  | { kind: "taken" }
-  | { kind: "invalid" }
-  | { kind: "unchanged" }
-  // The check itself failed. Distinct from "taken" — the server never
-  // answered, so it must not be reported as an unavailable username.
-  | { kind: "error" };
 
 interface ProfileEditPanelProps {
   initial: {
@@ -58,7 +46,6 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
   const [visibilityRatings, setVisibilityRatings] = useState<VisibilityScope>("private");
   const [visibilityFollows, setVisibilityFollows] = useState<VisibilityScope>("public");
 
-  const [availability, setAvailability] = useState<AvailabilityState>({ kind: "idle" });
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -67,7 +54,7 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [originalUsername, setOriginalUsername] = useState(initial.username);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { availability, check: checkUsername } = useUsernameAvailability(originalUsername);
 
   // Load full profile (visibility settings + bio aren't in the page's ProfileResponse)
   useEffect(() => {
@@ -93,33 +80,9 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
     (value: string) => {
       setUsername(value);
       setSaveError(null);
-
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      if (value === originalUsername) {
-        setAvailability({ kind: "unchanged" });
-        return;
-      }
-      if (!value) {
-        setAvailability({ kind: "idle" });
-        return;
-      }
-      if (!USERNAME_RE.test(value)) {
-        setAvailability({ kind: "invalid" });
-        return;
-      }
-
-      setAvailability({ kind: "checking" });
-      debounceRef.current = setTimeout(async () => {
-        try {
-          const result = await checkUsernameAvailable(value);
-          setAvailability(result.available ? { kind: "available" } : { kind: "taken" });
-        } catch {
-          setAvailability({ kind: "error" });
-        }
-      }, 300);
+      checkUsername(value);
     },
-    [originalUsername]
+    [checkUsername]
   );
 
   const handleAvatarClick = () => fileInputRef.current?.click();
