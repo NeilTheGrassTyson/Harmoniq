@@ -1,6 +1,5 @@
 import type { HomeResponse } from "@/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { API_BASE } from "@/lib/apiBase";
 
 export async function getHome(token: string): Promise<HomeResponse> {
   const response = await fetch(`${API_BASE}/api/v1/home`, {
@@ -11,7 +10,9 @@ export async function getHome(token: string): Promise<HomeResponse> {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error(`Home request failed: ${response.status}`);
+    throw Object.assign(new Error(`Home request failed: ${response.status}`), {
+      status: response.status,
+    });
   }
   return response.json() as Promise<HomeResponse>;
 }

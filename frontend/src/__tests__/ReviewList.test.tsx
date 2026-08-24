@@ -80,7 +80,11 @@ describe("ReviewList — delete", () => {
   });
 
   it("failed delete surfaces an error and keeps the review", async () => {
-    deleteRatingMock.mockRejectedValue(new Error("Couldn't delete. Try again."));
+    // Shaped like a real rejection from lib/ratings: an HTTP error carries
+    // its status alongside the message.
+    deleteRatingMock.mockRejectedValue(
+      Object.assign(new Error("Couldn't delete. Try again."), { status: 500 })
+    );
     const onDeleted = vi.fn();
 
     render(

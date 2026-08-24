@@ -7,6 +7,7 @@ import AvatarImage from "@/components/AvatarImage";
 import VisibilitySelect from "@/components/VisibilitySelect";
 import { deleteRating, reportRating, updateRatingVisibility } from "@/lib/ratings";
 import type { RatingRead, VisibilityScope } from "@/types";
+import { friendlyError } from "@/lib/apiBase";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -41,7 +42,7 @@ function ReviewItem({ review, viewerUsername, onDeleted, onVisibilityChanged }: 
       await deleteRating(token, review.id);
       onDeleted(review.id);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Couldn't delete. Try again.");
+      setError(friendlyError(err, "Couldn't delete. Try again."));
       setDeleting(false);
     }
   }
@@ -55,7 +56,7 @@ function ReviewItem({ review, viewerUsername, onDeleted, onVisibilityChanged }: 
       await reportRating(token, review.id);
       setReported(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Couldn't submit your report. Try again.");
+      setError(friendlyError(err, "Couldn't submit your report. Try again."));
     } finally {
       setReporting(false);
     }

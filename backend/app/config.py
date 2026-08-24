@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,9 +11,11 @@ class Settings(BaseSettings):
     )
 
     # ── App ──────────────────────────────────────────────────────────────────
-    app_env: str = "development"
+    # Constrained, not a bare str: app_env gates /docs and /redoc in main.py,
+    # so a typo ("prod", "Production") would silently serve the API docs
+    # publicly. An invalid value now refuses to boot instead.
+    app_env: Literal["development", "test", "production"] = "development"
     app_name: str = "Harmoniq"
-    debug: bool = False
 
     # ── Database ─────────────────────────────────────────────────────────────
     database_url: str  # postgresql+asyncpg://user:pass@host/db
@@ -24,11 +28,8 @@ class Settings(BaseSettings):
 
     # ── CORS ─────────────────────────────────────────────────────────────────
     # Comma-separated list of allowed origins.
-    # Example: "http://localhost:3000,https://harmoniq.app"
+    # Example: "http://localhost:3000,https://harmoniq.live"
     cors_allowed_origins: str = "http://localhost:3000"
-
-    # ── Rate limiting ────────────────────────────────────────────────────────
-    rate_limit_default: str = "100/minute"
 
     # ── MusicBrainz ──────────────────────────────────────────────────────────
     musicbrainz_user_agent: str  # "AppName/Version contact@example.com"
@@ -63,6 +64,17 @@ class Settings(BaseSettings):
     # Fernet key (urlsafe base64, from Fernet.generate_key()). Encrypts
     # stored OAuth refresh tokens and signs OAuth state (documented dual use).
     token_encryption_key: str | None = None
+
+    @property
+    def debug(self) -> bool:
+        """Verbose logging and SQLAlchemy echo — local development only.
+
+        Derived rather than configured: a separate DEBUG variable was a second
+        way to say the same thing, and the two could disagree. Deliberately
+        `== "development"` and not `!= "production"`, so the test environment
+        stays quiet.
+        """
+        return self.app_env == "development"
 
     @property
     def cors_origins_list(self) -> list[str]:

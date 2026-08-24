@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import AvatarImage from "@/components/AvatarImage";
 import { getFollowers } from "@/lib/follows";
 import { getProfile } from "@/lib/users";
+import { errorStatus } from "@/lib/apiBase";
 
 export default async function FollowersPage(props: {
   params: Promise<{ username: string }>;
@@ -19,8 +20,7 @@ export default async function FollowersPage(props: {
   try {
     profile = await getProfile(username, token ?? undefined);
   } catch (err: unknown) {
-    const status =
-      err instanceof Error && (err as Error & { status?: number }).status === 404 ? 404 : 503;
+    const status = errorStatus(err) === 404 ? 404 : 503;
     if (status === 404) notFound();
     throw err;
   }
@@ -29,7 +29,7 @@ export default async function FollowersPage(props: {
     (result) => ({ data: result, listPrivate: false }),
     (err: unknown) => ({
       data: { items: [], next_cursor: null },
-      listPrivate: err instanceof Error && (err as Error & { status?: number }).status === 403,
+      listPrivate: errorStatus(err) === 403,
     })
   );
 

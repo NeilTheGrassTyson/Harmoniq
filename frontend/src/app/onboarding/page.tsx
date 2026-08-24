@@ -9,9 +9,9 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { checkUsernameAvailable, createUser } from "@/lib/users";
-
-const USERNAME_RE = /^[a-zA-Z0-9_-]{3,30}$/;
+import { friendlyError } from "@/lib/apiBase";
+import { createUser } from "@/lib/users";
+import { USERNAME_RE, useUsernameAvailability } from "@/lib/useUsernameAvailability";
 
 const onboardingSchema = z.object({
   username: z.string().regex(USERNAME_RE),
@@ -20,24 +20,12 @@ const onboardingSchema = z.object({
 
 type OnboardingValues = z.infer<typeof onboardingSchema>;
 
-type AvailabilityState =
-  | { kind: "idle" }
-  | { kind: "checking" }
-  | { kind: "available" }
-  | { kind: "taken" }
-  | { kind: "invalid" }
-  // The check itself failed (offline, rate limited, backend down). Distinct
-  // from "taken": the server never gave an answer, so this must not block.
-  | { kind: "error" };
-
 export default function OnboardingPage() {
   const { getToken } = useAuth();
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
-  const [availability, setAvailability] = useState<AvailabilityState>({
-    kind: "idle",
-  });
+  const { availability, check: checkUsername } = useUsernameAvailability();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Derive the default display name from the Clerk profile once it loads.
@@ -72,46 +60,13 @@ export default function OnboardingPage() {
   // proxy.ts gate checks the backend record and redirects them away, even
   // when the JWT's onboarded claim is stale or missing.
 
-  // Debounced availability check — server-side truth, outside the zod schema.
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The username the newest check was started for. A slower earlier request
-  // must not overwrite the result for what's in the field now.
-  const inFlightRef = useRef<string | null>(null);
-
-  const handleUsernameChange = useCallback((value: string) => {
-    setSubmitError(null);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    inFlightRef.current = value;
-
-    if (!value) {
-      setAvailability({ kind: "idle" });
-      return;
-    }
-    if (!USERNAME_RE.test(value)) {
-      setAvailability({ kind: "invalid" });
-      return;
-    }
-
-    setAvailability({ kind: "checking" });
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const result = await checkUsernameAvailable(value);
-        if (inFlightRef.current !== value) return;
-        setAvailability(result.available ? { kind: "available" } : { kind: "taken" });
-      } catch {
-        if (inFlightRef.current !== value) return;
-        setAvailability({ kind: "error" });
-      }
-    }, 300);
-  }, []);
-
-  // Clear the debounce on unmount so a late callback can't set state on a
-  // component that's already gone.
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
+  const handleUsernameChange = useCallback(
+    (value: string) => {
+      setSubmitError(null);
+      checkUsername(value);
+    },
+    [checkUsername]
+  );
 
   const onSubmit = async (values: OnboardingValues) => {
     setSubmitError(null);
@@ -124,8 +79,11 @@ export default function OnboardingPage() {
       await user?.reload();
       router.replace(`/u/${profile.username}`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
-      setSubmitError(message);
+      // Never the raw message: a fetch that never reached the backend throws
+      // "Load failed" in Safari and "Failed to fetch" in Chrome, and putting
+      // either in front of someone trying to sign up tells them nothing.
+      // Server-sent detail messages ("That username is taken.") pass through.
+      setSubmitError(friendlyError(err));
     }
   };
 

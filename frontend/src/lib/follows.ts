@@ -1,6 +1,5 @@
 import type { FollowListResponse, FollowState } from "@/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { API_BASE } from "@/lib/apiBase";
 
 async function followsMutation(method: string, path: string, token: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/v1/follows${path}`, {
