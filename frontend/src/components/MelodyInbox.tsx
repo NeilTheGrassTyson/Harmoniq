@@ -7,6 +7,7 @@ import { useState } from "react";
 import MelodyCard from "@/components/MelodyCard";
 import { getInbox, respondToMelody } from "@/lib/melodies";
 import type { MelodyInboxItem, MelodyRespondAction } from "@/types";
+import { friendlyError } from "@/lib/apiBase";
 
 interface MelodyInboxProps {
   initialItems: MelodyInboxItem[];
@@ -81,7 +82,7 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
       }
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setError(friendlyError(err, "Something went wrong. Try again."));
     },
     onSettled: () => setBusyId(null),
   });

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { dismissReport, getReports, hideRating, suspendUser } from "@/lib/moderation";
 import type { ReportQueueItem } from "@/types";
+import { friendlyError } from "@/lib/apiBase";
 
 interface ModerationQueueProps {
   initialItems: ReportQueueItem[];
@@ -51,7 +52,7 @@ export default function ModerationQueue({ initialItems, initialCursor }: Moderat
       await fn(token);
       setItems((prev) => prev.filter((r) => r.id !== reportId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+      setError(friendlyError(err, "Something went wrong. Try again."));
     } finally {
       setBusyId(null);
       setConfirmSuspendId(null);

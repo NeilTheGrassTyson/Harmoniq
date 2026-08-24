@@ -207,4 +207,41 @@ describe("ProfileEditPanel — username availability", () => {
 
     expect(screen.getByText("That username is taken.")).toBeTruthy();
   });
+
+  // Regression: this panel had its own copy of the debounce logic and was
+  // missing the stale-response guard the onboarding form got in ADR 0010.
+  // A slow answer for an earlier value could land after a newer one and
+  // overwrite it — telling the user a name is taken when it isn't.
+  it("ignores a stale availability response that resolves after a newer one", async () => {
+    let resolveFirst: (v: { available: boolean }) => void = () => {};
+    mockCheckUsernameAvailable
+      .mockImplementationOnce(
+        () => new Promise<{ available: boolean }>((resolve) => (resolveFirst = resolve))
+      )
+      .mockResolvedValueOnce({ available: true });
+
+    await renderPanel();
+    vi.useFakeTimers();
+
+    const field = screen.getByLabelText("Username");
+
+    fireEvent.change(field, { target: { value: "first_name" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // The user keeps typing; the newer check answers "available".
+    fireEvent.change(field, { target: { value: "second_name" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // Only now does the request for the abandoned value come back "taken".
+    await act(async () => {
+      resolveFirst({ available: false });
+    });
+
+    expect(screen.getByText("Available.")).toBeTruthy();
+    expect(screen.queryByText("That username is taken.")).toBeNull();
+  });
 });

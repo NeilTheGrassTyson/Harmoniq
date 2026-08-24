@@ -7,6 +7,7 @@ import ProfileHeader from "@/components/ProfileHeader";
 import { getProfile } from "@/lib/users";
 import { getUserRatings } from "@/lib/ratings";
 import { getListening } from "@/lib/spotify";
+import { errorStatus } from "@/lib/apiBase";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -29,8 +30,7 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
   try {
     profile = await getProfile(username, token ?? undefined);
   } catch (err: unknown) {
-    const status =
-      err instanceof Error && (err as Error & { status?: number }).status === 404 ? 404 : 503;
+    const status = errorStatus(err) === 404 ? 404 : 503;
     if (status === 404) notFound();
     throw err;
   }
