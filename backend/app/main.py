@@ -43,7 +43,37 @@ def _log_cors_configuration() -> None:
         )
 
 
+def _log_app_env_configuration() -> None:
+    """Record the resolved APP_ENV, and flag one that was probably never set.
+
+    APP_ENV has a default, so an unset variable is indistinguishable from a
+    deliberate APP_ENV=development: the service boots cleanly, serves /docs
+    and /redoc, and turns `debug` on, which puts SQLAlchemy echo — every SQL
+    statement — into the logs. The variable went missing from Railway once
+    already and nothing said so (ADR 0011).
+
+    The resolved value is logged unconditionally so it is greppable in Deploy
+    Logs. The warning fires on the one combination that is never legitimate:
+    a development environment whose allow-list has no localhost origin, which
+    only a deployed service has.
+    """
+    logger.info("APP_ENV: %s (debug=%s)", settings.app_env, settings.debug)
+
+    if settings.app_env != "development":
+        return
+    if not settings.cors_origins_look_like_production:
+        return
+    logger.warning(
+        "APP_ENV=development but every allowed origin is a remote https:// "
+        "domain (%s). If APP_ENV is unset it defaults to development, which "
+        "serves /docs and /redoc publicly and logs every SQL statement. Set "
+        "APP_ENV=production. See docs/deployment.md.",
+        ", ".join(settings.cors_origins_list),
+    )
+
+
 _log_cors_configuration()
+_log_app_env_configuration()
 
 app = FastAPI(
     title=settings.app_name,
