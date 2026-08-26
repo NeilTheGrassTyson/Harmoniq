@@ -7,6 +7,7 @@ import CoverArt from "@/components/CoverArt";
 import RatingSection from "@/components/RatingSection";
 import { getAlbum } from "@/lib/catalog";
 import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
+import { getEntityRatings } from "@/lib/ratings";
 
 function formatDuration(ms: number | null): string {
   if (ms === null) return "";
@@ -21,9 +22,17 @@ export default async function AlbumPage(props: { params: Promise<{ mbid: string 
   const { getToken } = await auth();
   const token = await getToken().catch(() => null);
 
+  // Catalog metadata (cached) and reviews (viewer-scoped, never cached) are
+  // separate requests, issued in parallel. A ratings failure degrades to an
+  // empty review list rather than breaking the page.
+  const ratingsPromise = getEntityRatings("album", mbid, token ?? undefined).catch(() => ({
+    aggregate_score: null,
+    reviews: [],
+  }));
+
   let album;
   try {
-    album = await getAlbum(mbid, token ?? undefined);
+    album = await getAlbum(mbid);
   } catch (err: unknown) {
     if (errorStatus(err) === 404) notFound();
     // An unreachable or failing backend renders in place, keeping the
@@ -38,6 +47,8 @@ export default async function AlbumPage(props: { params: Promise<{ mbid: string 
     }
     throw err;
   }
+
+  const ratings = await ratingsPromise;
 
   const typeLabel = album.album_type
     ? album.album_type.charAt(0).toUpperCase() + album.album_type.slice(1)
@@ -94,8 +105,8 @@ export default async function AlbumPage(props: { params: Promise<{ mbid: string 
         <RatingSection
           entityType="album"
           entityMbid={mbid}
-          initialReviews={album.reviews}
-          initialAggregate={album.aggregate_score}
+          initialReviews={ratings.reviews}
+          initialAggregate={ratings.aggregate_score}
         />
       </main>
     </AppShell>
