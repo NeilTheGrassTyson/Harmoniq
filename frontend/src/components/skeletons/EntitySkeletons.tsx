@@ -1,7 +1,7 @@
 import Skeleton from "@/components/skeletons/Skeleton";
 
 /**
- * Loading placeholders for the catalog detail pages.
+ * Loading placeholders for the catalog and profile pages.
  *
  * Catalog reads can be slow on a cache miss — MusicBrainz ingestion happens
  * on demand, and album/track detail is deliberately uncached because it embeds
@@ -104,6 +104,40 @@ export function TrackSkeleton() {
       </div>
       <SectionLabelSkeleton />
       <RowList rows={3} />
+    </LoadingMain>
+  );
+}
+
+/**
+ * Profile pages use their own geometry — 720px and 26/22/30 padding — rather
+ * than the catalog pages' max-w-2xl, so this wraps its own main instead of
+ * reusing LoadingMain.
+ */
+export function ProfileSkeleton() {
+  return (
+    <main role="status" aria-busy="true" style={{ padding: "26px 22px 30px", maxWidth: 720 }}>
+      <span className="sr-only">Loading</span>
+      <div className="mb-8 flex items-start gap-4">
+        {/* Avatars are 72px on the profile header. */}
+        <Skeleton className="shrink-0 rounded-full" style={{ width: 72, height: 72 }} />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Line w="44%" h={20} />
+          <Line w="28%" h={13} />
+          <Line w="60%" h={13} />
+        </div>
+      </div>
+      <SectionLabelSkeleton />
+      <RowList rows={4} />
+    </main>
+  );
+}
+
+/** Followers and following: a plain list of people. */
+export function FollowListSkeleton() {
+  return (
+    <LoadingMain>
+      <Line w="34%" h={20} className="mb-6" />
+      <RowList rows={8} thumb={36} />
     </LoadingMain>
   );
 }

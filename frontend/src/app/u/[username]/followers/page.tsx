@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
+import ServiceUnavailable from "@/components/ServiceUnavailable";
 import AvatarImage from "@/components/AvatarImage";
 import { getFollowers } from "@/lib/follows";
 import { getProfile } from "@/lib/users";
-import { errorStatus } from "@/lib/apiBase";
+import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
 
 export default async function FollowersPage(props: {
   params: Promise<{ username: string }>;
@@ -20,8 +21,17 @@ export default async function FollowersPage(props: {
   try {
     profile = await getProfile(username, token ?? undefined);
   } catch (err: unknown) {
-    const status = errorStatus(err) === 404 ? 404 : 503;
-    if (status === 404) notFound();
+    if (errorStatus(err) === 404) notFound();
+    // An unreachable or failing backend renders in place, keeping the
+    // shell and navigation. Anything else is unexpected and belongs in
+    // the error boundary, where its digest is recorded.
+    if (isUpstreamFailure(err)) {
+      return (
+        <AppShell>
+          <ServiceUnavailable what="this profile" />
+        </AppShell>
+      );
+    }
     throw err;
   }
 

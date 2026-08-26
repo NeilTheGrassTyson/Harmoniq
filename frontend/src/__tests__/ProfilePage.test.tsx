@@ -141,3 +141,54 @@ describe("Profile page — Listening section", () => {
     expect(screen.queryByTestId("listening-section")).toBeNull();
   });
 });
+
+// ── Backend failure handling ──────────────────────────────────────────────────
+// Regression: an unreachable backend used to rethrow, and with no error.tsx in
+// the app it surfaced as Next's unstyled "Application error" screen. The 404
+// path must still reach notFound(); genuinely unexpected errors must still
+// escape to the error boundary rather than being flattened into "unreachable".
+
+describe("Profile page — backend failures", () => {
+  beforeEach(() => {
+    mockGetUserRatings.mockResolvedValue({ reviews: [] });
+    mockGetProfile.mockReset();
+  });
+
+  it("renders the unavailable state when the backend can't be reached", async () => {
+    // A fetch that never got a response: no status.
+    mockGetProfile.mockRejectedValue(new TypeError("Load failed"));
+
+    await renderPage();
+
+    // Asserted through the alert's text content: the heading interpolates
+    // the subject and uses a typographic apostrophe, so it spans text nodes.
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toContain("this profile");
+    expect(alert.textContent).toContain("unreachable");
+    expect(screen.queryByTestId("profile-header")).toBeNull();
+  });
+
+  it("renders the unavailable state on a 5xx", async () => {
+    mockGetProfile.mockRejectedValue(
+      Object.assign(new Error("Internal Server Error"), { status: 503 })
+    );
+
+    await renderPage();
+
+    expect(screen.getByRole("alert").textContent).toContain("this profile");
+  });
+
+  it("still calls notFound() for a missing profile", async () => {
+    mockGetProfile.mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
+
+    await expect(renderPage()).rejects.toThrow("not found");
+  });
+
+  it("lets an unexpected error reach the error boundary", async () => {
+    // 403 is not an outage — it means something we did not anticipate here,
+    // and flattening it into "unreachable" would hide it.
+    mockGetProfile.mockRejectedValue(Object.assign(new Error("Forbidden"), { status: 403 }));
+
+    await expect(renderPage()).rejects.toThrow("Forbidden");
+  });
+});
