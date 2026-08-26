@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import ServiceUnavailable from "@/components/ServiceUnavailable";
 import CoverArt from "@/components/CoverArt";
 import { getArtist } from "@/lib/catalog";
 import type { AlbumResult } from "@/types";
-import { errorStatus } from "@/lib/apiBase";
+import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
 
 // Discography sections, in display order. The backend only returns these
 // three types (live/compilation/etc. are filtered out at the source).
@@ -46,8 +47,17 @@ export default async function ArtistPage(props: { params: Promise<{ mbid: string
   try {
     artist = await getArtist(mbid);
   } catch (err: unknown) {
-    const status = errorStatus(err);
-    if (status === 404) notFound();
+    if (errorStatus(err) === 404) notFound();
+    // An unreachable or failing backend renders in place, keeping the
+    // shell and navigation. Anything else is unexpected and belongs in
+    // the error boundary, where its digest is recorded.
+    if (isUpstreamFailure(err)) {
+      return (
+        <AppShell>
+          <ServiceUnavailable what="this artist" />
+        </AppShell>
+      );
+    }
     throw err;
   }
 

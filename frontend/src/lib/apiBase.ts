@@ -49,6 +49,18 @@ export function errorStatus(err: unknown): number | undefined {
 }
 
 /**
+ * True when the failure is the backend's, not the caller's — either it never
+ * answered at all (no status) or it answered 5xx.
+ *
+ * Pages use this to tell "Harmoniq is unreachable" apart from a genuine 404
+ * and from an unexpected error worth surfacing through the error boundary.
+ */
+export function isUpstreamFailure(err: unknown): boolean {
+  const status = errorStatus(err);
+  return status === undefined || status >= 500;
+}
+
+/**
  * A message safe to show a user.
  *
  * Never surface a raw `fetch` rejection: Safari's reads "Load failed" and

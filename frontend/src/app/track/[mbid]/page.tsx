@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
+import ServiceUnavailable from "@/components/ServiceUnavailable";
 import CoverArt from "@/components/CoverArt";
 import RatingSection from "@/components/RatingSection";
 import SendMelodyPanel from "@/components/SendMelodyPanel";
 import { getTrack } from "@/lib/catalog";
-import { errorStatus } from "@/lib/apiBase";
+import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
 
 function formatDuration(ms: number | null): string {
   if (ms === null) return "";
@@ -26,6 +27,16 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
     track = await getTrack(mbid, token ?? undefined);
   } catch (err: unknown) {
     if (errorStatus(err) === 404) notFound();
+    // An unreachable or failing backend renders in place, keeping the
+    // shell and navigation. Anything else is unexpected and belongs in
+    // the error boundary, where its digest is recorded.
+    if (isUpstreamFailure(err)) {
+      return (
+        <AppShell>
+          <ServiceUnavailable what="this track" />
+        </AppShell>
+      );
+    }
     throw err;
   }
 
