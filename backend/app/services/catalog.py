@@ -18,7 +18,6 @@ from sqlalchemy import and_, case, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.services.musicbrainz as mb
-import app.services.rating as rating_svc
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.catalog import Album, Artist, Track
@@ -31,7 +30,6 @@ from app.schemas.catalog import (
     TrackDetail,
     TrackResult,
 )
-from app.services import user as user_svc
 
 logger = logging.getLogger(__name__)
 
@@ -946,9 +944,7 @@ async def get_artist(mbid: str, session: AsyncSession) -> ArtistDetail | None:
     )
 
 
-async def get_album(
-    mbid: str, session: AsyncSession, viewer_clerk_id: str | None = None
-) -> AlbumDetail | None:
+async def get_album(mbid: str, session: AsyncSession) -> AlbumDetail | None:
     result = await session.execute(select(Album).where(Album.mbid == mbid))
     album = result.scalar_one_or_none()
 
@@ -996,13 +992,6 @@ async def get_album(
     )
     tracks = trk_result.scalars().all()
 
-    viewer_id = None
-    if viewer_clerk_id:
-        viewer = await user_svc.get_by_clerk_id(session, viewer_clerk_id)
-        if viewer:
-            viewer_id = viewer.id
-    ratings = await rating_svc.list_for_entity(session, "album", album.id, viewer_id)
-
     return AlbumDetail(
         mbid=album.mbid,
         title=album.title,
@@ -1022,14 +1011,10 @@ async def get_album(
             )
             for t in tracks
         ],
-        aggregate_score=ratings.aggregate_score,
-        reviews=ratings.reviews,
     )
 
 
-async def get_track(
-    mbid: str, session: AsyncSession, viewer_clerk_id: str | None = None
-) -> TrackDetail | None:
+async def get_track(mbid: str, session: AsyncSession) -> TrackDetail | None:
     result = await session.execute(select(Track).where(Track.mbid == mbid))
     track = result.scalar_one_or_none()
 
@@ -1075,13 +1060,6 @@ async def get_track(
             album_mbid_out = alb.mbid
             cover_art_url = alb.cover_art_url
 
-    viewer_id = None
-    if viewer_clerk_id:
-        viewer = await user_svc.get_by_clerk_id(session, viewer_clerk_id)
-        if viewer:
-            viewer_id = viewer.id
-    ratings = await rating_svc.list_for_entity(session, "track", track.id, viewer_id)
-
     return TrackDetail(
         mbid=track.mbid,
         title=track.title,
@@ -1093,6 +1071,4 @@ async def get_track(
         duration_ms=track.duration_ms,
         track_number=track.track_number,
         disc_number=track.disc_number,
-        aggregate_score=ratings.aggregate_score,
-        reviews=ratings.reviews,
     )
