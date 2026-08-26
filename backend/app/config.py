@@ -90,5 +90,20 @@ class Settings(BaseSettings):
             if origin.strip().rstrip("/")
         ]
 
+    @property
+    def cors_origins_look_like_production(self) -> bool:
+        """True when every allowed origin is a remote https:// domain.
+
+        A developer's machine always needs a localhost origin to talk to its
+        own frontend, so an allow-list with none is a deployed one. Used by
+        main.py to catch an APP_ENV that was never set; an empty list is a
+        different misconfiguration and is not reported here.
+        """
+        origins = self.cors_origins_list
+        return bool(origins) and all(
+            origin.startswith("https://") and "localhost" not in origin
+            for origin in origins
+        )
+
 
 settings = Settings()  # type: ignore[call-arg]

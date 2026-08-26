@@ -50,8 +50,15 @@ Concretely:
    the configured allow-list. It must be outermost: `CORSMiddleware` answers
    `OPTIONS` preflights itself without ever calling the app, so a middleware
    registered inside it never sees a rejected authenticated request.
-2. On startup the backend logs the resolved allow-list, and warns when
-   `APP_ENV=production` and the list contains only development origins.
+2. On startup the backend logs the resolved allow-list and the resolved
+   `APP_ENV`, and warns when the two contradict each other: `APP_ENV=production`
+   with an allow-list of only development origins, or `APP_ENV=development` with
+   an allow-list of only remote `https://` origins. The second direction matters
+   because `APP_ENV` has a default, so an **unset** variable is indistinguishable
+   from a deliberate `development` — and it boots cleanly while serving `/docs`
+   and `/redoc` publicly and echoing every SQL statement to the logs. A
+   developer's machine always needs a localhost origin, so an allow-list without
+   one is a deployed service whose `APP_ENV` went missing.
 3. The frontend logs an error when `NEXT_PUBLIC_API_URL` is unset and the page
    is not on localhost — the mirror-image failure, where the build inlines the
    localhost fallback and nothing is reachable.
@@ -93,6 +100,10 @@ And the corresponding user-facing rule:
   present means the server answered, absent means it was never reached. Any
   new helper that builds an error from a response must attach `status`, or
   its failures will be reported to users as connection problems.
+- The resolved `APP_ENV` is logged on every boot, not only when it looks
+  wrong. Absence was invisible precisely because nothing ever named the value;
+  a line in Railway's Deploy Logs is what makes "it was never set" checkable
+  without reproducing a user-facing symptom first.
 - Timeouts (10s) were added to the onboarding calls. Previously a hung backend
   left Continue reading "Creating account…" indefinitely; an aborted request
   now lands in the same network-error path.
