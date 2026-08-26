@@ -9,10 +9,19 @@ import EqualizerGlyph from "@/components/EqualizerGlyph";
  * render it in place of throwing so the shell, navigation and search survive
  * an outage — before this, an unreachable API took the whole page down to an
  * unstyled crash screen.
+ *
+ * Rendering in place costs the error status code: every route that uses this
+ * has a loading.tsx, which wraps the page in a Suspense boundary, and once
+ * that fallback flushes the response has committed to 200 and the status can
+ * no longer be changed. So this carries its own `noindex` — the same remedy
+ * Next applies to a notFound() that fires mid-stream. Without it a crawler
+ * reaching a public profile or catalog page during an outage could index
+ * “Couldn't load this page” as the page's real content.
  */
 export default function ServiceUnavailable({ what = "this page" }: { what?: string }) {
   return (
     <main role="alert" className="mx-auto flex max-w-2xl flex-col items-center px-4 py-24">
+      <meta name="robots" content="noindex" />
       <EqualizerGlyph size={36} className="text-secondary" />
       <h1 className="text-primary mt-4 text-lg font-light tracking-tight">
         Couldn&rsquo;t load {what}.

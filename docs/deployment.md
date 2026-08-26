@@ -67,7 +67,13 @@ origins) unless one redirects to the other before any page loads.
      `https://harmoniq.live,https://www.harmoniq.live`
    - `MUSICBRAINZ_USER_AGENT`
    - `APP_ENV` = `production` (must be exactly this — the value is validated,
-     and it is what disables `/docs` and `/redoc`)
+     and it is what disables `/docs` and `/redoc`). An invalid value refuses to
+     boot, but a **missing** one does not: it defaults to `development`, which
+     serves `/docs` and `/redoc` publicly and echoes every SQL statement into
+     the logs. Startup logs the resolved value (`APP_ENV: production`) and warns
+     if it says `development` while the CORS allow-list has no localhost origin
+     — grep Deploy Logs for `APP_ENV:` to confirm what the service actually
+     resolved.
    - `CLERK_SECRET_KEY` — without it the `onboarded` flag never syncs back to
      Clerk and users are re-gated to `/onboarding`
    - `CLERK_WEBHOOK_SECRET` — without it every inbound Clerk webhook fails
@@ -142,7 +148,9 @@ Before deploying to production, confirm:
 - [ ] `CORS_ALLOWED_ORIGINS` lists every origin the app is actually served
       from — the custom domain (apex **and** `www`) as well as the
       `.vercel.app` domain, comma-separated, no trailing slashes
-- [ ] `APP_ENV=production` (disables `/docs` and `/redoc` endpoints)
+- [ ] `APP_ENV=production` (disables `/docs` and `/redoc` endpoints) — confirm
+      from Deploy Logs, not from the Variables tab: the line reads
+      `APP_ENV: production (debug=False)`
 - [ ] The four silently-optional groups are set if you want those features:
       `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET`, `R2_*`, `SPOTIFY_*` +
       `TOKEN_ENCRYPTION_KEY`
