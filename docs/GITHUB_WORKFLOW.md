@@ -103,10 +103,10 @@ _why_, not _what_ — the diff already says what.
 
 Two workflows, both in `.github/workflows/`:
 
-| Workflow      | Triggers on                 | Jobs                                                     |
-| ------------- | --------------------------- | -------------------------------------------------------- |
-| `backend-ci`  | changes under `backend/**`  | Lint & type check (ruff, mypy) · Tests (pytest)          |
-| `frontend-ci` | changes under `frontend/**` | Lint, typecheck & format (ESLint, tsc, Prettier) · Build |
+| Workflow      | Triggers on                 | Jobs                                                                      |
+| ------------- | --------------------------- | ------------------------------------------------------------------------- |
+| `backend-ci`  | changes under `backend/**`  | Lint & type check (ruff, mypy, bandit) · Tests (pytest)                   |
+| `frontend-ci` | changes under `frontend/**` | Lint, typecheck & format (ESLint, tsc, Prettier) · Tests (vitest) · Build |
 
 Both run on pushes to `main` and `dev`, and on pull requests targeting
 `main` or `dev`. **`dev` must stay in those trigger lists.** They originally
@@ -114,6 +114,10 @@ filtered on `main` alone, which meant every `feature → dev` PR merged with no
 lint, no type check, and no tests — the entire integration path was
 unguarded, and the gap was invisible because the PR simply showed no checks
 rather than failing ones.
+
+`frontend-ci` ran no tests at all until 2026-08-26 — a green frontend check
+meant "it compiles and lints", not "the tests pass", and the whole suite was
+verified on developer machines only. Both stacks now run their tests in CI.
 
 ### Run the gate locally before opening a PR
 
