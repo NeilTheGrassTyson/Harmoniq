@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import QueryProvider from "@/components/QueryProvider";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import "./globals.css";
@@ -37,6 +38,12 @@ export default function RootLayout({
         <body className="bg-canvas text-primary h-full antialiased">
           <QueryProvider>{children}</QueryProvider>
           <Analytics />
+          {/* Core Web Vitals only, and a route pattern rather than a URL:
+              the /next entrypoint templatises dynamic segments before
+              reporting, so a profile visit is recorded as "/u/[username]",
+              never as the username itself, and query strings are never sent.
+              Inert outside Vercel, so local dev reports nothing. */}
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
