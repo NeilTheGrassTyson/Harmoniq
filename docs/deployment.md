@@ -96,6 +96,52 @@ Push to `main` → Railway deploys automatically.
 The release command runs migrations before the new revision goes live —
 migrations always precede application code during a deploy.
 
+### Clerk webhook (production)
+
+`docs/setup.md` §5 covers the local ngrok version of this. The production
+endpoint is the **Railway** origin, not `harmoniq.live` — the handler lives in
+the backend, and pointing Clerk at the frontend domain is the easy mistake.
+
+In **Clerk Dashboard → Webhooks → Add Endpoint**, with the **production**
+instance selected (the one on `clerk.harmoniq.live`, not a
+`*.clerk.accounts.dev` dev instance):
+
+- **URL:** `https://harmoniq-production-ac1f.up.railway.app/api/v1/webhooks/clerk`
+- **Events:** `user.updated` — and only that one. `app/api/v1/webhooks.py`
+  handles exactly one event type; anything else is logged and answered
+  `{"received": true}` without doing a thing. In particular `user.created`
+  does **not** create a Harmoniq account: that happens through
+  `POST /api/v1/users/` when the person finishes onboarding.
+- Copy the endpoint's **Signing Secret** (`whsec_…`) into Railway as
+  `CLERK_WEBHOOK_SECRET`.
+
+The signing secret is **per endpoint**, not per instance, so an endpoint
+recreated or moved between instances issues a new one and the old value stops
+verifying.
+
+Confirm the endpoint is live and checking signatures — an unsigned POST must
+be rejected:
+
+```bash
+curl -s -X POST -H 'Content-Type: application/json' -d '{"type":"ping"}' "https://harmoniq-production-ac1f.up.railway.app/api/v1/webhooks/clerk"
+```
+
+`{"detail":"Invalid webhook payload."}` with a 400 is the correct answer; a
+200 would mean signature verification is not running. Then send a test event
+from the Clerk dashboard and look for `Clerk webhook received event_type=` in
+Railway's Deploy Logs.
+
+Failures here are already legible — `_verify_svix_signature` raises a
+descriptive `ValueError` that is logged as
+`Clerk webhook verification failed: <reason>`, naming a missing secret, a
+bad base64 secret, a timestamp outside the 5-minute replay window, or no
+matching signature. Check Deploy Logs before changing anything.
+
+What breaks without it: nothing a user does directly. `user.updated` syncs a
+display-name or avatar change made **in Clerk's own UI** back to the Harmoniq
+record. Profile edits made inside Harmoniq go through the API and are
+unaffected.
+
 ### Rolling back
 
 In Railway dashboard → Deployments → select a previous deployment → Redeploy.  
@@ -209,6 +255,50 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   allowed. The backend now logs a warning naming any rejected origin (see
   `app/core/cors.py`), so check Railway's Deploy Logs first; it prints the
   exact string to paste into the variable.
+- **`NEXT_PUBLIC_API_URL` pointing at the Vercel dashboard** (2026-08-29).
+  The value was `https://vercel.com/<team>/<project>/<deployment-id>` — the
+  deployment-inspector URL, one copy away from the deploy screen — instead of
+  the Railway origin. Every `/api/v1/*` path under it answers `404 text/html`,
+  which the catalog and profile pages faithfully render as "Nothing here." and
+  "Harmoniq is unreachable": production looked like a routing bug and stayed
+  broken for days. Confirm from any terminal:
+
+  ```bash
+  curl -s -o /dev/null -w '%{http_code}
+' "$NEXT_PUBLIC_API_URL/api/v1/health"
+  ```
+
+  Anything but `200` means the variable is wrong. The value must be a bare
+  origin — no path, no trailing slash — and it is **inlined at build time**, so
+  correcting it requires a fresh build, not a redeploy of the existing one.
+  `lib/apiBase.ts` now refuses values of this shape and says so in the browser
+  console on every deployed load (ADR 0011, ADR 0012).
+- **`CLERK_JWKS_URL` pointing at the wrong Clerk *instance*** (2026-08-30).
+  Distinct from the placeholder case below, and quieter: the fetch succeeds
+  and the JWKS parses, it just holds a different instance's key. Public pages
+  browse normally and **every authenticated request returns
+  `401 {"detail":"JWT key not found"}`** — Settings won't load, Spotify won't
+  connect, Melodies won't list. Clerk's `kid` *is* the instance id, so
+  comparing the two is the whole diagnosis. From the browser console on the
+  live site:
+
+  ```bash
+  curl -s https://clerk.harmoniq.live/.well-known/jwks.json | grep -o '"kid":"[^"]*"'
+  ```
+
+  Compare that against the `kid` in the header of a live session token, and
+  against whatever `CLERK_JWKS_URL` is set to on Railway. The value must be
+  `https://clerk.harmoniq.live/.well-known/jwks.json` — the production
+  instance's own domain. A `*.clerk.accounts.dev` host there is a development
+  instance and will never verify a production token. **Check
+  `CLERK_SECRET_KEY` at the same time**: the two are set together and go wrong
+  together, and a test-mode key silently skips writing
+  `publicMetadata.onboarded` on every new account. The backend now logs both
+  the resolved JWKS URL and the secret key's mode on boot, warns when either
+  looks like a dev instance under `APP_ENV=production`, and names the
+  offending `kid` alongside the ones it does know (`app/auth.py`,
+  `app/main.py`). It also re-fetches the JWKS once on an unknown `kid`, so a
+  genuine Clerk key rotation heals itself instead of waiting for a restart.
 - **`CLERK_JWKS_URL` left as the literal placeholder value** (i.e. never
   swapped in your real Clerk instance subdomain) causes account creation
   to fail as an opaque `TypeError: Failed to fetch` in the browser, with
