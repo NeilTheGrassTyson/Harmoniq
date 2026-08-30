@@ -65,10 +65,11 @@ shadows (the _only_ permitted shadow is a 1.5px focus ring — see Motion); purp
 indigo, or violet as any UI color; cream/beige backgrounds; any "neon" effect achieved
 through blur/glow rather than flat saturated color.
 
-### 2.1 Stated exception — the Signature palette and its glow
+### 2.1 Stated exception — the Signature surface
 
-**Founder-approved 2026-08-30.** Two departures from the rules above, both
-scoped to the profile Signature surface (the "listening DNA") and nothing else.
+**Founder-approved 2026-08-30.** Four departures from the rules above — six
+data hues, glow, grain, and particle motion — all scoped to the profile
+Signature surface (the "listening DNA") and nothing else.
 
 **Six data hues.** Each Signature strand carries a fixed hue so that colour
 becomes learnable rather than decorative:
@@ -86,15 +87,35 @@ The DNA wave takes the hue of whichever strand sits furthest from centre. All
 six clear 4.5:1 against `--color-bg`. None is purple, indigo, or violet — that
 prohibition is untouched.
 
-**Glow.** The wave and the strand meters carry a two-stop halo: a tight core
-plus a soft outer bloom (`drop-shadow(0 0 3px) drop-shadow(0 0 9px)` on
-strokes, `box-shadow: 0 0 4px, 0 0 10px` on the meters), drawn in
-`currentColor` so one hex drives fill and halo together.
+**Glow.** One spec at one intensity, on the wave and on every strand row
+alike: `drop-shadow(0 0 2px) drop-shadow(0 0 5px)` on strokes,
+`box-shadow: 0 0 2px, 0 0 5px` on the meters, drawn in `currentColor` so one
+hex drives fill and halo together. Do not introduce a second, weaker tier for
+smaller instances — an earlier revision had three, and the same material read
+as three different materials.
+
+**Grain.** A film grain over the Signature panel, generated in-page by
+`feTurbulence` (`baseFrequency 0.85`, 4 octaves, desaturated) at `opacity .085`
+with `mix-blend-mode: overlay`. No asset, no gradient. It is texture, not a
+colour ramp, which is why it does not reach the gradient prohibition.
+
+**Particles.** Sparks travel the fundamental curve via SVG `animateMotion`
+bound to the path with `mpath`, plus static dust breathing between `.10` and
+`.38` opacity. Riding the real path matters: a sibling element does not
+inherit the drifting overtone's transform, so anything pinned to the overtone
+desynchronises from it.
+
+**Reduced motion is not optional on this surface.** The drift, the sparks and
+the dust are all ambient. `prefers-reduced-motion: reduce` must stop every one
+of them and hide the particle layer outright — this surface carries more
+simultaneous motion than anywhere else in the product, so it is the one most
+likely to cause harm.
 
 **Boundaries of this exception — it does not generalise:**
 
 - Signature graphics only. Never UI chrome — not nav, buttons, borders, tiles,
-  or the focus ring.
+  or the focus ring. This covers the grain and the particles as much as the
+  glow: no grain on the app frame, no particles anywhere else.
 - Never on text. Glow behind type costs legibility, and these hues are not
   approved as text colours.
 - These are *encoding* colours: a hue means a specific strand. They are not a
