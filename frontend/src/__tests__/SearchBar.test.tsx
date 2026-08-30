@@ -5,16 +5,19 @@ import SearchBar from "@/components/SearchBar";
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 let mockPathname = "/";
+let mockParams = new URLSearchParams();
 
 // The router object must be referentially stable, as Next's real useRouter
 // is — a fresh object per render would re-trigger every effect that lists
 // `router` in its deps, diverging from production behavior.
-const mockRouter = { push: mockPush };
+const mockRouter = { push: mockPush, replace: mockReplace };
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
   useRouter: () => mockRouter,
+  useSearchParams: () => mockParams,
 }));
 
 vi.mock("next/link", () => ({
@@ -68,6 +71,8 @@ describe("SearchBar — People section", () => {
     vi.useFakeTimers();
     mockPathname = "/";
     mockPush.mockClear();
+    mockReplace.mockClear();
+    mockParams = new URLSearchParams();
     mockSearchCatalog.mockResolvedValue(emptyMusic);
     mockSearchUsers.mockResolvedValue([]);
   });
@@ -233,6 +238,8 @@ describe("SearchBar — URL sync on /search", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockPush.mockClear();
+    mockReplace.mockClear();
+    mockParams = new URLSearchParams();
     mockSearchCatalog.mockClear();
     mockSearchUsers.mockClear();
     mockSearchCatalog.mockResolvedValue(emptyMusic);
@@ -243,7 +250,10 @@ describe("SearchBar — URL sync on /search", () => {
     vi.useRealTimers();
   });
 
-  it("pushes ?q= URL when typing on /search", async () => {
+  // replace, not push. Pushing gave every debounce tick its own history entry,
+  // so Back walked the query backwards a few characters at a time instead of
+  // leaving the page.
+  it("replaces the ?q= URL when typing on /search, never pushing", async () => {
     mockPathname = "/search";
 
     render(<SearchBar />);
@@ -255,7 +265,72 @@ describe("SearchBar — URL sync on /search", () => {
       await vi.advanceTimersByTimeAsync(300);
     });
 
-    expect(mockPush).toHaveBeenCalledWith("/search?q=beatles");
+    expect(mockReplace).toHaveBeenCalledWith("/search?q=beatles");
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("adds no history entry across a run of query refinements", async () => {
+    mockPathname = "/search";
+
+    render(<SearchBar />);
+    const input = screen.getByRole("searchbox");
+
+    for (const value of ["beat", "beatles", "beatles ab"]) {
+      fireEvent.change(input, { target: { value } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+    }
+
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledTimes(3);
+  });
+
+  // The field used to be restored from the URL once at mount, so a history
+  // move changed the address bar while the input kept the newest text.
+  it("adopts the URL query when it changes underneath the field", async () => {
+    mockPathname = "/search";
+
+    const { rerender } = render(<SearchBar />);
+    const input = screen.getByRole("searchbox") as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: "beatles ab" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(input.value).toBe("beatles ab");
+
+    // Back: the URL moves without the component moving it.
+    mockParams = new URLSearchParams("q=beat");
+    rerender(<SearchBar />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(input.value).toBe("beat");
+  });
+
+  it("leaves the field alone while its own URL write settles", async () => {
+    mockPathname = "/search";
+
+    const { rerender } = render(<SearchBar />);
+    const input = screen.getByRole("searchbox") as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: "beatles" } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    // The router lands on what this component just asked for, while the user
+    // has typed further. Adopting it here would rewind them mid-word.
+    mockParams = new URLSearchParams("q=beatles");
+    fireEvent.change(input, { target: { value: "beatles abbey" } });
+    rerender(<SearchBar />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(input.value).toBe("beatles abbey");
   });
 
   it("does NOT fetch results when typing on /search — the page body owns the fetch", async () => {
@@ -274,7 +349,7 @@ describe("SearchBar — URL sync on /search", () => {
     expect(mockSearchUsers).not.toHaveBeenCalled();
   });
 
-  it("does NOT push URL when typing on pages other than /search", async () => {
+  it("does NOT touch the URL when typing on pages other than /search", async () => {
     mockPathname = "/";
 
     render(<SearchBar />);
@@ -287,9 +362,10 @@ describe("SearchBar — URL sync on /search", () => {
     });
 
     expect(mockPush).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it("does NOT push URL when typing on an artist page", async () => {
+  it("does NOT touch the URL when typing on an artist page", async () => {
     mockPathname = "/artist/some-mbid";
 
     render(<SearchBar />);
@@ -302,5 +378,6 @@ describe("SearchBar — URL sync on /search", () => {
     });
 
     expect(mockPush).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

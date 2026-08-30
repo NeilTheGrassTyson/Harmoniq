@@ -64,22 +64,38 @@ export default function MelodySettings() {
         <label htmlFor="melody-accept-scope" className="text-secondary" style={{ fontSize: 13 }}>
           Who can send you Melodies
         </label>
-        <Select
-          value={scope ?? "everyone"}
-          onValueChange={(value) => void handleChange(value as MelodyAcceptScope)}
-          disabled={scope === null || saving}
-        >
-          <SelectTrigger id="melody-accept-scope">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Nothing stands in for an unknown scope. This control previously read
+            `scope ?? "everyone"`, so a settings request that failed showed the
+            *most permissive* inbound-Melody scope as though the user had chosen
+            it — a claim about their consent made without having loaded it
+            (HARMONIQ.md §6, Consent Before Visibility). A disabled Select can't
+            express that: with no value it would fall back to uncontrolled and
+            then ignore the real one when it arrived. So until the answer is in,
+            there is no control at all. */}
+        {scope === null ? (
+          <span className="text-tertiary text-[13px]" data-testid="melody-scope-unknown">
+            {error ? "unavailable" : "…"}
+          </span>
+        ) : (
+          <Select
+            value={scope}
+            onValueChange={(value) => void handleChange(value as MelodyAcceptScope)}
+            disabled={saving}
+          >
+            <SelectTrigger id="melody-accept-scope">
+              {/* The label, not the raw value — the trigger otherwise read
+                  "mutuals" while the menu below it said "Mutuals". */}
+              <SelectValue>{OPTIONS.find((opt) => opt.value === scope)?.label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
       {error && (
         <p className="text-destructive mt-2 text-[13px]" role="alert">

@@ -8,10 +8,11 @@ import type {
 } from "@/types";
 import { API_BASE, REQUEST_TIMEOUT_MS } from "@/lib/apiBase";
 
-async function authedGet<T>(path: string, token: string): Promise<T> {
+async function authedGet<T>(path: string, token: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
+    signal,
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
@@ -79,9 +80,17 @@ export async function checkUsernameAvailable(username: string): Promise<Username
   return res.json() as Promise<UsernameCheckResponse>;
 }
 
-/** Fetch the authenticated user's own profile with visibility settings. */
-export async function getOwnProfile(token: string): Promise<OwnProfileResponse> {
-  return authedGet<OwnProfileResponse>("/api/v1/users/me", token);
+/**
+ * Fetch the authenticated user's own profile with visibility settings.
+ *
+ * `signal` lets a caller bound the wait. The root layout does: it renders the
+ * nav from this response, and chrome must never be what holds a page up.
+ */
+export async function getOwnProfile(
+  token: string,
+  signal?: AbortSignal
+): Promise<OwnProfileResponse> {
+  return authedGet<OwnProfileResponse>("/api/v1/users/me", token, signal);
 }
 
 /** Fetch a public profile by username. Token is optional for personalisation. */

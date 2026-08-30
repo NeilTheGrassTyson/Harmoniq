@@ -9,11 +9,18 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockUsePathname(),
 }));
 
-const mockUseUser = vi.fn();
-const mockUseAuth = vi.fn();
+// The nav reads the server-resolved viewer, never Clerk directly. Clerk stays
+// mocked so an accidental reintroduction of useUser() here would be visible.
+const mockUseViewer = vi.fn();
+vi.mock("@/components/ViewerProvider", () => ({
+  useViewer: () => mockUseViewer(),
+}));
+
 vi.mock("@clerk/nextjs", () => ({
-  useUser: () => mockUseUser(),
-  useAuth: () => mockUseAuth(),
+  useUser: () => {
+    throw new Error("AppShell must not read Clerk directly — use the server-resolved viewer");
+  },
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, getToken: vi.fn() }),
   SignInButton: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   UserButton: () => <span data-testid="user-button" />,
 }));
@@ -38,6 +45,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/components/SearchBar", () => ({
   default: () => <input placeholder="search" />,
+  SearchBarFallback: () => <input placeholder="search" readOnly />,
 }));
 
 vi.mock("@/components/NavAuth", () => ({
@@ -57,25 +65,16 @@ import AppShell from "@/components/AppShell";
 
 // --- Fixtures ---
 
-const signedIn = {
-  isLoaded: true,
-  isSignedIn: true as const,
-  user: { username: "testuser" },
-};
-
-const signedOut = {
-  isLoaded: true,
-  isSignedIn: false as const,
-  user: null,
-};
+// `username` is the Harmoniq handle — the one /u/ routes are keyed by.
+const signedIn = { signedIn: true, username: "testuser" };
+const signedOut = { signedIn: false, username: null };
 
 // --- Tests ---
 
 describe("AppShell sidebar navigation", () => {
   beforeEach(() => {
     mockUsePathname.mockReturnValue("/");
-    mockUseUser.mockReturnValue(signedIn);
-    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true, getToken: vi.fn() });
+    mockUseViewer.mockReturnValue(signedIn);
   });
 
   it("renders all five nav links when signed in", () => {
@@ -87,15 +86,36 @@ describe("AppShell sidebar navigation", () => {
     expect(screen.getByRole("link", { name: "Settings" })).toBeDefined();
   });
 
-  it("hides the Profile and Melodies links when signed out", () => {
-    mockUseUser.mockReturnValue(signedOut);
-    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: false, getToken: vi.fn() });
+  it("shows only the browse links when signed out", () => {
+    mockUseViewer.mockReturnValue(signedOut);
     render(<AppShell>content</AppShell>);
     expect(screen.queryByRole("link", { name: "Profile" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Melodies" })).toBeNull();
-    // Other links are still present
+    // Settings is an account page — offering it only leads to the sign-in wall.
+    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
+    // Browse surfaces stay open to everyone (ADR 0012).
     expect(screen.getByRole("link", { name: "Home" })).toBeDefined();
-    expect(screen.getByRole("link", { name: "Settings" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "Search" })).toBeDefined();
+  });
+
+  // The regression this whole change exists for: the link used to be built
+  // from Clerk's username, which the backend never syncs, so anyone whose
+  // Harmoniq handle differed was sent to a dead route — or to whoever had
+  // since claimed their old one.
+  it("builds the Profile link from the Harmoniq username", () => {
+    mockUseViewer.mockReturnValue({ signedIn: true, username: "harmoniq-handle" });
+    render(<AppShell>content</AppShell>);
+    expect(screen.getByRole("link", { name: "Profile" }).getAttribute("href")).toBe(
+      "/u/harmoniq-handle"
+    );
+  });
+
+  it("hides the Profile link when the username could not be resolved", () => {
+    mockUseViewer.mockReturnValue({ signedIn: true, username: null });
+    render(<AppShell>content</AppShell>);
+    // Hiding it is honest; linking somewhere wrong is not.
+    expect(screen.queryByRole("link", { name: "Profile" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Melodies" })).toBeDefined();
   });
 
   it("marks Home as active on /", () => {
@@ -144,8 +164,7 @@ describe("AppShell sidebar navigation", () => {
 describe("AppShell sidebar open state", () => {
   beforeEach(() => {
     mockUsePathname.mockReturnValue("/");
-    mockUseUser.mockReturnValue(signedIn);
-    mockUseAuth.mockReturnValue({ isLoaded: true, isSignedIn: true, getToken: vi.fn() });
+    mockUseViewer.mockReturnValue(signedIn);
   });
 
   // The panel must ship with no data-open so the CSS breakpoint decides. If

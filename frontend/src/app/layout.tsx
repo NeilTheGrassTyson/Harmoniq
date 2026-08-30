@@ -4,6 +4,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import QueryProvider from "@/components/QueryProvider";
+import { ViewerProvider } from "@/components/ViewerProvider";
+import { getViewer } from "@/lib/viewer";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import "./globals.css";
 
@@ -24,11 +26,15 @@ export const metadata: Metadata = {
 // origin mismatch) lives in proxy.ts as an HTML response — any script tag
 // rendered from a React component triggers React 19 dev warnings.
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Resolved here, once, so the nav's first paint already knows who is looking
+  // and what their profile URL is — see ViewerProvider for what that fixes.
+  const viewer = await getViewer();
+
   // appearance is set once here so every Clerk surface — the hosted
   // sign-in/sign-up pages, the <SignInButton> modal, and <UserButton> —
   // picks up Harmoniq's tokens without per-call-site theming.
@@ -36,7 +42,9 @@ export default function RootLayout({
     <ClerkProvider appearance={clerkAppearance}>
       <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
         <body className="bg-canvas text-primary h-full antialiased">
-          <QueryProvider>{children}</QueryProvider>
+          <ViewerProvider value={viewer}>
+            <QueryProvider>{children}</QueryProvider>
+          </ViewerProvider>
           <Analytics />
           {/* Core Web Vitals only, and a route pattern rather than a URL:
               the /next entrypoint templatises dynamic segments before

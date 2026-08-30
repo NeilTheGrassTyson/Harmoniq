@@ -103,7 +103,7 @@ function SignedOutLanding() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const _EMPTY_HOME: HomeResponse = {
+const EMPTY_HOME: HomeResponse = {
   trending: [],
   trending_error: false,
   friends: [],
@@ -124,12 +124,15 @@ export default async function Home() {
 
   const token = await getToken().catch(() => null);
 
-  let home = _EMPTY_HOME;
+  let home = EMPTY_HOME;
   if (token) {
     try {
       home = await getHome(token);
     } catch {
-      // Sections render their own error states via the error flags.
+      // A failed request is not an empty home. Without these flags the page
+      // said "No songs are trending yet" through a total backend outage —
+      // a confident claim about the catalog, made having heard nothing back.
+      home = { ...EMPTY_HOME, trending_error: true, friends_error: true };
     }
   }
 

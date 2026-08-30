@@ -2,9 +2,10 @@
  * The backend origin, and the error helpers that go with talking to it.
  *
  * `NEXT_PUBLIC_API_URL` is inlined at build time, so a production build made
- * without it silently bakes in the localhost fallback and every browser call
- * fails as an opaque network error. This module is the one place that can
- * notice, so it says so once, loudly, in the console.
+ * without it — or with the wrong value in it — silently sends every request
+ * somewhere unreachable, and the pages report that as missing content rather
+ * than as an outage. This module is the one place that can notice, so it says
+ * so once, loudly, in the console. See ADR 0011 and ADR 0012.
  */
 
 const configured = process.env.NEXT_PUBLIC_API_URL;
@@ -18,13 +19,81 @@ function isDeployedBrowser(): boolean {
   return hostname !== "localhost" && hostname !== "127.0.0.1";
 }
 
-if (!configured && isDeployedBrowser()) {
-  console.error(
-    "[Harmoniq] NEXT_PUBLIC_API_URL is not set, so API calls are going to " +
-      `${API_BASE}, which is unreachable from this page. Set it in the Vercel ` +
-      "project's environment variables and trigger a new build — the value is " +
-      "inlined at build time, so redeploying an existing build will not pick it up."
-  );
+/**
+ * Why a configured `NEXT_PUBLIC_API_URL` cannot be the backend's origin, or
+ * null when nothing is obviously wrong with it.
+ *
+ * ADR 0011 made an *unset* variable observable. It could not catch a variable
+ * that is set to the wrong thing, which fails identically: every request
+ * resolves, answers 404 or refuses, and the pages translate that into "Nothing
+ * here." Three of the four recorded incidents were of that shape — a trailing
+ * slash, a placeholder, and (2026-08-29) the Vercel deployment-inspector URL
+ * pasted in place of the Railway origin, which took production down for days
+ * while the site looked alive.
+ *
+ * The checks are deliberately about *shape*, not reachability: this module has
+ * no business making a network request, and a value that cannot possibly be an
+ * API origin is worth naming before anything is attempted.
+ */
+export function misconfigurationReason(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "it is not an absolute URL";
+  }
+
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return `its scheme is "${url.protocol}" rather than http/https`;
+  }
+  if (url.hostname === "vercel.com" || url.hostname.endsWith(".vercel.com")) {
+    // The dashboard URL for a deployment looks plausible and is one copy away
+    // from the deploy screen. It serves 404 HTML for every /api/v1 path.
+    return "vercel.com is the Vercel dashboard, not an API origin";
+  }
+  if (value.endsWith("/")) {
+    // Every helper builds `${API_BASE}/api/v1/…`, so a trailing slash produces
+    // a double slash the backend answers with a redirect or a 404.
+    return "it ends in a slash — the value must be a bare origin";
+  }
+  if (url.pathname !== "/") {
+    return `it carries a path ("${url.pathname}") — the value must be a bare origin`;
+  }
+  if (url.search || url.hash) {
+    return "it carries a query string or fragment";
+  }
+  if (typeof window !== "undefined" && url.origin === window.location.origin) {
+    return "it points back at this site, which does not serve the API";
+  }
+  return null;
+}
+
+const CONFIG_HINT =
+  "Set it in the Vercel project's environment variables and trigger a new " +
+  "build — the value is inlined at build time, so redeploying an existing " +
+  "build will not pick it up.";
+
+if (isDeployedBrowser()) {
+  if (!configured) {
+    console.error(
+      "[Harmoniq] NEXT_PUBLIC_API_URL is not set, so API calls are going to " +
+        `${API_BASE}, which is unreachable from this page. ${CONFIG_HINT}`
+    );
+  } else {
+    const reason = misconfigurationReason(configured);
+    if (reason) {
+      console.error(
+        `[Harmoniq] NEXT_PUBLIC_API_URL is "${configured}", which cannot be ` +
+          `the backend: ${reason}. Every API call from this page will fail, ` +
+          `and pages will report it as missing content. ${CONFIG_HINT}`
+      );
+    } else {
+      // Named on every deployed load, not only when it looks wrong. ADR 0011:
+      // a value nothing ever prints is a value nobody can check without first
+      // reproducing a user-facing symptom.
+      console.info(`[Harmoniq] API base: ${API_BASE}`);
+    }
+  }
 }
 
 /**
