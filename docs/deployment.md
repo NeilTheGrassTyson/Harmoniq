@@ -165,23 +165,49 @@ support the `SET` commands Alembic uses for advisory locks).
 
 ### Branches
 
-| Branch      | Purpose                                         |
-| ----------- | ----------------------------------------------- |
-| `main`      | Production database                             |
-| `staging`   | Staging environment (create manually if needed) |
-| `feature/*` | Ephemeral per-feature branches                  |
+| Branch       | Role                                                 |
+| ------------ | ---------------------------------------------------- |
+| `production` | **The live database.** Railway points here. Default. |
+| `staging`    | Root branch; a stale copy. Safe for local dev.       |
+| `feature/*`  | Ephemeral per-feature branches                       |
 
 Feature branches are deleted after the PR merges.
+
+There is no `main` branch. This table said there was until 2026-08-30, and
+said production lived on it — wrong on both the name and the role, which is
+what made the incident below take an hour instead of five minutes.
+
+**`production` is a child of `staging`, not the root.** That inversion is a
+historical accident, not a design: the project's root branch is the one that
+went stale while the child took the live traffic. It has one sharp
+consequence — **"Reset from parent" is available on `production`, and running
+it would replace every live user, rating, follow and Melody with the stale
+root.** That is the ordinary way to refresh a staging branch, so the button is
+one plausible mis-click from destroying production. Neon's **branch
+protection** (paid plans) blocks reset and deletion; it is the guardrail, and
+the naming is only a label on top of it.
+
+**Railway binds to an endpoint ID, not a branch name.** Renaming a branch does
+not move its compute, so `DATABASE_URL` keeps working across renames — and
+conversely, a branch called `production` is not necessarily the one being
+served. Compare the `ep-…` host in `DATABASE_URL` against the endpoint each
+branch lists; that is the only authoritative mapping.
 
 ---
 
 ## Environment separation
 
-| Environment | Frontend           | Backend                 | Database            |
-| ----------- | ------------------ | ----------------------- | ------------------- |
-| Development | `localhost:3000`   | `localhost:8000`        | Neon dev branch     |
-| Staging     | Vercel preview URL | Railway staging service | Neon staging branch |
-| Production  | Vercel production  | Railway production      | Neon main branch    |
+| Environment | Frontend           | Backend                 | Database                 |
+| ----------- | ------------------ | ----------------------- | ------------------------ |
+| Development | `localhost:3000`   | `localhost:8000`        | Neon `staging` branch    |
+| Staging     | Vercel preview URL | Railway staging service | Neon `staging` branch    |
+| Production  | Vercel production  | Railway production      | Neon `production` branch |
+
+Local `backend/.env` points at `staging`, which is correct — development must
+not write to the live database. It also means a migration run locally has not
+touched production. Railway's release command migrates production on deploy;
+if you need to confirm, compare `alembic_version` on both branches rather than
+assuming they agree.
 
 ---
 
@@ -273,6 +299,40 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   correcting it requires a fresh build, not a redeploy of the existing one.
   `lib/apiBase.ts` now refuses values of this shape and says so in the browser
   console on every deployed load (ADR 0011, ADR 0012).
+- **Writing to the wrong Neon branch, believing it was production**
+  (2026-08-30). After the two Clerk fixes below, `/api/v1/users/me` returned
+  `404 User not found` for a signed-in user whose profile was publicly
+  visible: the `users` row's `clerk_id` had been left behind by the move from
+  the Clerk development instance to production. The `UPDATE` correcting it was
+  run in the Neon SQL editor, which opens on the project's **default** branch
+  — not the branch Railway serves. The write landed on a stale copy, the fix
+  appeared to do nothing, and it was re-run and re-verified several times
+  against the same wrong database.
+
+  Branch **names cannot be trusted** for this, and neither can the default.
+  What works is a marker: pick a fact only the live database can have — a
+  follow, rating or account created through the app minutes ago — and query
+  for it.
+
+  ```sql
+  SELECT COUNT(*) AS follower_rows FROM follows f JOIN users u ON u.id = f.followed_id WHERE u.username = '<a real user>';
+  ```
+
+  Compare that against what the live API reports for the same profile
+  (`GET /api/v1/users/<username>` → `follower_count`, which the endpoint
+  computes as a plain `COUNT(*)`, so the two are directly comparable).
+  Disagreement means the editor is not on the served branch. The Neon
+  console's **Compute** column corroborates it independently — the branch
+  taking live traffic burns visibly more CU-hrs than an idle copy.
+
+  Two API responses narrowed this down before any database access. On
+  `/api/v1/users/me`, a `401` means the token was rejected while a `404` means
+  it verified and no row matched — different problems. And
+  `GET /api/v1/users/<own-username>` **with** a bearer token returns
+  `is_own_profile: false` when the row exists but its `clerk_id` does not match
+  the caller: a lookup by username and a lookup by `clerk_id` disagreeing
+  *inside a single request* proves the row is present and the column is wrong,
+  with no psql prompt needed.
 - **`CLERK_JWKS_URL` pointing at the wrong Clerk *instance*** (2026-08-30).
   Distinct from the placeholder case below, and quieter: the fetch succeeds
   and the JWKS parses, it just holds a different instance's key. Public pages
