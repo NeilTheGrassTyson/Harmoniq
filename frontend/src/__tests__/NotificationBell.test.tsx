@@ -190,9 +190,7 @@ describe("NotificationBell — failed load", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toMatch(
-        /Couldn.t load your notifications/
-      )
+      expect(screen.getByRole("alert").textContent).toMatch(/Couldn.t load your notifications/)
     );
     expect(screen.queryByText(/Nothing new/)).toBeNull();
   });

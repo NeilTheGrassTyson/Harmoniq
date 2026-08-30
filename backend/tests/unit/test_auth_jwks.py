@@ -50,13 +50,17 @@ KEY_B = {"keys": [{"kid": "ins_bbb", "kty": "RSA"}]}
 
 
 class TestJwksCache:
-    def test_serves_from_cache_within_the_ttl(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_serves_from_cache_within_the_ttl(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         calls = _install(monkeypatch, [KEY_A])
         assert auth._fetch_jwks() == KEY_A
         assert auth._fetch_jwks() == KEY_A
         assert calls[0] == 1
 
-    def test_refetches_once_the_ttl_has_passed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_refetches_once_the_ttl_has_passed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         calls = _install(monkeypatch, [KEY_A, KEY_B])
         assert auth._fetch_jwks() == KEY_A
         # Age the cache past the TTL rather than sleeping through it.
