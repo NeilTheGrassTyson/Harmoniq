@@ -224,6 +224,30 @@ _Security: needs its own data-handling review before build, since it
 aggregates across the whole user base rather than one relationship at a
 time._
 
+### Listening Signature ("DNA")
+
+Six descriptive strands on the profile — Range, Current, Posture, Depth,
+Era, Circle — none of which has a "good" end, plus the wave that encodes
+them. Distinct from Harmony, which stays a single relational signal.
+Deferred by Founder decision, 2026-08-30.
+
+**⛔ Plan-mode gate — this derives a new per-user profile from listening
+behaviour.** Tier 1 under WORKFLOW.md regardless of how it is computed.
+
+Worth recording, because it changes what "deferred" costs here: **five of
+the six strands are arithmetic, not AI.** Current (first vs repeat listens),
+Posture (Melodies sent vs received), Depth (ratings+reviews per listen),
+Era (median release year from MusicBrainz) and Circle (spread of exchange
+partners) are all ratios over data already collected in the NOW tier. Only
+Range needs judgement, because MusicBrainz genre tags are a folksonomy that
+wants grouping before breadth means anything.
+
+So a counting-only v1 does not depend on the AI-driven recommendation layer
+above and is not blocked by its gate — it needs its own spec, not that one.
+_Security: the strands are descriptions of a user's own behaviour, so they
+inherit the same visibility scope as the profile fields they sit beside;
+each strand needs opt-in-by-default treatment before display to anyone else._
+
 ### Harmony v2 (customization)
 
 Custom themes, theme song, featured recent activity.
