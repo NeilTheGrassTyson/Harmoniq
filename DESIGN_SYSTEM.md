@@ -99,11 +99,25 @@ as three different materials.
 with `mix-blend-mode: overlay`. No asset, no gradient. It is texture, not a
 colour ramp, which is why it does not reach the gradient prohibition.
 
-**Particles.** Sparks travel the fundamental curve via SVG `animateMotion`
-bound to the path with `mpath`, plus static dust breathing between `.10` and
-`.38` opacity. Riding the real path matters: a sibling element does not
-inherit the drifting overtone's transform, so anything pinned to the overtone
-desynchronises from it.
+**Travel.** Both carriers translate left continuously. One loop is exactly one
+fundamental wavelength (164px at the reference size), so the seam is
+invisible. Both move at the **same phase velocity** — that is what keeps the
+2:1 ratio honest and the shared nodes locked. Do not speed one up to make the
+octave "more visible": the locked nodes *are* the octave, and breaking them
+turns a musical relationship into decoration.
+
+**Particles.** Roughly 10 sparks ride the fundamental via SVG `animateMotion`
+bound to the path with `mpath` (`rotate="auto"`, so they bank through turns),
+plus ~58 dust motes, each with its own duration and a negative delay so
+nothing blinks in chorus — that stagger is the difference between glitter and
+fog. Sparks ride the **fundamental**, never the overtone: a sibling element
+does not inherit the overtone's drift transform and would visibly
+desynchronise.
+
+**Per theme.** Dark carries the standard halo. Midnight can run a slightly
+wider bloom *and* would be fine with less — on true black, contrast does the
+work the glow was doing. **Light carries none of this**: no glow, no
+particles, no grain, and a different hue set entirely (§2.2).
 
 **Reduced motion is not optional on this surface.** The drift, the sparks and
 the dust are all ambient. `prefers-reduced-motion: reduce` must stop every one
@@ -128,18 +142,72 @@ likely to cause harm.
 ROADMAP.md, LATER) or if glow starts appearing outside this surface, which is
 the failure mode this section exists to prevent.
 
+### 2.2 Themes — "Website Appearance"
+
+Three themes, exposed in Settings under **Website Appearance**. That name is
+load-bearing: it is the *viewer's* preference, applied everywhere they look.
+It is **not** Harmony v2 profile themes (BRAND_BIBLE §6), which are chosen by
+a profile's owner and seen by visitors. One is a preference, the other is
+self-expression. They must not share a control, a token layer, or a stored
+field — see ADR 0013.
+
+| Token                     | Light (unverified) | Dark (default) | Midnight  |
+| ------------------------- | ------------------ | -------------- | --------- |
+| `--color-bg`              | `#f7f8fa`          | `#0b0d12`      | `#000000` |
+| `--color-surface-sidebar` | `#ffffff`          | `#0e1015`      | `#050609` |
+| `--color-surface-tile`    | `#eef0f4`          | `#151821`      | `#0d1016` |
+| `--color-border-hairline` | `rgba(0,0,0,.10)`  | `rgba(255,255,255,.07)` | `rgba(255,255,255,.09)` |
+| `--color-text-primary`    | `#14161c`          | `#f2f3f5`      | `#f2f3f5` |
+| `--color-text-secondary`  | `#565d6b`          | `#8b93a3`      | `#8b93a3` |
+| `--color-text-tertiary`   | `#6b7280`          | `#757c8c`      | `#757c8c` |
+
+Dark remains the default and is the only column whose contrast is verified
+(§2). **Midnight** inherits Dark's text and accent values unchanged — only the
+surfaces drop — so it needs no new contrast work; every ratio improves.
+
+**Light is not a token swap, and should not be planned as one.** Two things
+break rather than degrade:
+
+- **The accent fails.** `--color-accent` (`#2f8cff`) measures roughly 3.1:1 on
+  white — below AA for text, and it is the focus-ring colour. Light needs a
+  darkened accent of its own.
+- **The Signature palette is invisible.** Every hue in §2.1 was chosen against
+  near-black. Neon yellow on white lands near 1.3:1. Light needs a separate
+  darkened hue set **and** must drop the glow and the particles entirely: a
+  halo on white reads as a smudge, and glitter needs darkness to glitter
+  against.
+
+That makes Light a second *treatment*, not a second palette — real ongoing
+cost. Dark + Midnight alone is a coherent product; the aesthetic is
+dark-native. Every Light value above is a starting point that has **not** had
+a contrast pass.
+
+Note for whoever builds it: §9 warns against the cream/serif/sage "tasteful
+default." The Light column deliberately avoids it — cool neutral greys, the
+same display face, the same hue families. Light mode must not become a
+different personality.
+
 ---
 
 ## 3. Typography
 
-**Display face — `Space Grotesk` (400, 500 only).** Used for the wordmark, section labels, and primary titles (song/track names). Chosen for its geometric, slightly squared terminals — sharper than the system-font fallback, and a stated choice rather than an autopilot one (avoiding Inter/Geist, which read as "no choice was made").
+**Display face — `Space Grotesk` (400, 500 only).** Used for the wordmark and primary titles (song/track names); section labels moved to the label face below. Chosen for its geometric, slightly squared terminals — sharper than the system-font fallback, and a stated choice rather than an autopilot one (avoiding Inter/Geist, which read as "no choice was made").
+
+**Label face — `Space Mono` (400, 700).** Section labels, strand labels, and
+timestamps. Chosen for a reason that is structural rather than aesthetic:
+Space Grotesk is *derived from* Space Mono — both Colophon — so it is the
+wordmark's own sibling, not a third voice. Monospace uppercase also reads as
+channel labelling on audio equipment, which suits an interface built around a
+waveform readout. Set at 10.5px / 700 / 1.1px tracking: mono runs wide, so it
+drops a step in size and gains tracking relative to the old Grotesk labels.
 
 **Body face — system stack.** `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`. Used for everything secondary: artist names, nav labels, search input, captions. Keeps the "Apple-native" base register and gives the display face something quiet to contrast against.
 
 | Role                     | Face    | Size                            | Weight |
 | ------------------------ | ------- | ------------------------------- | ------ |
 | Logo wordmark            | Display | 14px                            | 500    |
-| Section label            | Display | 11px, uppercase, 0.6px tracking | 500    |
+| Section label            | Label   | 10.5px, uppercase, 1.1px tracking | 700  |
+| Timestamp / meta         | Label   | 9.5–11px                        | 400/700 |
 | Track/song title         | Display | 14px                            | 500    |
 | Artist name              | Body    | 12px                            | 400    |
 | Nav label                | Body    | 13px                            | 400    |
@@ -243,6 +311,22 @@ once — see `docs/BRAND_ASSETS.md`.
   empty"), the same justification the `.eq-bar` now-playing pulse runs on.
   Opacity only: no shimmer sweep, no travelling highlight, no gradient — those
   are the templated-skeleton tell. Disabled under `prefers-reduced-motion`.
+- **Signature ambient motion** — `.travel` (9s linear, both carriers),
+  `.drift` (9s phase breathing on the overtone), `.spark` (7–13s path motion),
+  `.dust` (2.2–6.8s twinkle). **Stated exception**, Founder-approved
+  2026-08-30 across several rounds of direction. This is the one surface where
+  ambient motion is sanctioned, and it earns it: the wave *is* the data
+  readout, so motion here is the thing being displayed rather than decoration
+  applied to it. Scoped to the Signature surface only — see §2.1 for the
+  boundaries, which this entry does not widen.
+
+  `prefers-reduced-motion: reduce` **must** stop `.travel`, `.drift` and
+  `.dust`, and hide the particle layer outright. This is not optional here.
+  With ~68 animated elements it is by a wide margin the most motion-dense
+  surface in the product, and therefore the one most likely to cause harm.
+  Performance note for whoever builds it: the glow filter sits on the parent
+  SVG, so every frame re-filters a region containing all of them. Profile it
+  before shipping, especially where several mini-signatures share a screen.
 - Logomark draw-in: `.octave-draw`, 900ms, fundamental leading the overtone by
   140ms. **Stated exception** to "no decorative motion," on the same grounds as
   `.eq-bar` — it is functional. It is scoped to **Melody arrival only**, where

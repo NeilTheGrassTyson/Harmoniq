@@ -254,6 +254,35 @@ Custom themes, theme song, featured recent activity.
 _Security: each new visible field needs the same opt-in-by-default
 treatment as the original profile fields._
 
+**Not the same thing as "Website Appearance" (below).** These themes are
+chosen by a profile's owner and seen by *visitors*, which is why they carry a
+visibility obligation. An appearance preference is seen only by the person who
+set it. Separate control, separate token layer, separate stored field — ADR
+0013.
+
+### Website Appearance (Light / Dark / Midnight)
+
+A Settings surface letting a viewer pick the theme applied everywhere they
+look. Dark stays the default; Midnight is true black. Decided 2026-08-30, ADR
+0013; not yet specced or built. Tier 1 — net-new user-facing feature.
+
+Independent of the Listening Signature above: it can ship first.
+
+Two things to settle in the spec rather than in flight:
+
+- **Whether Light ships at all.** It breaks rather than degrades. The accent
+  fails AA on white and it is the focus-ring colour, and the whole Signature
+  palette is invisible on white — so Light means a darkened accent, a darkened
+  hue set, and dropping the glow, grain and particles. That is two Signature
+  treatments to maintain forever. Dark + Midnight alone is coherent.
+- **Whether Midnight becomes the default.** Adding an option and changing a
+  default are different decisions; the second one changes the product for
+  people who never asked.
+
+_Security: a stored appearance preference is per-viewer and never shown to
+anyone else — it must not be added to any profile payload, where it would
+quietly become a visible field._
+
 ### Expanded Discovery sources
 
 Deeper playlist-based recs, broader "trusted connections" signal.
