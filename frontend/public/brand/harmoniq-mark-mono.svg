@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 120 120" fill="none" role="img" aria-label="Harmoniq">
+  <title>Harmoniq</title>
+  <!-- No frame and no colour: inherits currentColor when inlined, defaults to
+       black when loaded via <img>. For one-colour print, dark UI, and favicons
+       rendered against an unknown background. -->
+  <path d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.45"/>
+</svg>

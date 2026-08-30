@@ -36,7 +36,8 @@ Derived from mockup iteration (chat, June 2026), checked against BRAND_BIBLE.md 
 | `--color-text-primary`         | `#f2f3f5`                | Titles, primary labels                                  |
 | `--color-text-secondary`       | `#8b93a3`                | Artist names, nav labels, body chrome                   |
 | `--color-text-tertiary`        | `#757c8c`                | Section labels, captions, placeholders                  |
-| `--color-accent`               | `#2f8cff`                | The one brand accent — logomark, active nav, focus ring |
+| `--color-accent`               | `#2f8cff`                | The one **UI** accent — active nav, focus ring, primary button |
+| `--color-brand`                | `#19d8ff`                | **Logo only** — the Octave mark and wordmark. Never UI chrome |
 | `--color-accent-icon-trending` | `#343b4d`                | Equalizer glyph on neutral tiles                        |
 | `--color-accent-icon-friend`   | `#34507c`                | Equalizer glyph on friend tiles                         |
 | `--color-friend-dot`           | `#5a8fd6`                | Small "from a friend" indicator dot                     |
@@ -50,6 +51,14 @@ Derived from mockup iteration (chat, June 2026), checked against BRAND_BIBLE.md 
 - `--color-text-secondary` (`#8b93a3`) on `--color-bg` (`#0b0d12`): ~6.3:1 ✓
 - `--color-text-tertiary` (`#757c8c`) on `--color-bg` (`#0b0d12`): ~4.65:1 ✓ (minimum 4.5:1 for normal text)
   - Previous value `#6b7385` measured 4.08:1 and failed; adjusted to `#757c8c`.
+
+**Two blues, deliberately (ADR 0012).** `--color-brand` is the logo colour and
+`--color-accent` is the interface colour, and they are not the same value. The
+accent is load-bearing for the focus ring every keyboard user depends on and
+was contrast-verified at that value; re-pointing it to the neon is a separate
+change requiring its own WCAG pass, not a side effect of adopting a logo. Do
+not "unify" them without doing that work first, and do not reach for
+`--color-brand` to style a button, a nav state, or a border.
 
 **Forbidden, without an explicit stated exception:** gradients; glow, blur, or drop
 shadows (the _only_ permitted shadow is a 1.5px focus ring — see Motion); purple,
@@ -111,7 +120,35 @@ No pill-shaped elements. No single uniform radius applied to everything — this
 ## 6. Iconography
 
 - **UI chrome** (menu, search, profile, sidebar nav): Tabler Icons, outline style. Generic is fine here — navigation icons aren't a branding opportunity, and forcing originality onto them adds noise without adding meaning.
-- **Music / brand glyph**: a custom three-bar equalizer mark (flat SVG fill, no gradient), in two tonal variants — neutral gray (`--color-accent-icon-trending`) and blue-tinted (`--color-accent-icon-friend`). This is the one recurring original visual signature. Reuse it as the logomark, the album-art placeholder before real artwork loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself.
+- **Music glyph**: a custom three-bar equalizer mark (flat SVG fill, no gradient), in two tonal variants — neutral gray (`--color-accent-icon-trending`) and blue-tinted (`--color-accent-icon-friend`). Use it as the album-art placeholder before real artwork loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself. **It is not the logo** (ADR 0012). It appears hundreds of times per session, which is exactly what disqualifies it from also being the mark that means "Harmoniq"; a placeholder that frequent reads as chrome, not identity.
+
+### 6.1 Brand mark (the logo)
+
+The logomark is the **Octave**: two curves over a shared centreline — a
+fundamental of one period across the frame, and an overtone at twice the
+frequency meeting it at every node. Flat stroke, round caps, `--color-brand`,
+no gradient and no glow. An octave is the one interval every listener hears as
+agreement, which makes the mark a picture of the resonance Harmony measures
+(BRAND_BIBLE §6) rather than generic audio shorthand.
+
+| Asset                                       | Use                                                        |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `components/brand/OctaveMark.tsx`           | In-app mark. `compact` below ~20px                          |
+| `components/brand/Wordmark.tsx`             | In-app lockup — live Space Grotesk plus the wave beneath     |
+| `app/icon.svg`                              | Browser tab icon                                            |
+| `app/apple-icon.tsx`                        | iOS home screen, generated at build time by `next/og`       |
+| `public/brand/harmoniq-mark.svg`            | Full-colour mark for anything outside the app               |
+| `public/brand/harmoniq-mark-mono.svg`       | One-colour mark — `currentColor` when inlined               |
+
+**The small mark is a redraw, not a scale.** Below roughly 20px the overtone
+renders under a pixel and reads as noise, so `compact` drops it and thickens
+the fundamental. Do not scale the two-wave mark down into a favicon slot.
+
+**The wordmark is a component, not a file.** The word is live text in the
+display face; an `.svg` with `<text>` would fall back to a different face on
+any machine without Space Grotesk, and this repo has no tooling to outline
+letterforms. For anything leaving the app, export a raster or have it outlined
+once — see `docs/BRAND_ASSETS.md`.
 
 ---
 
@@ -143,6 +180,12 @@ No pill-shaped elements. No single uniform radius applied to everything — this
   empty"), the same justification the `.eq-bar` now-playing pulse runs on.
   Opacity only: no shimmer sweep, no travelling highlight, no gradient — those
   are the templated-skeleton tell. Disabled under `prefers-reduced-motion`.
+- Logomark draw-in: `.octave-draw`, 900ms, fundamental leading the overtone by
+  140ms. **Stated exception** to "no decorative motion," on the same grounds as
+  `.eq-bar` — it is functional. It is scoped to **Melody arrival only**, where
+  the motion is what separates "a person just sent you this" from "this was
+  already on screen." Not page chrome, not route transitions, not on load.
+  Disabled under `prefers-reduced-motion`.
 - Focus ring is applied **globally** via `:focus-visible` in `globals.css` so every
   interactive element (buttons, links, inputs, selects) gets a consistent ring on
   keyboard navigation. Mouse clicks suppress it (`:focus-visible` vs `:focus`).

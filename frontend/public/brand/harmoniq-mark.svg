@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 120 120" role="img" aria-label="Harmoniq">
+  <title>Harmoniq</title>
+  <rect width="120" height="120" rx="26" fill="#05070a"/>
+  <!-- Fundamental: one period across the frame. -->
+  <path d="M 12 60 Q 36 16 60 60 T 108 60" fill="none" stroke="#19d8ff" stroke-width="10" stroke-linecap="round"/>
+  <!-- Overtone: twice the frequency, sharing every node with the fundamental. -->
+  <path d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" fill="none" stroke="#19d8ff" stroke-width="7" stroke-linecap="round" opacity="0.45"/>
+</svg>
