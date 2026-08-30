@@ -37,6 +37,12 @@ vi.mock("@/components/CoverArt", () => ({
   default: () => <div data-testid="cover" />,
 }));
 
+// Signed-in state is server-resolved so the bell is in the header on the
+// first paint rather than appearing after Clerk hydrates.
+vi.mock("@/components/ViewerProvider", () => ({
+  useViewer: () => ({ signedIn: true, username: "testuser" }),
+}));
+
 import NotificationBell from "@/components/NotificationBell";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -163,5 +169,42 @@ describe("NotificationBell", () => {
       expect(mockMarkAllRead).toHaveBeenCalled();
       expect(screen.queryByTestId("unread-dot")).toBeNull();
     });
+  });
+});
+
+// A fetch that never answered is not an empty inbox. The panel used to
+// collapse both into an empty array and say "Nothing new" — a claim that
+// nobody had sent a Melody, made having asked nobody.
+describe("NotificationBell — failed load", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUnreadCount.mockResolvedValue({ count: 0 });
+  });
+
+  it("reports a failed notifications fetch instead of claiming there is nothing", async () => {
+    mockGetNotifications.mockRejectedValue(new Error("network"));
+
+    render(<NotificationBell />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("notification-bell"));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toMatch(
+        /Couldn.t load your notifications/
+      )
+    );
+    expect(screen.queryByText(/Nothing new/)).toBeNull();
+  });
+
+  it("still says nothing new when the server genuinely returns none", async () => {
+    mockGetNotifications.mockResolvedValue({ items: [], next_cursor: null });
+
+    render(<NotificationBell />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("notification-bell"));
+    });
+
+    await waitFor(() => expect(screen.getByText(/Nothing new/)).toBeDefined());
   });
 });

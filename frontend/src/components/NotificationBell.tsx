@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CoverArt from "@/components/CoverArt";
+import { useViewer } from "@/components/ViewerProvider";
 import {
   getNotifications,
   getUnreadCount,
@@ -46,11 +47,17 @@ function timeAgo(iso: string): string {
 }
 
 export default function NotificationBell() {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken } = useAuth();
+  // Server-resolved, so the bell is in the header from the first paint
+  // instead of appearing after hydration.
+  const { signedIn } = useViewer();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotificationItem[] | null>(null);
+  // "error" is a third state on purpose. Collapsing a failed fetch into an
+  // empty array made the panel say "Nothing new" through a total outage —
+  // it claimed nobody had sent a Melody, having asked nobody.
+  const [items, setItems] = useState<NotificationItem[] | "error" | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const refreshCount = useCallback(async () => {
@@ -65,7 +72,7 @@ export default function NotificationBell() {
   }, [getToken]);
 
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!signedIn) return;
     // Initial fetch is deferred a tick so no state update fires synchronously
     // inside the effect body (react-hooks/set-state-in-effect; same pattern
     // as AppShell's collapse check).
@@ -75,7 +82,7 @@ export default function NotificationBell() {
       clearTimeout(initial);
       clearInterval(interval);
     };
-  }, [isSignedIn, refreshCount]);
+  }, [signedIn, refreshCount]);
 
   // Close on outside click.
   useEffect(() => {
@@ -89,7 +96,7 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
-  if (!isSignedIn) return null;
+  if (!signedIn) return null;
 
   const toggle = async () => {
     const next = !open;
@@ -101,7 +108,7 @@ export default function NotificationBell() {
         const page = await getNotifications(token);
         setItems(page.items);
       } catch {
-        setItems([]);
+        setItems("error");
       }
     }
   };
@@ -109,7 +116,7 @@ export default function NotificationBell() {
   const handleItemClick = async (item: NotificationItem) => {
     setOpen(false);
     setItems((prev) =>
-      prev ? prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)) : prev
+      Array.isArray(prev) ? prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)) : prev
     );
     if (!item.read) {
       setUnread((c) => Math.max(0, c - 1));
@@ -125,7 +132,7 @@ export default function NotificationBell() {
 
   const handleMarkAll = async () => {
     setUnread(0);
-    setItems((prev) => (prev ? prev.map((n) => ({ ...n, read: true })) : prev));
+    setItems((prev) => (Array.isArray(prev) ? prev.map((n) => ({ ...n, read: true })) : prev));
     try {
       const token = await getToken();
       if (token) await markAllNotificationsRead(token);
@@ -163,6 +170,10 @@ export default function NotificationBell() {
         >
           {items === null ? (
             <p className="text-tertiary p-4 text-[13px]">Loading…</p>
+          ) : items === "error" ? (
+            <p role="alert" className="text-tertiary p-4 text-[13px]">
+              Couldn&rsquo;t load your notifications. Try again in a moment.
+            </p>
           ) : items.length === 0 ? (
             <p className="text-tertiary p-4 text-[13px]">
               Nothing new. When someone sends you a Melody or follows you, it shows here.

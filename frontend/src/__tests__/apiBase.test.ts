@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { errorStatus, isNetworkError, isUpstreamFailure, friendlyError } from "@/lib/apiBase";
+import {
+  errorStatus,
+  isNetworkError,
+  isUpstreamFailure,
+  friendlyError,
+  misconfigurationReason,
+} from "@/lib/apiBase";
 
 const httpError = (status: number, message = "boom") =>
   Object.assign(new Error(message), { status });
@@ -60,5 +66,39 @@ describe("friendlyError", () => {
     expect(friendlyError(Object.assign(new Error(""), { status: 500 }), "Couldn't delete.")).toBe(
       "Couldn't delete."
     );
+  });
+});
+
+// ADR 0011 made an *unset* NEXT_PUBLIC_API_URL observable. It could not catch
+// one that is set and wrong, which fails identically — every request resolves,
+// answers 404, and the pages report it as missing content. On 2026-08-29 that
+// was the Vercel deployment-inspector URL, and production was down for days.
+describe("misconfigurationReason", () => {
+  it("accepts a bare origin", () => {
+    expect(misconfigurationReason("https://harmoniq-production-ac1f.up.railway.app")).toBeNull();
+    expect(misconfigurationReason("http://localhost:8000")).toBeNull();
+  });
+
+  it("rejects the Vercel dashboard URL that took production down", () => {
+    expect(
+      misconfigurationReason("https://vercel.com/team/harmoniq/9Rnf5KJ7j3rPp7YR436wZU4fMmrk")
+    ).toContain("dashboard");
+  });
+
+  it("rejects a trailing slash, which produces a double slash in every path", () => {
+    expect(misconfigurationReason("https://api.example.com/")).toContain("slash");
+  });
+
+  it("rejects a value carrying a path", () => {
+    expect(misconfigurationReason("https://api.example.com/api/v1")).toContain("path");
+  });
+
+  it("rejects a value that is not an absolute URL", () => {
+    expect(misconfigurationReason("api.example.com")).toContain("absolute");
+    expect(misconfigurationReason("")).toContain("absolute");
+  });
+
+  it("rejects a non-http scheme", () => {
+    expect(misconfigurationReason("ftp://api.example.com")).toContain("scheme");
   });
 });
