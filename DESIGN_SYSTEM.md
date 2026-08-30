@@ -65,6 +65,48 @@ shadows (the _only_ permitted shadow is a 1.5px focus ring — see Motion); purp
 indigo, or violet as any UI color; cream/beige backgrounds; any "neon" effect achieved
 through blur/glow rather than flat saturated color.
 
+### 2.1 Stated exception — the Signature palette and its glow
+
+**Founder-approved 2026-08-30.** Two departures from the rules above, both
+scoped to the profile Signature surface (the "listening DNA") and nothing else.
+
+**Six data hues.** Each Signature strand carries a fixed hue so that colour
+becomes learnable rather than decorative:
+
+| Strand  | Hue       | Value     |
+| ------- | --------- | --------- |
+| Range   | green     | `#39ff8b` |
+| Current | yellow    | `#ffe14f` |
+| Posture | orange    | `#ffa028` |
+| Depth   | pink      | `#ff5cbb` |
+| Era     | white     | `#f2f3f5` |
+| Circle  | cyan      | `#19d8ff` |
+
+The DNA wave takes the hue of whichever strand sits furthest from centre. All
+six clear 4.5:1 against `--color-bg`. None is purple, indigo, or violet — that
+prohibition is untouched.
+
+**Glow.** The wave and the strand meters carry a two-stop halo: a tight core
+plus a soft outer bloom (`drop-shadow(0 0 3px) drop-shadow(0 0 9px)` on
+strokes, `box-shadow: 0 0 4px, 0 0 10px` on the meters), drawn in
+`currentColor` so one hex drives fill and halo together.
+
+**Boundaries of this exception — it does not generalise:**
+
+- Signature graphics only. Never UI chrome — not nav, buttons, borders, tiles,
+  or the focus ring.
+- Never on text. Glow behind type costs legibility, and these hues are not
+  approved as text colours.
+- These are *encoding* colours: a hue means a specific strand. They are not a
+  general palette to draw from, and adding a seventh hue is a new decision.
+- `--color-accent` (`#2f8cff`) and `--color-brand` (`#19d8ff`) are unaffected.
+  Note Circle reuses the brand cyan; on a profile where Circle is the most
+  pronounced strand the wave will read in brand cyan, which is accepted.
+
+**Reevaluate when** the Signature ships for real (it is deferred — see
+ROADMAP.md, LATER) or if glow starts appearing outside this surface, which is
+the failure mode this section exists to prevent.
+
 ---
 
 ## 3. Typography
