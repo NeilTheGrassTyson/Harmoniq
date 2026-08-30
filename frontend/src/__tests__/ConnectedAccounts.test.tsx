@@ -113,3 +113,24 @@ describe("ConnectedAccounts", () => {
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+// "We couldn't check" is not "you aren't connected". The failed check used to
+// resolve to the same null as a genuinely unlinked account, so someone whose
+// Spotify was already linked was shown a Connect button.
+describe("ConnectedAccounts — failed check", () => {
+  beforeEach(() => {
+    mockGetSpotifyConnection.mockReset();
+  });
+
+  it("says the check failed rather than offering to connect", async () => {
+    mockGetSpotifyConnection.mockRejectedValue(new Error("network"));
+    render(<ConnectedAccounts />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toMatch(
+        /Couldn.t check your Spotify connection/
+      )
+    );
+    expect(screen.queryByRole("button", { name: /Connect Spotify/ })).toBeNull();
+  });
+});

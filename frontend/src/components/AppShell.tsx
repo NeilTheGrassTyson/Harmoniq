@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
-import SearchBar from "@/components/SearchBar";
+import { Suspense, useEffect, useState } from "react";
+import SearchBar, { SearchBarFallback } from "@/components/SearchBar";
 import NavAuth from "@/components/NavAuth";
+import { useViewer } from "@/components/ViewerProvider";
 import NotificationBell from "@/components/NotificationBell";
 import EqualizerGlyph from "@/components/EqualizerGlyph";
 
@@ -166,8 +166,10 @@ export default function AppShell({ children }: AppShellProps) {
   // toggles, their choice wins at every width.
   const [open, setOpen] = useState<boolean | null>(null);
   const pathname = usePathname();
-  const { isSignedIn, user } = useUser();
-  const username = user?.username ?? null;
+  // Server-resolved, so the nav is correct on first paint rather than after
+  // hydration — and `username` is the Harmoniq handle profile routes are keyed
+  // by, not Clerk's unsynced copy. See lib/viewer.ts.
+  const { signedIn, username } = useViewer();
 
   // Mirrors the CSS breakpoint purely so aria-expanded and the button label
   // can describe the sidebar's actual state. It drives no layout — the panel
@@ -217,7 +219,12 @@ export default function AppShell({ children }: AppShellProps) {
 
         {/* Center: search */}
         <div className="w-full max-w-[360px]">
-          <SearchBar />
+          {/* SearchBar reads ?q= so the field tracks the URL through history
+              moves; useSearchParams bails its subtree out of prerendering, and
+              a static route (not-found) fails to build without a boundary. */}
+          <Suspense fallback={<SearchBarFallback />}>
+            <SearchBar />
+          </Suspense>
         </div>
 
         {/* Right: notifications + profile */}
@@ -243,7 +250,7 @@ export default function AppShell({ children }: AppShellProps) {
               label="Search"
               active={isSearchActive}
             />
-            {isSignedIn && (
+            {signedIn && (
               <NavLink
                 href="/melodies"
                 icon={<IconMelody size={16} />}
@@ -251,7 +258,7 @@ export default function AppShell({ children }: AppShellProps) {
                 active={isMelodiesActive}
               />
             )}
-            {isSignedIn && username && (
+            {signedIn && username && (
               <NavLink
                 href={`/u/${username}`}
                 icon={<IconUser size={16} />}
@@ -259,12 +266,17 @@ export default function AppShell({ children }: AppShellProps) {
                 active={isProfileActive}
               />
             )}
-            <NavLink
-              href="/settings"
-              icon={<IconSettings size={16} />}
-              label="Settings"
-              active={isSettingsActive}
-            />
+            {/* Settings is an account page — offering it to a signed-out
+                visitor only sends them to the sign-in wall. Search stays
+                visible to everyone: it is a browse surface (ADR 0012). */}
+            {signedIn && (
+              <NavLink
+                href="/settings"
+                icon={<IconSettings size={16} />}
+                label="Settings"
+                active={isSettingsActive}
+              />
+            )}
           </nav>
         </aside>
 

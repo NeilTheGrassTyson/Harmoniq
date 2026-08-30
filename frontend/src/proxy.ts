@@ -7,6 +7,11 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/sso-callback(.*)",
+  // Search — public for the same reason the catalog pages below are: the
+  // backend serves /catalog/search and /users/search without auth, and a
+  // shared /search?q=… link bouncing a visitor to sign-in made search the
+  // only browse surface that did. See ADR 0012.
+  "/search(.*)",
   // Spotify OAuth return. Public because Spotify redirects to the loopback
   // IP literal (127.0.0.1) where no Clerk dev session exists — the page
   // forwards itself to localhost and only then performs the authed exchange

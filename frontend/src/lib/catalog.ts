@@ -37,7 +37,11 @@ function catalogCache(): Pick<RequestInit, "cache" | "next"> {
 }
 
 export function getArtist(mbid: string): Promise<ArtistDetail> {
-  return catalogGet<ArtistDetail>(`/artists/${encodeURIComponent(mbid)}`, undefined, catalogCache());
+  return catalogGet<ArtistDetail>(
+    `/artists/${encodeURIComponent(mbid)}`,
+    undefined,
+    catalogCache()
+  );
 }
 
 export function getAlbum(mbid: string): Promise<AlbumDetail> {

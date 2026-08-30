@@ -7,7 +7,7 @@ verification is stateless against Clerk's public JWKS endpoint.
 """
 
 import logging
-from functools import lru_cache
+import time
 from typing import Annotated
 
 import httpx
@@ -24,16 +24,46 @@ bearer_scheme = HTTPBearer()
 _optional_bearer = HTTPBearer(auto_error=False)
 
 
-@lru_cache(maxsize=1)
-def _fetch_jwks() -> dict:  # type: ignore[type-arg]
+# How long a fetched JWKS is trusted before it is fetched again.
+_JWKS_TTL_SECONDS = 3600.0
+
+# Floor between forced refetches, so a caller presenting a stream of tokens
+# with unknown `kid`s cannot turn this into an outbound request flood.
+_JWKS_REFETCH_MIN_INTERVAL_SECONDS = 60.0
+
+_jwks_cache: dict | None = None  # type: ignore[type-arg]
+_jwks_fetched_at = 0.0
+_jwks_last_forced_at = 0.0
+
+
+def _fetch_jwks(force: bool = False) -> dict:  # type: ignore[type-arg]
     """
-    Fetches Clerk's public JWKS and caches it for the process lifetime.
-    In production, a key rotation would require a process restart — acceptable
-    given Clerk's key rotation cadence. A TTL cache can be added if needed.
+    Fetches Clerk's public JWKS, cached for `_JWKS_TTL_SECONDS`.
+
+    This was `@lru_cache`d for the process lifetime, which made a Clerk key
+    rotation an outage lasting until somebody thought to restart the service.
+    `force` re-fetches early — see `_verify_clerk_token`, which uses it to
+    recover from a rotation on the first token signed by the new key.
     """
+    global _jwks_cache, _jwks_fetched_at, _jwks_last_forced_at
+    now = time.monotonic()
+
+    if force:
+        if now - _jwks_last_forced_at < _JWKS_REFETCH_MIN_INTERVAL_SECONDS:
+            return _jwks_cache or {}
+        _jwks_last_forced_at = now
+    elif _jwks_cache is not None and now - _jwks_fetched_at < _JWKS_TTL_SECONDS:
+        return _jwks_cache
+
     response = httpx.get(settings.clerk_jwks_url, timeout=10)
     response.raise_for_status()
-    return response.json()  # type: ignore[no-any-return]
+    _jwks_cache = response.json()
+    _jwks_fetched_at = now
+    return _jwks_cache
+
+
+def _find_key(jwks: dict, kid: str | None) -> dict | None:  # type: ignore[type-arg]
+    return next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
 
 
 def _verify_clerk_token(token: str) -> dict:  # type: ignore[type-arg]
@@ -41,8 +71,27 @@ def _verify_clerk_token(token: str) -> dict:  # type: ignore[type-arg]
         jwks = _fetch_jwks()
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
-        key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+        key = _find_key(jwks, kid)
         if key is None:
+            # An unrecognised `kid` is one of two things: a rotation this
+            # process has not picked up, or a JWKS from a different Clerk
+            # instance than the one issuing tokens. Re-fetch once — that makes
+            # a rotation self-healing — and if the key is still absent, say so
+            # with both sides named. Clerk's `kid` is the instance id, so a
+            # mismatch here is a mismatch of instances, which is a
+            # CLERK_JWKS_URL pointing at the wrong one (2026-08-30; see
+            # docs/deployment.md).
+            jwks = _fetch_jwks(force=True)
+            key = _find_key(jwks, kid)
+        if key is None:
+            logger.warning(
+                "JWT key not found: token kid=%s is absent from the JWKS at "
+                "%s, which offers [%s]. If those are different Clerk "
+                "instances, CLERK_JWKS_URL is pointing at the wrong one.",
+                kid,
+                settings.clerk_jwks_url,
+                ", ".join(str(k.get("kid")) for k in jwks.get("keys", [])) or "<none>",
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="JWT key not found",

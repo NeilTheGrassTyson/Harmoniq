@@ -72,8 +72,87 @@ def _log_app_env_configuration() -> None:
     )
 
 
+def _log_clerk_configuration() -> None:
+    """Record the resolved JWKS URL, and flag one that can't be right.
+
+    A CLERK_JWKS_URL pointing at a *different* Clerk instance than the one
+    issuing tokens fails in the least legible way available: the fetch
+    succeeds, the JWKS parses, and every authenticated request comes back
+    401 "JWT key not found" while unauthenticated ones keep working. The site
+    browses fine and nothing a signed-in user does succeeds (2026-08-30).
+
+    Clerk's development instances live on *.clerk.accounts.dev and its
+    production instances on the app's own domain, so a dev host in a
+    production deployment is the shape to catch. The resolved value is logged
+    unconditionally so it is greppable in Deploy Logs (ADR 0011).
+    """
+    logger.info("Clerk JWKS URL: %s", settings.clerk_jwks_url)
+
+    if settings.app_env != "production":
+        return
+    if ".clerk.accounts.dev" not in settings.clerk_jwks_url:
+        return
+    logger.warning(
+        "APP_ENV=production but CLERK_JWKS_URL (%s) is a Clerk *development* "
+        "instance. Tokens minted by the production instance will be rejected "
+        "with 401 'JWT key not found' — every authenticated request fails "
+        "while public pages keep working. See docs/deployment.md.",
+        settings.clerk_jwks_url,
+    )
+
+
+def _log_clerk_secret_key_configuration() -> None:
+    """Flag a test-mode Clerk secret key in a production deployment.
+
+    The two Clerk variables are set together and go wrong together: an
+    instance mix-up in CLERK_JWKS_URL usually means CLERK_SECRET_KEY is from
+    the same wrong instance. That one fails even more quietly — the Management
+    API call marking a new account `onboarded` is deliberately non-fatal, so
+    signup succeeds, the flag is never written, and `proxy.ts` falls back to
+    asking the backend on every navigation forever after.
+
+    Only the key's prefix is ever logged; the key itself never is.
+    """
+    key = settings.clerk_secret_key
+    if not key:
+        return
+    # Clerk keys are sk_<mode>_<random>. Anything else is logged as
+    # unrecognised rather than partially printed — never risk the key itself.
+    parts = key.split("_")
+    prefix = "_".join(parts[:2]) if len(parts) >= 3 else "<unrecognised format>"
+    logger.info("Clerk secret key: %s… (%d chars)", prefix, len(key))
+
+    # A Clerk secret key is sk_test_… or sk_live_… and nothing else, so a value
+    # that is neither is some *other* credential in the slot — a publishable
+    # key, the webhook signing secret, a URL. That fails the same silent way as
+    # a wrong-instance key and is worth naming in any environment.
+    if not key.startswith(("sk_test_", "sk_live_")):
+        logger.warning(
+            "CLERK_SECRET_KEY does not look like a Clerk secret key (expected "
+            "sk_test_… or sk_live_…, got %s…). Whatever is in the slot, the "
+            "Management API call that writes publicMetadata.onboarded on a new "
+            "account will fail — silently, because it is deliberately "
+            "non-fatal. See docs/deployment.md.",
+            prefix,
+        )
+        return
+
+    if settings.app_env != "production":
+        return
+    if not key.startswith("sk_test_"):
+        return
+    logger.warning(
+        "APP_ENV=production but CLERK_SECRET_KEY is a test-mode key "
+        "(sk_test_…). New accounts will be created without "
+        "publicMetadata.onboarded, because the Management API call is scoped "
+        "to a different Clerk instance. See docs/deployment.md."
+    )
+
+
 _log_cors_configuration()
 _log_app_env_configuration()
+_log_clerk_configuration()
+_log_clerk_secret_key_configuration()
 
 app = FastAPI(
     title=settings.app_name,

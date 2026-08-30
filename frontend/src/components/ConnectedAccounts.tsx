@@ -26,14 +26,19 @@ export default function ConnectedAccounts({ justConnected = false }: ConnectedAc
   const [spotify, setSpotify] = useState<SpotifyConnectionStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tracked separately from `spotify` because null previously meant both "not
+  // connected" and "we never found out" — so a failed check rendered a Connect
+  // button at someone whose account was already linked.
+  const [checkFailed, setCheckFailed] = useState(false);
 
   useEffect(() => {
     getToken()
       .then(async (token) => {
         if (!token) return;
         setSpotify(await getSpotifyConnection(token));
+        setCheckFailed(false);
       })
-      .catch(() => setSpotify(null));
+      .catch(() => setCheckFailed(true));
   }, [getToken]);
 
   const handleConnect = async () => {
@@ -58,6 +63,7 @@ export default function ConnectedAccounts({ justConnected = false }: ConnectedAc
       if (!token) throw new Error("Not authenticated");
       await disconnectSpotify(token);
       setSpotify({ connected: false, spotify_user_id: null, connected_at: null });
+      setCheckFailed(false);
     } catch {
       setError("Couldn't disconnect. Try again.");
     } finally {
@@ -74,7 +80,11 @@ export default function ConnectedAccounts({ justConnected = false }: ConnectedAc
         Connected accounts
       </h2>
 
-      {spotify?.connected ? (
+      {checkFailed ? (
+        <p role="alert" className="text-secondary text-sm">
+          Couldn&rsquo;t check your Spotify connection right now.
+        </p>
+      ) : spotify?.connected ? (
         <div className="flex items-center justify-between gap-4">
           <p className="text-secondary text-sm">
             Spotify — connected as <span className="text-primary">{spotify.spotify_user_id}</span>

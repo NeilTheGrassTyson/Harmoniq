@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import AvatarImage from "@/components/AvatarImage";
 import { searchCatalog } from "@/lib/catalog";
@@ -64,31 +64,67 @@ function ResultLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Inert stand-in while the Suspense boundary around SearchBar resolves.
+ *
+ * `useSearchParams` bails the subtree out to client rendering on a prerendered
+ * route, and a statically generated page (not-found.tsx renders AppShell) fails
+ * the build outright without a boundary. Same box, same metrics, so the header
+ * does not move when the real field arrives.
+ */
+export function SearchBarFallback() {
+  return (
+    <div className="relative w-full">
+      <input
+        type="search"
+        placeholder="search"
+        aria-label="Search artists, albums, tracks, and people"
+        className="search-focus bg-control border-hairline rounded-control text-primary w-full border px-3 py-1.5 text-[13px] outline-none"
+        readOnly
+      />
+    </div>
+  );
+}
+
 export default function SearchBar() {
-  const [query, setQuery] = useState("");
   const [panel, setPanel] = useState<PanelState>({ kind: "idle" });
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlQuery = pathname === "/search" ? (searchParams.get("q") ?? "") : "";
+  // Seeded from the URL rather than restored by an effect, so landing on
+  // /search?q=… shows the query in the field on the very first render.
+  const [query, setQuery] = useState(urlQuery);
   // URL sync and dropdown fetches run only after the user has actually typed.
-  // Without this gate, mounting on /search?q=… would push a bare /search
-  // (stripping the query), and dismissing the panel after a result click
-  // would fire a competing navigation that cancels the click's.
+  // Without this gate, mounting on /search?q=… would replace with a bare
+  // /search (stripping the query), and dismissing the panel after a result
+  // click would fire a competing navigation that cancels the click's.
   const hasEdited = useRef(false);
 
-  // Restore the query text when landing directly on /search?q=… so the
-  // header input matches the page body. hasEdited stays false: no refetch,
-  // no URL push, no uninvited dropdown. Deferred a tick so no state update
-  // fires synchronously inside the effect body.
+  // The last ?q= this component itself wrote, so its own URL updates can be
+  // told apart from one it didn't cause. Without that distinction the sync
+  // effect below would fight the typist: the URL trails the field by a
+  // debounce interval, and adopting it would rewind every few keystrokes.
+  const lastWritten = useRef(urlQuery);
+
+  // Keep the header input matching the URL on /search through Back/Forward.
+  // This used to run once at mount, so a history move changed the address bar
+  // while the field kept the newest text: the URL read ?q=beat while the input
+  // still said "beatles ab". Deferred a tick so no state update fires
+  // synchronously inside the effect body.
   useEffect(() => {
     if (pathname !== "/search") return;
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (!q) return;
-    const t = setTimeout(() => setQuery(q), 0);
+    if (urlQuery === lastWritten.current) return;
+    const t = setTimeout(() => {
+      lastWritten.current = urlQuery;
+      // The URL moved without this component moving it, so the field is stale
+      // and the user is no longer mid-edit.
+      hasEdited.current = false;
+      setQuery((current) => (current === urlQuery ? current : urlQuery));
+    }, 0);
     return () => clearTimeout(t);
-    // Mount-only by design; later query changes are user-driven.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pathname, urlQuery]);
 
   // Dismiss on outside interaction. touchstart is listened for alongside
   // mousedown because iOS Safari only synthesises mouse events for taps on
@@ -115,7 +151,8 @@ export default function SearchBar() {
     if (trimmed.length < 2) {
       // Clear URL param when query is cleared on /search
       if (pathname === "/search") {
-        router.push("/search");
+        lastWritten.current = "";
+        router.replace("/search");
       }
       return;
     }
@@ -129,7 +166,12 @@ export default function SearchBar() {
       // request for every keystroke. Panel state is reset so no stale
       // dropdown reappears when navigating to another page.
       if (pathname === "/search") {
-        router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+        // replace, not push: a refined query is the same destination, not a
+        // new one. Pushing gave every debounce tick its own history entry, so
+        // Back walked the query backwards a few characters at a time instead
+        // of leaving the page.
+        lastWritten.current = trimmed;
+        router.replace(`/search?q=${encodeURIComponent(trimmed)}`);
         setPanel({ kind: "idle" });
         return;
       }
