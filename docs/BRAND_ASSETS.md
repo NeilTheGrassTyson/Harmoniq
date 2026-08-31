@@ -17,6 +17,9 @@
 | `frontend/public/brand/harmoniq-mark-mono.svg` | `/brand/harmoniq-mark-mono.svg` | One-colour mark                    |
 | `frontend/public/brand/harmoniq-mark-512.png`  | `/brand/harmoniq-mark-512.png`  | Raster master, transparent corners |
 | `frontend/public/brand/harmoniq-mark-1024.png` | `/brand/harmoniq-mark-1024.png` | Raster master, store/press sizes   |
+| `frontend/public/brand/harmoniq-wordmark.png`     | `/brand/harmoniq-wordmark.png`     | Full lockup, light text for dark surfaces |
+| `frontend/public/brand/harmoniq-wordmark-ink.png` | `/brand/harmoniq-wordmark-ink.png` | Full lockup, ink for light surfaces |
+| `frontend/public/brand/fonts/SpaceGrotesk-Medium.ttf` | *(not served as a font)* | Render input only — see §2 |
 
 `icon.svg` and `apple-icon.tsx` are **Next.js metadata file conventions**.
 Placing them in `src/app/` is the entire wiring — Next injects the `<link>`
@@ -41,7 +44,8 @@ There is no rasteriser on the development machine — no ImageMagick, Inkscape,
 rsvg-convert, Pillow, or cairosvg. Every raster here was therefore rendered by
 **Next itself**, via a temporary `generateImageMetadata` export on
 `apple-icon.tsx` that emitted the mark at 16/32/48/180/512/1024, followed by a
-build. The PNG bodies were lifted out of `.next/server/app/apple-icon/`, the
+build. The wordmark rasters came the same way, passing the bundled TTF through
+`ImageResponse`'s `fonts` option and cropping the result to its ink. The PNG bodies were lifted out of `.next/server/app/apple-icon/`, the
 `.ico` was assembled from the 16/32/48 payloads, and the temporary export was
 reverted.
 
@@ -102,23 +106,41 @@ as `apple-icon.tsx` applies — an `opengraph-image.tsx` in `src/app/` using
 
 ## 4. When the logo has to leave the app
 
-**The wordmark is a React component** (`components/brand/Wordmark.tsx`), not a
-file you can hand to someone. The word is live text in Space Grotesk, which
-`next/font` loads for the app. Outside the app that font is not guaranteed, so:
+**Rasters exist for both marks**, so most requests are already answered:
 
-- **Do not** ship `Wordmark.tsx`'s markup as an `.svg` with `<text>` in it. On
-  a machine without Space Grotesk it silently renders in a fallback face — a
-  wrong logo that still looks plausible, which is worse than a broken one.
-- **For press, social, a partner's site, or print:** have the letterforms
-  converted to outlines once in a vector editor and commit the result as
-  `public/brand/harmoniq-wordmark.svg`. This repo has no tooling that can
-  outline text (§2), so this is the one asset that cannot be produced here.
+- Square mark — `harmoniq-mark-512.png` / `-1024.png`, or the SVGs where
+  vector is accepted.
+- Wordmark — `harmoniq-wordmark.png` (light text, for dark surfaces) and
+  `harmoniq-wordmark-ink.png` (dark text, for light ones). Both 1351×402,
+  transparent, cropped to the ink with a 20px margin.
 
-**The square mark has no such constraint** — it is pure geometry. Send
-`harmoniq-mark.svg` or `harmoniq-mark-mono.svg` where vector is accepted, and
-`harmoniq-mark-512.png` / `-1024.png` where it is not.
+**There is still no outlined wordmark SVG.** `Wordmark.tsx` renders live Space
+Grotesk, and nothing here can convert letterforms to paths. Do **not** work
+around that by shipping an `.svg` with `<text>` in it: on a machine without
+the font it silently renders in a fallback face — a wrong logo that still
+looks plausible, which is worse than a broken one. If a vector wordmark is
+ever needed, outline it once in a vector editor and commit the result as
+`public/brand/harmoniq-wordmark.svg`.
 
----
+### The bundled font
+
+`public/brand/fonts/SpaceGrotesk-Medium.ttf` (static, OS/2 weight 500) exists
+so the wordmark rasters are reproducible. It is a **build input, not a served
+webfont** — the app still loads Space Grotesk through `next/font` in
+`layout.tsx`, and nothing should `@font-face` this file.
+
+It is redistributed under the SIL Open Font License 1.1; `OFL.txt` sits beside
+it and must stay there. Two OFL terms worth knowing before anyone touches it:
+the font may not be sold on its own, and any **modified** version must not use
+the reserved name "Space Grotesk."
+
+Getting it was less obvious than expected, so: the google/fonts repo ships
+**only** the variable `SpaceGrotesk[wght].ttf`, whose default instance is
+Light 300 — the wrong weight, and satori will not instance it. There is no
+`static/` directory (that path 404s to an HTML page). The static Medium comes
+from the Google Fonts CSS API queried with a **plain `Mozilla/5.0`**
+user-agent, which returns a `.ttf` URL; a legacy MSIE user-agent returns EOT
+instead, whose first four bytes are the file length rather than a font magic.
 
 ## 5. Colour
 
