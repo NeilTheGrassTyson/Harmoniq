@@ -12,8 +12,11 @@
 | --------------------------------------- | -------------------------------- | ---------------------------------------- |
 | `frontend/src/app/icon.svg`             | `/icon.svg`                      | Browser tab icon (all modern browsers)   |
 | `frontend/src/app/apple-icon.tsx`       | `/apple-icon`                    | iOS home screen, 180×180 PNG             |
+| `frontend/src/app/favicon.ico`           | `/favicon.ico`                   | Legacy favicon slot, 16/32/48            |
 | `frontend/public/brand/harmoniq-mark.svg`      | `/brand/harmoniq-mark.svg`      | Full-colour mark, outside the app  |
 | `frontend/public/brand/harmoniq-mark-mono.svg` | `/brand/harmoniq-mark-mono.svg` | One-colour mark                    |
+| `frontend/public/brand/harmoniq-mark-512.png`  | `/brand/harmoniq-mark-512.png`  | Raster master, transparent corners |
+| `frontend/public/brand/harmoniq-mark-1024.png` | `/brand/harmoniq-mark-1024.png` | Raster master, store/press sizes   |
 
 `icon.svg` and `apple-icon.tsx` are **Next.js metadata file conventions**.
 Placing them in `src/app/` is the entire wiring — Next injects the `<link>`
@@ -32,20 +35,33 @@ Both routes should appear in the route table as `○ /icon.svg` and
 
 ---
 
-## 2. Required cleanup: delete the old favicon
+## 2. Rasters, and how they were made
 
-`frontend/src/app/favicon.ico` predates the logo and still wins the
-`/favicon.ico` slot, which several browsers and most link-preview crawlers
-request by name regardless of what `<link>` tags say. While it exists, some
-surfaces will show the old icon and some the new one.
+There is no rasteriser on the development machine — no ImageMagick, Inkscape,
+rsvg-convert, Pillow, or cairosvg. Every raster here was therefore rendered by
+**Next itself**, via a temporary `generateImageMetadata` export on
+`apple-icon.tsx` that emitted the mark at 16/32/48/180/512/1024, followed by a
+build. The PNG bodies were lifted out of `.next/server/app/apple-icon/`, the
+`.ico` was assembled from the 16/32/48 payloads, and the temporary export was
+reverted.
 
-```bash
-git rm frontend/src/app/favicon.ico
-```
+To redo it (after a mark change), repeat that: add `generateImageMetadata`
+listing the sizes, `npm run build`, take the `.body` files, revert. Note that
+in this version of Next the `id` prop is a **Promise** and must be awaited —
+`Number(id)` without `await` yields `NaN` and the build fails inside satori
+with `inputValue.trim is not a function`, which does not point anywhere near
+the real cause.
 
-This is left for you to run deliberately rather than done automatically — it
-deletes a committed binary, and it is the one step that changes what existing
-users already have cached.
+`favicon.ico` is a Vista-era ICO carrying **PNG** payloads rather than BMP.
+Every modern browser and Windows Explorer reads this; software older than
+roughly 2007 does not.
+
+The small sizes are a **redraw, not a scale**: at 16–48px the overtone falls
+under a pixel and reads as noise, so those renders drop it and thicken the
+fundamental, matching `icon.svg` and `OctaveMark`'s `compact` prop.
+
+The old pre-logo `favicon.ico` has been replaced in place, so there is no
+longer a cleanup step here and no icon slot still serving the previous mark.
 
 ---
 
@@ -93,15 +109,14 @@ file you can hand to someone. The word is live text in Space Grotesk, which
 - **Do not** ship `Wordmark.tsx`'s markup as an `.svg` with `<text>` in it. On
   a machine without Space Grotesk it silently renders in a fallback face — a
   wrong logo that still looks plausible, which is worse than a broken one.
-- **For press, social, a partner's site, or print:** export a PNG at the size
-  needed, or have the letterforms converted to outlines once in a vector editor
-  and commit the result as `public/brand/harmoniq-wordmark.svg`. This repo has
-  no tooling that can outline text — there is no ImageMagick, Inkscape,
-  rsvg-convert, Pillow, or cairosvg on the development machine, which is also
-  why `apple-icon` is generated at build time instead of committed.
+- **For press, social, a partner's site, or print:** have the letterforms
+  converted to outlines once in a vector editor and commit the result as
+  `public/brand/harmoniq-wordmark.svg`. This repo has no tooling that can
+  outline text (§2), so this is the one asset that cannot be produced here.
 
-**The square mark has no such constraint** — it is pure geometry.
-`harmoniq-mark.svg` and `harmoniq-mark-mono.svg` are safe to send anywhere.
+**The square mark has no such constraint** — it is pure geometry. Send
+`harmoniq-mark.svg` or `harmoniq-mark-mono.svg` where vector is accepted, and
+`harmoniq-mark-512.png` / `-1024.png` where it is not.
 
 ---
 
