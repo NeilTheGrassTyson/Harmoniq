@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import EqualizerGlyph from "@/components/EqualizerGlyph";
 import { usePolledListening } from "@/hooks/usePolledListening";
-import type { ListeningResponse, ListeningTrack } from "@/types";
+import type { ListeningResponse, ListeningTrack, VisibilityScope } from "@/types";
 
 /** "3m ago" / "2h ago" / "Jun 30" — quiet relative time for recent listens. */
 export function formatRelative(iso: string, now: Date = new Date()): string {
@@ -104,40 +105,94 @@ interface ListeningSectionProps {
   username: string;
   token?: string;
   initial: ListeningResponse;
+  /** True when the viewer is looking at their own profile. */
+  isOwnProfile?: boolean;
+  /** Owner-only: who else can see this section. Absent for other viewers. */
+  scope?: VisibilityScope;
 }
 
-export default function ListeningSection({ username, token, initial }: ListeningSectionProps) {
+/**
+ * A quiet line telling the owner who else can see their listening.
+ *
+ * Activity defaults to private, so without this the owner sees their own
+ * tracks, assumes everyone does, and finds every other profile empty — which
+ * reads as a broken feature rather than a setting. Shown only to the owner:
+ * who can see someone's activity is not another viewer's business
+ * (HARMONIQ.md §6).
+ */
+function ScopeNote({ scope }: { scope: VisibilityScope }) {
+  if (scope === "public") return null;
+  return (
+    <p className="text-tertiary mb-2" style={{ fontSize: 12 }}>
+      {scope === "private" ? "Only you can see this." : "Visible to friends."}{" "}
+      <Link href="/settings" className="underline underline-offset-2">
+        Change
+      </Link>
+    </p>
+  );
+}
+
+export default function ListeningSection({
+  username,
+  token,
+  initial,
+  isOwnProfile = false,
+  scope,
+}: ListeningSectionProps) {
   const listening = usePolledListening({ username, token, initial });
 
+  const note = isOwnProfile && scope ? <ScopeNote scope={scope} /> : null;
+
   if (!listening.connected) {
+    // "No activity yet" conflated an unlinked account with a quiet one. Only
+    // the owner can act on this, and only they are told which it is.
     return (
-      <p className="text-tertiary" style={{ fontSize: 13 }}>
-        No listening activity yet.
-      </p>
+      <>
+        {note}
+        <p className="text-tertiary" style={{ fontSize: 13 }}>
+          {isOwnProfile ? (
+            <>
+              Spotify isn&rsquo;t connected.{" "}
+              <Link href="/settings" className="underline underline-offset-2">
+                Connect it in settings
+              </Link>
+              .
+            </>
+          ) : (
+            "No listening activity yet."
+          )}
+        </p>
+      </>
     );
   }
 
   const hasAnything = listening.now_playing || listening.recently_played.length > 0;
   if (!hasAnything) {
     return (
-      <p className="text-tertiary" style={{ fontSize: 13 }}>
-        Nothing played recently.
-      </p>
+      <>
+        {note}
+        <p className="text-tertiary" style={{ fontSize: 13 }}>
+          Nothing played recently.
+        </p>
+      </>
     );
   }
 
   return (
-    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-      {listening.now_playing && (
-        <TrackRow track={listening.now_playing} meta="Now playing" isNowPlaying />
-      )}
-      {listening.recently_played.map((item, idx) => (
-        <TrackRow
-          key={`${item.played_at}-${idx}`}
-          track={item}
-          meta={formatRelative(item.played_at)}
-        />
-      ))}
-    </ul>
+    <>
+      {note}
+      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {listening.now_playing && (
+          <TrackRow track={listening.now_playing} meta="Now playing" isNowPlaying />
+        )}
+        {listening.recently_played.map((item, idx) => (
+          <TrackRow
+            key={`${item.played_at}-${idx}`}
+            track={item}
+            meta={formatRelative(item.played_at)}
+          />
+        ))}
+      </ul>
+    </>
   );
 }

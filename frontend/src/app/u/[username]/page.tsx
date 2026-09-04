@@ -68,6 +68,8 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
               username={profile.username}
               token={token ?? undefined}
               initial={listening}
+              isOwnProfile={profile.is_own_profile}
+              scope={profile.activity_scope}
             />
           </section>
         )}
