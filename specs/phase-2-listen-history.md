@@ -1,34 +1,49 @@
 # Listen History — Durable Recent Listening
 
-> **Status: DRAFT — awaiting Founder approval.** Tier 1 per WORKFLOW.md §1
-> ("any change to how user data is collected, stored, or shared — including
-> anything touching the recommendation engine's data pipeline"). Nothing in
-> here is implemented.
+> **Status: DRAFT rev 2 — Founder decisions of 2026-09-06 incorporated;
+> awaiting approval to implement.** Tier 1 per WORKFLOW.md §1 ("any change to
+> how user data is collected, stored, or shared — including anything touching
+> the recommendation engine's data pipeline"). Nothing here is implemented.
+>
+> Rev 2 resolves five of six open questions. The remaining ones are at the end.
 
 ---
 
 # Purpose
 
-A profile's Listening section currently shows whatever the provider's rolling
-window happens to hold at the moment someone looks. Spotify returns roughly the
-last 50 plays; Apple Music returns about 30, without timestamps, and leaves
-stale entries in place for days. Nothing is stored, so the section empties on
-its own and a profile that was expressive yesterday is blank today.
+A profile's Listening section shows whatever the provider's rolling window
+happens to hold at the moment someone looks. Spotify returns roughly the last
+50 plays; Apple Music returns about 30, without timestamps, and leaves stale
+entries in place for days. Nothing is stored, so the section empties on its own
+and a profile that was expressive yesterday is blank today.
 
-This feature persists what we observe, so a profile can show a durable list of
-roughly the last 25 tracks a person actually played.
+This feature persists what we observe, so a profile keeps showing recent
+listening between visits.
 
 **Principle strengthened: Musical Identity.** A profile that forgets everything
 between visits cannot express who someone is.
 
-**An honest caveat the Founder should weigh.** ENGINEERING_BIBLE §3 ranks
-*highlights* — deliberate self-curation — above listening signals, which it
-calls "noisy... meaningful only when aggregated." This feature makes activity
-legible, not curated. If the real goal is "songs that represent me," Highlights
-(specced in §3, entirely unbuilt) is the more direct answer and does not touch
-the data pipeline at all. This spec is worth building if the goal is *activity
-over time*; it is the wrong tool if the goal is *identity by choice*. See Open
-Questions.
+## The profile surface is two-part
+
+Founder decision (Q1): both halves are wanted, and they are different in kind.
+
+| | Source | Count | Lifetime |
+| --- | --- | --- | --- |
+| **Recent listening** | observed from the linked provider | ~20 | rolling; refreshed on view |
+| **Curated tracks** | chosen by the user | 10–15 | permanent until the user changes them |
+
+This resolves the tension flagged in rev 1. ENGINEERING_BIBLE §3 ranks
+deliberate curation above listening signals, which it calls "noisy... meaningful
+only when aggregated" — and that ranking is honoured by giving curated tracks
+permanence while listening stays a rolling window. Activity is transient
+because activity *is* transient; what a person chooses to stand behind is not.
+
+**Scope note.** The curated half is Highlights, a first-class domain entity in
+ENGINEERING_BIBLE §3, and it needs its own spec: it has its own write path,
+its own consent story, and — unlike this feature — touches no provider data and
+no pipeline boundary. This spec fixes the *shape* of the combined surface so
+both halves are designed against one agreement; the Highlights mechanism is
+specced separately and can ship first, since nothing here blocks it.
 
 ---
 
@@ -36,161 +51,175 @@ Questions.
 
 ### In Scope
 
-- A provider-agnostic `listens` table recording observed plays.
+- A provider-agnostic `listens` table holding a capped, rolling window per user.
 - Ingestion from Spotify's recently-played endpoint, behind a provider
-  interface that Apple Music can later implement.
-- Serving the profile's Listening section from stored rows rather than a live
-  fetch, with the existing now-playing behaviour unchanged.
-- Explicit consent for storage at connect time, and deletion of stored listens
-  on disconnect.
-- Retention policy and its enforcement.
+  interface Apple Music can later implement.
+- Serving the Listening section from stored rows; now-playing stays live.
+- A separate opt-in for storage, and deletion of stored listens when it is
+  withdrawn or the provider is disconnected.
+- Rendering the curated half alongside recent listening.
 
 ### Out of Scope
 
+- The Highlights write path — selection UI, ordering, limits. Its own spec.
 - Apple Music itself. This spec only ensures the model does not preclude it.
-- Any use of stored listens by recommendation, similarity, trending, or the
-  Home feed. See the boundary below — this is a hard prohibition, not a
-  sequencing decision.
-- Highlights (ENGINEERING_BIBLE §3) — a separate, unbuilt feature.
-- Scrobbling to third parties; import of historical listening from any
-  provider.
+- Any use of stored listens by recommendation, similarity, trending, or Home.
+  A hard prohibition, not a sequencing decision — see the boundary below.
+- Scrobbling to third parties; importing historical listening from a provider.
 
 ### Non-Goals
 
-- Completeness. We record what we observe. Plays that happen between polls, or
-  outside a linked provider, are simply not captured, and the UI must never
-  imply the list is exhaustive.
-- Replacing the live now-playing indicator, which stays fetch-on-view.
+- Completeness. We record what we observe. Plays between views, or outside a
+  linked provider, are not captured, and the UI must never imply otherwise.
+- Replacing the live now-playing indicator.
 
 ---
 
 # The boundary this feature must not cross
 
-This is the most consequential thing in the spec.
+The most consequential requirement in this spec.
 
 CLAUDE.md records that Spotify's developer policy **prohibits training ML
 models on Spotify content or metadata**. ENGINEERING_BIBLE §13 restates it:
 Spotify-derived data "may be displayed; it may not be used as training input,"
 and the taste graph must be built from "listens logged inside our own app."
 
-A `listens` table filled by polling Spotify is Spotify-derived data. Displaying
-it is permitted. The same table quietly becoming an input to similarity or
-recommendation is the violation — and it is the kind that happens by accident,
-one convenient join at a time, long after anyone remembers why the rule
-existed.
+**Founder decision (Q5): display-only storage is accepted.** Storing
+provider-derived listening in order to render it is treated as display, not
+training input. This spec is built on that reading.
+
+The risk is not the decision; it is the drift. A `listens` table is one
+convenient join away from becoming a recommendation input, long after anyone
+remembers why it must not be.
 
 **Requirement: the boundary is enforced structurally, not by comment.**
 
 - Every row carries a `source` discriminator (`spotify`, `apple_music`,
   `harmoniq`) recording where the observation came from.
-- Recommendation, similarity, and trending code may read only rows whose
-  `source` is first-party. Provider-derived rows are display-only.
-- The restriction is expressed as a database view or a service-layer accessor
-  that recommendation code uses exclusively — not as a `WHERE` clause each
-  caller is trusted to remember.
-- A test asserts that provider-sourced rows are unreachable through the
-  recommendation accessor. That test is the real deliverable of this section.
+- Recommendation, similarity, and trending may read only first-party rows.
+- The restriction is a database view or a single service-layer accessor that
+  recommendation code uses exclusively — not a `WHERE` clause each caller is
+  trusted to remember.
+- A test asserts provider-sourced rows are unreachable through the
+  recommendation accessor. **That test is the real deliverable of this
+  section.**
+
+Selecting and ordering rows for display by recency is display. Any future
+ranking that weighs listens to decide *what a user should see* has left display
+and re-opens this question.
 
 ---
 
 # User Experience
 
-On a profile whose activity is visible, the Listening section shows up to 25
-recent tracks, newest first, each with the track, artist, and a relative time.
-Now playing keeps its existing distinct treatment above the list.
+On a profile whose activity is visible: up to 20 recent tracks, newest first,
+each with track, artist and a relative time. Now playing keeps its existing
+distinct treatment above the list. Curated tracks render as their own group,
+visually distinct from observed listening — a viewer must be able to tell what
+someone chose from what someone merely did (HARMONIQ.md §2).
 
-Rows persist between visits. A profile that has been quiet for a week still
-shows last week's listening, with honest relative timestamps that make the
-staleness legible rather than hidden.
+Rows persist between visits. A profile quiet for a week still shows last week's
+listening, with honest relative timestamps that make staleness legible rather
+than hidden.
 
-At connect time the user is told, plainly, that linking will record what they
-play so it can appear on their profile — and that disconnecting deletes it.
-This is a materially larger ask than the current display-only link, and the
-consent copy must not be inherited from it.
-
-Disconnecting deletes stored listens immediately, not on a schedule.
+**Consent (Q4 — Founder decision: a separate opt-in).** Storage is a distinct,
+explicit choice, not bundled into the provider connection. A user may link
+Spotify for now-playing and decline storage. The opt-in is provider-agnostic by
+design, so linking Apple Music later reuses the same grant rather than asking
+again. Withdrawing it deletes stored listens immediately.
 
 ---
 
 # Functional Requirements
 
-1. A `listens` table stores: user, track reference, `source`, `played_at`
-   (provider-reported, **nullable**), `observed_at` (when we recorded it,
-   always present), and an idempotency key.
-2. `played_at` is nullable specifically because Apple Music does not supply it.
-   Display logic must degrade to `observed_at` without special-casing the
-   provider at the call site.
-3. Ingestion is idempotent: re-observing the same play must not create a
-   duplicate row.
-4. The profile query returns at most 25 rows, newest first, and respects
-   `visibility_activity` at the data-access layer (ENGINEERING_BIBLE §8.1) —
-   not in the presentation layer.
-5. Disconnecting a provider deletes that user's rows for that `source`
-   synchronously, within the disconnect request.
-6. Deleting a user deletes their listens (`ON DELETE CASCADE`).
-7. Retention is enforced by a scheduled job, not left to grow unbounded.
-8. Recommendation-facing accessors cannot return provider-sourced rows.
+1. `listens` stores: user, track reference, `source`, `played_at`
+   (provider-reported, **nullable**), `observed_at` (always present), and an
+   idempotency key.
+2. `played_at` is nullable because Apple Music does not supply it. Display
+   degrades to `observed_at` without special-casing the provider at the call
+   site.
+3. **Ingestion merges; it never replaces.** On view, the fetched window is
+   unioned with stored rows, deduplicated by idempotency key, sorted newest
+   first, and trimmed to 20. A failed or empty provider response must leave
+   stored rows untouched. *Replacing the window would reintroduce the exact
+   blanking bug this feature exists to fix, the first time Spotify returned
+   nothing.*
+4. Ingestion is idempotent: re-observing a play creates no duplicate row.
+5. The profile query returns at most 20 observed rows plus the curated set, and
+   enforces `visibility_activity` at the data-access layer
+   (ENGINEERING_BIBLE §8.1) — never in presentation.
+6. **Visibility (Q6 — Founder decision):** stored listens inherit
+   `visibility_activity`. No new scope.
+7. Withdrawing the storage opt-in, or disconnecting the provider, deletes that
+   user's rows for that `source` synchronously within the request.
+8. Deleting a user deletes their listens (`ON DELETE CASCADE`).
+9. Recommendation-facing accessors cannot return provider-sourced rows.
+10. Curated tracks are unaffected by every rule above: they are first-party,
+    permanent, and independent of any provider connection.
 
 ---
 
 # Acceptance Criteria
 
-- A profile shows stored listens after the provider's rolling window has moved
-  past them.
-- Polling the same provider window repeatedly produces no duplicate rows.
-- A user with `visibility_activity = private` returns no listens to any other
-  viewer, enforced in the query, verified by an integration test.
-- Disconnecting Spotify leaves zero rows for that user and source.
-- A recommendation accessor asked for a user's listens returns nothing
-  provider-sourced, verified by test.
-- Apple Music's shape (no timestamps) is representable without schema change —
-  demonstrated by a test constructing a row with `played_at = NULL`.
+- A profile shows stored listens after the provider's window has moved past
+  them.
+- A provider response that is empty or fails leaves the stored list intact.
+- Repeated views produce no duplicate rows and never exceed 20 stored per user.
+- `visibility_activity = private` returns no listens to any other viewer,
+  enforced in the query, verified by integration test.
+- Withdrawing the storage opt-in leaves zero rows for that user and source.
+- A recommendation accessor returns nothing provider-sourced, verified by test.
+- Apple Music's shape is representable without schema change — demonstrated by
+  a row with `played_at = NULL`.
+- Curated tracks survive disconnecting the provider and withdrawing the opt-in.
 
 ---
 
 # Design Requirements
 
-Per BRAND_BIBLE §8 and §10: calm and minimal, matching the existing Listening
-rows. Relative timestamps stay quiet and human ("3m ago", "Jun 30").
+Per BRAND_BIBLE §8 and §10: calm and minimal, matching existing Listening rows.
+Relative timestamps stay quiet and human ("3m ago", "Jun 30").
 
-The list must never imply completeness. Where the record is partial — a gap
-between polls, a provider linked yesterday — the copy should be honest that
-this is what we saw, not everything that happened.
+Curated and observed tracks must be visually distinguishable without a legend.
+The list must never imply completeness; where the record is partial, the copy
+should be honest that this is what we saw.
 
 ---
 
 # Technical Notes
 
-**Ingestion mechanism is the main open cost.** Today listening is fetch-on-view
-with a 60s cache. Persisting on view means a person's history is only captured
-when someone happens to look at their profile — so an unvisited profile records
-nothing, and history quality depends on popularity. That is a strange property
-for an identity surface.
+**Ingestion (Q2 — Founder decision: on-view capture).** No scheduler, no new
+infrastructure. Two consequences to handle:
 
-The alternative is a scheduled per-user poll, which means new infrastructure:
-a worker or cron on Railway, plus rate-limit budgeting across connected users.
-Spotify's recently-played returns up to 50 items, so a poll interval under the
-time it takes a heavy listener to play 50 tracks is sufficient to avoid loss.
-This is the single largest implementation decision and is not resolved here.
+- *A visitor's request triggers a write and an outbound API call.* Any viewer,
+  including an anonymous one, can cause work on the profile owner's behalf.
+  Ingestion must reuse the existing 60s payload cache as its floor, so repeated
+  views cannot amplify into repeated Spotify calls, and the write must be
+  cheap enough to sit in a page render. Rate limiting is a security-audit item
+  (WORKFLOW.md §2.5), not an afterthought.
+- *History quality depends on being looked at.* An unvisited profile stops
+  updating. Accepted: with a 20-row cap the surface is "recent listening,"
+  not an archive, and the merge rule means it degrades by going stale rather
+  than by going blank.
 
-**Existing code this touches:** `app/services/spotify.py` (fetch and mapping,
+**The 20-row cap simplifies scale considerably** versus rev 1's unbounded
+table. Steady state is bounded at 20 rows per connected user — roughly 2M rows
+at 100k users, not 10M/day. Partitioning is unnecessary; the cap *is* the
+retention policy (Q3), enforced on write rather than by a cleanup job.
+
+**Existing code touched:** `app/services/spotify.py` (fetch and mapping,
 currently `_RECENT_LIMIT = 20`), `app/models/spotify.py` (whose docstring
 asserts listening is never persisted and must be revised), `app/services/
-user.py` (profile assembly), `app/api/v1/spotify.py`, and on the frontend
-`ListeningSection` plus `usePolledListening`.
+user.py`, `app/api/v1/spotify.py`, and on the frontend `ListeningSection` plus
+`usePolledListening`.
 
 **Track identity.** Listens must reference the normalized track entity
 (ENGINEERING_BIBLE §3), not a provider ID, or the table cannot serve Apple
-Music without a migration. This likely requires on-demand MusicBrainz
-resolution during ingestion, which is a latency and failure-mode concern the
-implementation must handle without dropping the listen.
+Music without a migration. This likely means on-demand MusicBrainz resolution
+during ingestion — a latency and failure mode that must not drop the listen.
 
-**Scale** (WORKFLOW.md §2.3). At 100 users with a 15-minute poll, roughly 10k
-rows/day. At 100k users, ~10M rows/day — partitioning and aggressive retention
-become mandatory. Retention policy should be chosen with the 100k case in mind
-even though it is far off.
-
-**Migration:** purely additive — one new table, no changes to existing ones.
+**Migration:** purely additive. One new table, plus one column or row for the
+storage opt-in.
 
 ---
 
@@ -201,9 +230,8 @@ following the `SEARCH_LOCAL_FIRST` precedent. Off restores the current
 live-fetch path exactly, since the display code keeps the live fetch as its
 fallback.
 
-Stored rows are preserved on rollback and are deletable per user without
-touching anything else. Dropping the table is reversible in the sense that no
-other entity references it.
+Stored rows are preserved on rollback and deletable per user. Nothing else
+references the table, so dropping it is contained.
 
 ---
 
@@ -211,24 +239,28 @@ other entity references it.
 
 _Founder decides; do not answer these in implementation._
 
-1. **Is this the right feature at all?** Highlights (ENGINEERING_BIBLE §3) is
-   the specced-but-unbuilt mechanism for "songs that represent me," and it is
-   curation rather than derivation — closer to HARMONIQ §2, Humans Before
-   Algorithms. Should Highlights come first, with listen history deferred until
-   there is a concrete need for it?
-2. **Ingestion mechanism:** scheduled per-user polling (accurate, new
-   infrastructure) or on-view capture (no new infrastructure, history biased by
-   who visits you)?
-3. **Retention:** how long do stored listens live? A rolling window (90 days?),
-   a fixed row cap per user, or indefinite until disconnect?
-4. **Consent granularity:** is storage bundled into the existing Spotify
-   connection, or a separate opt-in a user can decline while still showing
-   now-playing?
-5. **Does storing provider-derived listening change the ToS position at all?**
-   This spec assumes display-only storage is permitted and only *training* is
-   prohibited, reading ENGINEERING_BIBLE §13 literally. If that reading is
-   wrong, the feature cannot be built as described. Worth confirming against
-   the current Spotify Developer Terms before implementation begins.
-6. **Default visibility** for stored listens — inherit `visibility_activity`,
-   or introduce a separate scope, given that a persistent record is a larger
-   disclosure than an ephemeral one?
+1. **Curated count: 10 or 15?** Rev 1 recorded "10–15". A single number is
+   needed before implementation — it determines the layout.
+2. **Should a curated track be ordered by the user, or by when it was added?**
+   Manual ordering is a meaningfully larger build.
+3. **Does an anonymous visitor's view trigger ingestion, or only an
+   authenticated one?** Restricting it reduces the abuse surface but means a
+   profile viewed only by logged-out visitors never refreshes.
+4. **Do curated tracks inherit `visibility_activity` too, or get their own
+   scope?** They are a deliberate statement rather than passive activity, so
+   the argument for a separate — possibly more public — default is stronger
+   than it was for listening. This belongs to the Highlights spec but should be
+   decided consistently with Q6 above.
+
+---
+
+# Decision log
+
+| Q | Question | Decision (2026-09-06) |
+| --- | --- | --- |
+| 1 | Is this the right feature, or Highlights instead? | **Both.** Two-part surface; Highlights gets its own spec. |
+| 2 | Ingestion mechanism | **On-view capture.** No scheduler. |
+| 3 | Retention | **20 observed, rolling; 10–15 curated, permanent.** |
+| 4 | Consent granularity | **Separate opt-in**, provider-agnostic. |
+| 5 | ToS position | **Display-only storage accepted.** |
+| 6 | Default visibility | **Inherits `visibility_activity`.** |
