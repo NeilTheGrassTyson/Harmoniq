@@ -1,11 +1,12 @@
 # Listen History — Durable Recent Listening
 
-> **Status: DRAFT rev 2 — Founder decisions of 2026-09-06 incorporated;
+> **Status: DRAFT rev 3 — all open questions resolved (2026-09-06);
 > awaiting approval to implement.** Tier 1 per WORKFLOW.md §1 ("any change to
 > how user data is collected, stored, or shared — including anything touching
 > the recommendation engine's data pipeline"). Nothing here is implemented.
 >
-> Rev 2 resolves five of six open questions. The remaining ones are at the end.
+> Rev 3 resolves the last of them. The curated half is now specified
+> separately in `specs/phase-2-highlights.md`.
 
 ---
 
@@ -30,7 +31,7 @@ Founder decision (Q1): both halves are wanted, and they are different in kind.
 | | Source | Count | Lifetime |
 | --- | --- | --- | --- |
 | **Recent listening** | observed from the linked provider | ~20 | rolling; refreshed on view |
-| **Curated tracks** | chosen by the user | 10–15 | permanent until the user changes them |
+| **Highlights** | chosen by the user | up to 15 | permanent until the user changes them |
 
 This resolves the tension flagged in rev 1. ENGINEERING_BIBLE §3 ranks
 deliberate curation above listening signals, which it calls "noisy... meaningful
@@ -39,7 +40,7 @@ permanence while listening stays a rolling window. Activity is transient
 because activity *is* transient; what a person chooses to stand behind is not.
 
 **Scope note.** The curated half is Highlights, a first-class domain entity in
-ENGINEERING_BIBLE §3, and it needs its own spec: it has its own write path,
+ENGINEERING_BIBLE §3, now specified in `specs/phase-2-highlights.md`: it has its own write path,
 its own consent story, and — unlike this feature — touches no provider data and
 no pipeline boundary. This spec fixes the *shape* of the combined surface so
 both halves are designed against one agreement; the Highlights mechanism is
@@ -154,7 +155,9 @@ again. Withdrawing it deletes stored listens immediately.
    user's rows for that `source` synchronously within the request.
 8. Deleting a user deletes their listens (`ON DELETE CASCADE`).
 9. Recommendation-facing accessors cannot return provider-sourced rows.
-10. Curated tracks are unaffected by every rule above: they are first-party,
+10. Opting in to storage performs an immediate seed ingestion in the same
+    request, subject to the same merge rule and 20-row cap.
+11. Curated tracks are unaffected by every rule above: they are first-party,
     permanent, and independent of any provider connection.
 
 ---
@@ -172,6 +175,7 @@ again. Withdrawing it deletes stored listens immediately.
 - Apple Music's shape is representable without schema change — demonstrated by
   a row with `played_at = NULL`.
 - Curated tracks survive disconnecting the provider and withdrawing the opt-in.
+- Opting in populates the section immediately, with no profile view required.
 
 ---
 
@@ -191,12 +195,19 @@ should be honest that this is what we saw.
 **Ingestion (Q2 — Founder decision: on-view capture).** No scheduler, no new
 infrastructure. Two consequences to handle:
 
-- *A visitor's request triggers a write and an outbound API call.* Any viewer,
-  including an anonymous one, can cause work on the profile owner's behalf.
-  Ingestion must reuse the existing 60s payload cache as its floor, so repeated
-  views cannot amplify into repeated Spotify calls, and the write must be
-  cheap enough to sit in a page render. Rate limiting is a security-audit item
-  (WORKFLOW.md §2.5), not an afterthought.
+- *A visitor's request triggers a write and an outbound API call.* **Founder
+  decision: anonymous views do trigger ingestion**, so a profile stays fresh
+  even when only logged-out visitors read it. The cost is that an unauthenticated
+  caller can cause work on the profile owner's behalf. Ingestion must therefore
+  reuse the existing 60s payload cache as its floor, so repeated views cannot
+  amplify into repeated Spotify calls, and the write must be cheap enough to sit
+  in a page render. Rate limiting is a security-audit item (WORKFLOW.md §2.5),
+  not an afterthought.
+- *Seeding.* **Founder decision: yes, seed on first opt-in.** Without it a
+  profile shows nothing until somebody happens to visit — worst for a brand-new
+  user, who has no visitors yet. Opting in performs one immediate ingestion so
+  the surface is populated the moment it is enabled, rather than waiting on an
+  audience the user does not have.
 - *History quality depends on being looked at.* An unvisited profile stops
   updating. Accepted: with a 20-row cap the surface is "recent listening,"
   not an archive, and the merge rule means it degrades by going stale rather
@@ -235,25 +246,6 @@ references the table, so dropping it is contained.
 
 ---
 
-# Open Questions
-
-_Founder decides; do not answer these in implementation._
-
-1. **Curated count: 10 or 15?** Rev 1 recorded "10–15". A single number is
-   needed before implementation — it determines the layout.
-2. **Should a curated track be ordered by the user, or by when it was added?**
-   Manual ordering is a meaningfully larger build.
-3. **Does an anonymous visitor's view trigger ingestion, or only an
-   authenticated one?** Restricting it reduces the abuse surface but means a
-   profile viewed only by logged-out visitors never refreshes.
-4. **Do curated tracks inherit `visibility_activity` too, or get their own
-   scope?** They are a deliberate statement rather than passive activity, so
-   the argument for a separate — possibly more public — default is stronger
-   than it was for listening. This belongs to the Highlights spec but should be
-   decided consistently with Q6 above.
-
----
-
 # Decision log
 
 | Q | Question | Decision (2026-09-06) |
@@ -264,3 +256,8 @@ _Founder decides; do not answer these in implementation._
 | 4 | Consent granularity | **Separate opt-in**, provider-agnostic. |
 | 5 | ToS position | **Display-only storage accepted.** |
 | 6 | Default visibility | **Inherits `visibility_activity`.** |
+| 7 | Do anonymous views trigger ingestion? | **Yes**, floored on the 60s cache. |
+| 8 | First-time seed? | **Yes** — one ingestion on opt-in. |
+| 9 | Curated count / types | **Up to 15**, track \| album \| artist. See the Highlights spec. |
+| 10 | Curated ordering | **Unordered**, with the owner's own review attached. |
+| 11 | Curated default visibility | **Public** — a recorded constitutional exception. |
