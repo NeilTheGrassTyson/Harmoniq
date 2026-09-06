@@ -58,7 +58,8 @@ that drives the wider Harmoniq mechanism.
 
 ### In Scope
 
-- Up to **15** highlights per user, each a track, album, or artist.
+- Up to **15** highlights per user — a combined cap across all three types,
+  not 15 of each (Founder decision, 2026-09-06).
 - Unordered — no manual arrangement.
 - The owner's own review displayed alongside a highlight when one exists.
 - Public by default (a constitutional exception; see below).
@@ -136,7 +137,8 @@ not an omission here.
 1. A `highlights` table: user, `entity_type` (`track` | `album` | `artist`),
    polymorphic entity reference, `created_at`. Follows the existing polymorphic
    pattern in `models/rating.py`.
-2. Maximum 15 per user, enforced server-side, not only in the UI.
+2. Maximum 15 per user **combined across track, album and artist**, enforced
+   server-side, not only in the UI.
 3. No ordering field. Display order is stable and derived (by `created_at`);
    the user does not arrange them.
 4. Deleting a user deletes their highlights (`ON DELETE CASCADE`).
@@ -150,23 +152,28 @@ not an omission here.
 
 # The review-visibility trap
 
-A highlight is public by default. A review is governed by `visibility_ratings`,
-which the user sets separately and may set to private.
+A highlight is public by default. A review is governed separately by the user.
+**Attaching a review to a public highlight must not publish a review the author
+did not intend to publish.** The two scopes are independent and must both be
+satisfied: a viewer permitted the highlight but not the commentary sees the
+highlight *without* it — not redacted, not an error.
 
-**Attaching a review to a public highlight must not publish a private review.**
-The two scopes are independent and must both be satisfied: a viewer who may see
-the highlight but not the owner's reviews sees the highlight *without* its
-review, not a redacted one and not an error.
+This is easy to get wrong because the natural implementation joins highlights
+to ratings and returns both. Enforcement belongs in the query, and an
+integration test must pin it. The album fallback inherits the rule: falling
+back from a track to its album review must re-check against the *album's*
+review, not the track's.
 
-This is a plain HARMONIQ.md §6 requirement — visibility must be something the
-user intentionally chose — and it is easy to miss, because the natural
-implementation joins highlights to ratings and returns both. Enforcement
-belongs in the query, and an integration test must pin it: a public highlight
-whose owner has private reviews returns no review text to a stranger.
+**Dependency.** How rating visibility works is being changed —
+`specs/phase-2-rating-visibility-split.md` proposes an always-public score with
+friends-only commentary, which requires a constitutional amendment and a
+migration decision. Highlights consumes that model; it does not define it.
 
-The album-review fallback inherits the same rule. Falling back from a track to
-its album review must re-check visibility against the album review, not the
-track's.
+Under the proposed model this surface becomes: **score always shown, commentary
+only for mutual follows, a Follow control in its place otherwise.** Highlights
+should not ship its own interpretation of rating visibility — it should call
+whatever `app/services/rating.py` enforces, so there is exactly one place where
+this rule lives.
 
 ---
 
@@ -177,8 +184,8 @@ track's.
 - A track highlight shows the owner's track review; with none, the owner's
   album review; with neither, no review.
 - An artist highlight never shows a review.
-- A stranger sees no review on a public highlight when `visibility_ratings` is
-  private — verified by integration test.
+- A stranger sees no commentary on a public highlight when the owner has not
+  made commentary visible to them — verified by integration test.
 - A stranger sees no highlights at all when `visibility_highlights` is private.
 - Another user's review of the same album never appears on this surface.
 - Highlights survive disconnecting a music provider — they are first-party and
@@ -228,11 +235,9 @@ re-enabled. Nothing else references the table.
 
 _Founder decides._
 
-1. **Is 15 a combined cap across all three entity types, or 15 of each?** This
-   spec assumes combined.
-2. **Can a user highlight something they have not rated?** Assumed yes — a
+1. **Can a user highlight something they have not rated?** Assumed yes — a
    highlight is a statement of taste, and requiring a review first would make
    the feature much harder to start using.
-3. **Should the empty state be shown to visitors, or only to the owner?**
+2. **Should the empty state be shown to visitors, or only to the owner?**
    Showing "no highlights yet" to a stranger advertises an absence; hiding the
    section entirely may read as a missing feature.

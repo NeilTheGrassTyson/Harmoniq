@@ -1,11 +1,11 @@
 # Listen History — Durable Recent Listening
 
-> **Status: DRAFT rev 3 — all open questions resolved (2026-09-06);
+> **Status: DRAFT rev 4 — all open questions resolved (2026-09-06);
 > awaiting approval to implement.** Tier 1 per WORKFLOW.md §1 ("any change to
 > how user data is collected, stored, or shared — including anything touching
 > the recommendation engine's data pipeline"). Nothing here is implemented.
 >
-> Rev 3 resolves the last of them. The curated half is now specified
+> Rev 4 drops the opt-in seed and specifies the latency requirement instead. The curated half is now specified
 > separately in `specs/phase-2-highlights.md`.
 
 ---
@@ -155,8 +155,10 @@ again. Withdrawing it deletes stored listens immediately.
    user's rows for that `source` synchronously within the request.
 8. Deleting a user deletes their listens (`ON DELETE CASCADE`).
 9. Recommendation-facing accessors cannot return provider-sourced rows.
-10. Opting in to storage performs an immediate seed ingestion in the same
-    request, subject to the same merge rule and 20-row cap.
+10. **Rendering never waits on a provider call.** The profile response is
+    built from stored rows; ingestion runs outside the render path and its
+    result is visible on a subsequent view. A provider timeout must degrade to
+    stale rows, never to a slow or failed page.
 11. Curated tracks are unaffected by every rule above: they are first-party,
     permanent, and independent of any provider connection.
 
@@ -175,7 +177,8 @@ again. Withdrawing it deletes stored listens immediately.
 - Apple Music's shape is representable without schema change — demonstrated by
   a row with `played_at = NULL`.
 - Curated tracks survive disconnecting the provider and withdrawing the opt-in.
-- Opting in populates the section immediately, with no profile view required.
+- A profile view returns in normal page time with the provider unreachable,
+  serving stored rows.
 
 ---
 
@@ -203,11 +206,20 @@ infrastructure. Two consequences to handle:
   amplify into repeated Spotify calls, and the write must be cheap enough to sit
   in a page render. Rate limiting is a security-audit item (WORKFLOW.md §2.5),
   not an afterthought.
-- *Seeding.* **Founder decision: yes, seed on first opt-in.** Without it a
-  profile shows nothing until somebody happens to visit — worst for a brand-new
-  user, who has no visitors yet. Opting in performs one immediate ingestion so
-  the surface is populated the moment it is enabled, rather than waiting on an
-  audience the user does not have.
+- *No separate seed.* **Founder decision (revised): load-on-visit is the
+  seed.** The first view of a profile populates it; nothing extra is needed.
+  The real concern behind the original question was **latency** — a profile
+  view must not feel slow because it is waiting on Spotify.
+
+**Latency requirement (this is the one that matters).** Rendering reads stored
+rows only. Ingestion must never block the response: the page returns from the
+database immediately, and the provider fetch happens outside the render path,
+so a slow or hanging Spotify call costs a stale row, never a slow page. The
+freshly fetched window lands for the next view. Combined with the 60s cache
+floor, the common case makes no outbound call at all.
+
+This also removes the worry about anonymous views: an unauthenticated visitor
+triggers at most a background refresh, never a wait.
 - *History quality depends on being looked at.* An unvisited profile stops
   updating. Accepted: with a 20-row cap the surface is "recent listening,"
   not an archive, and the merge rule means it degrades by going stale rather
@@ -257,7 +269,7 @@ references the table, so dropping it is contained.
 | 5 | ToS position | **Display-only storage accepted.** |
 | 6 | Default visibility | **Inherits `visibility_activity`.** |
 | 7 | Do anonymous views trigger ingestion? | **Yes**, floored on the 60s cache. |
-| 8 | First-time seed? | **Yes** — one ingestion on opt-in. |
+| 8 | First-time seed? | **No** — load-on-visit is the seed; latency is handled by never blocking the render. |
 | 9 | Curated count / types | **Up to 15**, track \| album \| artist. See the Highlights spec. |
 | 10 | Curated ordering | **Unordered**, with the owner's own review attached. |
 | 11 | Curated default visibility | **Public** — a recorded constitutional exception. |
