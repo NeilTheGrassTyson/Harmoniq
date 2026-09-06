@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #0b0d12; }
+    a { color: #2f8cff; } a:hover { color: #5aa6ff; }
+    .sheet { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .disp { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; }
+    .lbl { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: #757c8c; }
+  </style>
+</helmet>
+
+<div class="sheet" style="width: 520px; min-height: 660px; background: #0b0d12; color: #f2f3f5; padding: 36px; display: flex; flex-direction: column; gap: 26px">
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <div class="disp" style="font-size: 17px; font-weight: 500; letter-spacing: -0.01em">C · Octave</div>
+    <div style="font-size: 12.5px; line-height: 1.55; color: #8b93a3; text-wrap: pretty">Two waves whose frequencies sit in a 2:1 ratio — an octave, the one interval every listener hears as the same note. Because the ratio is exact, they cross the centreline together at shared nodes. It is a picture of two things agreeing, which is what Harmony is meant to measure.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <div class="lbl">Mark</div>
+    <div style="background: #0e1015; border-radius: 14px; padding: 28px; display: flex; align-items: center; justify-content: center; gap: 28px">
+      <div style="width: 132px; height: 132px; border-radius: 29px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="104" height="104" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+          <path d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="10" stroke-linecap="round" />
+          <path d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.45" />
+        </svg>
+      </div>
+      <div style="width: 132px; height: 132px; border-radius: 29px; background: {{accent}}; display: flex; align-items: center; justify-content: center; color: #05070a">
+        <svg width="104" height="104" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+          <path d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="10" stroke-linecap="round" />
+          <path d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.5" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <div class="lbl">Scaled down · 32 / 24 / 16px</div>
+    <div style="background: #0e1015; border-radius: 14px; padding: 22px; display: flex; align-items: center; gap: 24px">
+      <div style="width: 32px; height: 32px; border-radius: 7px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="25" height="25" viewBox="0 0 120 120" fill="none" aria-hidden="true"><path d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="12" stroke-linecap="round" /><path d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" stroke="currentColor" stroke-width="8" stroke-linecap="round" opacity="0.45" /></svg>
+      </div>
+      <div style="width: 24px; height: 24px; border-radius: 5px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="19" height="19" viewBox="0 0 120 120" fill="none" aria-hidden="true"><path d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="13" stroke-linecap="round" /><path d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" stroke="currentColor" stroke-width="9" stroke-linecap="round" opacity="0.45" /></svg>
+      </div>
+      <div style="width: 16px; height: 16px; border-radius: 4px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="13" height="13" viewBox="0 0 120 120" fill="none" aria-hidden="true"><path d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="15" stroke-linecap="round" /></svg>
+      </div>
+      <div style="font-size: 12px; color: #757c8c; margin-left: 4px">16px drops the overtone</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <div class="lbl">In the header, at 14px</div>
+    <div style="background: #0e1015; border-radius: 14px; height: 52px; padding: 0 20px; display: flex; align-items: center">
+      <div style="display: inline-block">
+        <span class="disp" style="display: block; font-size: 14px; font-weight: 500; color: #f2f3f5; line-height: 1">harmoniq</span>
+        <div style="position: relative; height: 5px; margin-top: 2px">
+          <svg viewBox="0 0 400 40" fill="none" preserveAspectRatio="none" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; color: {{accent}}" aria-hidden="true">
+            <path d="M 6 20 Q 103 2 200 20 T 394 20" stroke="currentColor" stroke-width="12" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 18px">
+    <div class="lbl">Tradeoff</div>
+    <div style="font-size: 12.5px; line-height: 1.55; color: #8b93a3; text-wrap: pretty">The most abstract of the three, and the one that needs the wordmark beside it longest before it can stand alone. A single wave is also generic audio-software shorthand — everything distinctive here lives in the second wave and the shared nodes, which are the first things lost at small sizes.</div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2f8cff","options":["#2f8cff","#4fd0ff","#00e5ff","#6f9bff"]},"$preview":{"width":520,"height":660}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#2f8cff' };
+  }
+}
+</script>
+</body>
+</html>

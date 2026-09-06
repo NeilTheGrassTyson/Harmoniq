@@ -1,4 +1,4 @@
-# ADR 0012 — Logomark: the Octave wave, and a logo-only neon accent
+# ADR 0013 — Logomark: the Octave wave, and a logo-only neon accent
 
 **Date:** 2026-08-30
 **Status:** Accepted

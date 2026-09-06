@@ -1,0 +1,221 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; background: #000000; }
+    a { color: #19d8ff; } a:hover { color: #7ce8ff; }
+    .app { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .disp { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; }
+    .mono { font-family: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; }
+    .seclabel { font-family: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; }
+    .strandlbl { font-family: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+
+    .card { border-radius: 14px; padding: 20px; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .sig { border-radius: 12px; padding: 16px; position: relative; overflow: hidden; margin-top: 16px; }
+    .strandbar { height: 3px; border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .strandfill { height: 100%; border-radius: 2px; background: currentColor; }
+
+    /* Dark and midnight carry the halo. Light does not — see the note. */
+    .glow-line { filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 5px currentColor); }
+    .glow-line-hot { filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 7px currentColor); }
+    .glow-bar { box-shadow: 0 0 2px currentColor, 0 0 5px currentColor; }
+    .glow-bar-hot { box-shadow: 0 0 2px currentColor, 0 0 6px currentColor; }
+
+    .travel { animation: travel 9s linear infinite; }
+    @keyframes travel { to { transform: translateX(-164px); } }
+    .dust { animation-name: dust; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+    @keyframes dust { 0%,100% { opacity: .06; } 50% { opacity: .55; } }
+    .grain { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .085; pointer-events: none; mix-blend-mode: overlay; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .travel, .dust { animation: none; }
+    }
+
+    .radio { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .swatches { display: flex; gap: 5px; margin-top: 14px; }
+    .sw { width: 22px; height: 22px; border-radius: 5px; }
+  </style>
+</helmet>
+
+<div class="app" style="width: 1280px; height: 880px; background: #000000; color: #f2f3f5; padding: 40px; display: flex; flex-direction: column; gap: 24px">
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <div class="disp" style="font-size: 22px; font-weight: 500; letter-spacing: -0.01em">Appearance</div>
+    <div style="font-size: 13px; color: #8b93a3; max-width: 720px; text-wrap: pretty">Three themes. Midnight is the one that lets the Signature colours do the talking — on true black there is nothing for them to compete with. Light is not a recolour of dark; it is a different treatment, for the reason in the note below.</div>
+  </div>
+
+  <div style="display: flex; gap: 20px; align-items: stretch">
+
+    <!-- ── LIGHT ────────────────────────────────────────────────────── -->
+    <div class="card" style="background: #f7f8fa; border: 1px solid rgba(0,0,0,0.10)">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span class="radio" style="border: 1.5px solid rgba(0,0,0,0.28)"></span>
+        <span class="disp" style="font-size: 15px; font-weight: 500; color: #14161c">Light</span>
+      </div>
+      <div class="swatches">
+        <div class="sw" style="background: #f7f8fa; border: 1px solid rgba(0,0,0,0.12)"></div>
+        <div class="sw" style="background: #ffffff; border: 1px solid rgba(0,0,0,0.12)"></div>
+        <div class="sw" style="background: #0d7a3f"></div>
+        <div class="sw" style="background: #a34f00"></div>
+        <div class="sw" style="background: #b01560"></div>
+      </div>
+
+      <div class="sig" style="background: #ffffff; border: 1px solid rgba(0,0,0,0.08)">
+        <svg width="100%" height="72" viewBox="0 0 300 72" fill="none" style="display: block; color: #0d7a3f">
+          <g class="travel">
+            <path d="M -180 36 Q -139 8 -98 36 T -16 36 T 66 36 T 148 36 T 230 36 T 312 36 T 394 36 T 476 36" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+          <g class="travel">
+            <path d="M -180 36 Q -159.5 18 -139 36 T -98 36 T -57 36 T -16 36 T 25 36 T 66 36 T 107 36 T 148 36 T 189 36 T 230 36 T 271 36 T 312 36 T 353 36 T 394 36 T 435 36 T 476 36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".45"/>
+          </g>
+        </svg>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#565d6b">Range</span><span style="font-size:11.5px;color:#14161c">Wide-ranging</span></div>
+          <div class="strandbar" style="background: rgba(0,0,0,0.08)"><div class="strandfill" style="width:82%; color:#0d7a3f"></div></div>
+        </div>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#565d6b">Posture</span><span style="font-size:11.5px;color:#14161c">More curator</span></div>
+          <div class="strandbar" style="background: rgba(0,0,0,0.08)"><div class="strandfill" style="width:71%; color:#a34f00"></div></div>
+        </div>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#565d6b">Depth</span><span style="font-size:11.5px;color:#14161c">Writes it down</span></div>
+          <div class="strandbar" style="background: rgba(0,0,0,0.08)"><div class="strandfill" style="width:64%; color:#b01560"></div></div>
+        </div>
+      </div>
+
+      <p style="font-size: 12px; line-height: 1.5; color: #565d6b; margin: 14px 0 0">Different hues, no glow, no particles. The neons are invisible on white and a halo on white reads as a smudge, not as light.</p>
+    </div>
+
+    <!-- ── DARK ─────────────────────────────────────────────────────── -->
+    <div class="card" style="background: #0b0d12; border: 1px solid rgba(255,255,255,0.07)">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span class="radio" style="border: 1.5px solid rgba(255,255,255,0.28)"></span>
+        <span class="disp" style="font-size: 15px; font-weight: 500; color: #f2f3f5">Dark</span>
+      </div>
+      <div class="swatches">
+        <div class="sw" style="background: #0b0d12; border: 1px solid rgba(255,255,255,0.12)"></div>
+        <div class="sw" style="background: #0e1015; border: 1px solid rgba(255,255,255,0.12)"></div>
+        <div class="sw" style="background: #39ff8b"></div>
+        <div class="sw" style="background: #ffa028"></div>
+        <div class="sw" style="background: #ff5cbb"></div>
+      </div>
+
+      <div class="sig" style="background: #0e1015">
+        <svg class="glow-line" width="100%" height="72" viewBox="0 0 300 72" fill="none" style="display: block; color: #39ff8b">
+          <g class="travel">
+            <path d="M -180 36 Q -139 8 -98 36 T -16 36 T 66 36 T 148 36 T 230 36 T 312 36 T 394 36 T 476 36" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+          <g class="travel">
+            <path d="M -180 36 Q -159.5 18 -139 36 T -98 36 T -57 36 T -16 36 T 25 36 T 66 36 T 107 36 T 148 36 T 189 36 T 230 36 T 271 36 T 312 36 T 353 36 T 394 36 T 435 36 T 476 36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".45"/>
+          </g>
+          <circle class="dust" cx="34" cy="18" r=".9" style="animation-duration:3.4s;animation-delay:-1.2s" fill="currentColor"/>
+          <circle class="dust" cx="88" cy="54" r="1.1" style="animation-duration:4.8s;animation-delay:-3.1s" fill="currentColor"/>
+          <circle class="dust" cx="142" cy="22" r=".8" style="animation-duration:2.9s;animation-delay:-0.4s" fill="currentColor"/>
+          <circle class="dust" cx="196" cy="50" r="1.2" style="animation-duration:5.6s;animation-delay:-2.7s" fill="currentColor"/>
+          <circle class="dust" cx="248" cy="26" r=".9" style="animation-duration:3.9s;animation-delay:-4.4s" fill="currentColor"/>
+          <circle class="dust" cx="276" cy="58" r="1.0" style="animation-duration:4.2s;animation-delay:-1.9s" fill="currentColor"/>
+        </svg>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#757c8c">Range</span><span style="font-size:11.5px;color:#f2f3f5">Wide-ranging</span></div>
+          <div class="strandbar" style="background: rgba(255,255,255,0.07)"><div class="strandfill glow-bar" style="width:82%; color:#39ff8b"></div></div>
+        </div>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#757c8c">Posture</span><span style="font-size:11.5px;color:#f2f3f5">More curator</span></div>
+          <div class="strandbar" style="background: rgba(255,255,255,0.07)"><div class="strandfill glow-bar" style="width:71%; color:#ffa028"></div></div>
+        </div>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#757c8c">Depth</span><span style="font-size:11.5px;color:#f2f3f5">Writes it down</span></div>
+          <div class="strandbar" style="background: rgba(255,255,255,0.07)"><div class="strandfill glow-bar" style="width:64%; color:#ff5cbb"></div></div>
+        </div>
+      </div>
+
+      <p style="font-size: 12px; line-height: 1.5; color: #8b93a3; margin: 14px 0 0">Today's default. The panel sits one step above the page, so the Signature reads as a surface you look at rather than through.</p>
+    </div>
+
+    <!-- ── MIDNIGHT ─────────────────────────────────────────────────── -->
+    <div class="card" style="background: #000000; border: 1px solid rgba(255,255,255,0.14)">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span class="radio" style="border: 1.5px solid #19d8ff; box-shadow: 0 0 5px #19d8ff">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: #19d8ff"></span>
+        </span>
+        <span class="disp" style="font-size: 15px; font-weight: 500; color: #f2f3f5">Midnight</span>
+        <span class="mono" style="font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #000; background: #19d8ff; border-radius: 4px; padding: 3px 6px">Selected</span>
+      </div>
+      <div class="swatches">
+        <div class="sw" style="background: #000000; border: 1px solid rgba(255,255,255,0.16)"></div>
+        <div class="sw" style="background: #07090d; border: 1px solid rgba(255,255,255,0.16)"></div>
+        <div class="sw" style="background: #39ff8b"></div>
+        <div class="sw" style="background: #ffa028"></div>
+        <div class="sw" style="background: #ff5cbb"></div>
+      </div>
+
+      <div class="sig" style="background: #07090d">
+        <svg class="grain" aria-hidden="true">
+          <filter id="thGrain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+          <rect width="100%" height="100%" filter="url(#thGrain)"/>
+        </svg>
+        <svg class="glow-line-hot" width="100%" height="72" viewBox="0 0 300 72" fill="none" style="display: block; color: #39ff8b">
+          <g class="travel">
+            <path id="thFund" d="M -180 36 Q -139 8 -98 36 T -16 36 T 66 36 T 148 36 T 230 36 T 312 36 T 394 36 T 476 36" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+            <circle r="1.9" fill="currentColor" opacity=".9"><animateMotion dur="7s" repeatCount="indefinite" rotate="auto"><mpath href="#thFund" xlink:href="#thFund"/></animateMotion></circle>
+            <circle r="1.3" fill="currentColor" opacity=".9"><animateMotion dur="9s" begin="-3.2s" repeatCount="indefinite" rotate="auto"><mpath href="#thFund" xlink:href="#thFund"/></animateMotion></circle>
+          </g>
+          <g class="travel">
+            <path d="M -180 36 Q -159.5 18 -139 36 T -98 36 T -57 36 T -16 36 T 25 36 T 66 36 T 107 36 T 148 36 T 189 36 T 230 36 T 271 36 T 312 36 T 353 36 T 394 36 T 435 36 T 476 36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".45"/>
+          </g>
+          <circle class="dust" cx="26" cy="16" r="1.0" style="animation-duration:3.1s;animation-delay:-0.8s" fill="currentColor"/>
+          <circle class="dust" cx="62" cy="52" r=".8" style="animation-duration:4.4s;animation-delay:-2.6s" fill="currentColor"/>
+          <circle class="dust" cx="98" cy="24" r="1.2" style="animation-duration:2.7s;animation-delay:-1.5s" fill="currentColor"/>
+          <circle class="dust" cx="134" cy="58" r=".7" style="animation-duration:5.2s;animation-delay:-3.9s" fill="currentColor"/>
+          <circle class="dust" cx="170" cy="20" r="1.1" style="animation-duration:3.6s;animation-delay:-0.3s" fill="currentColor"/>
+          <circle class="dust" cx="206" cy="48" r=".9" style="animation-duration:4.9s;animation-delay:-2.2s" fill="currentColor"/>
+          <circle class="dust" cx="242" cy="28" r="1.0" style="animation-duration:3.3s;animation-delay:-4.7s" fill="currentColor"/>
+          <circle class="dust" cx="278" cy="56" r=".8" style="animation-duration:4.1s;animation-delay:-1.1s" fill="currentColor"/>
+          <circle class="dust" cx="46" cy="38" r=".6" style="animation-duration:2.4s;animation-delay:-3.3s" fill="currentColor"/>
+          <circle class="dust" cx="188" cy="36" r=".7" style="animation-duration:5.8s;animation-delay:-0.6s" fill="currentColor"/>
+        </svg>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#757c8c">Range</span><span style="font-size:11.5px;color:#f2f3f5">Wide-ranging</span></div>
+          <div class="strandbar" style="background: rgba(255,255,255,0.09)"><div class="strandfill glow-bar-hot" style="width:82%; color:#39ff8b"></div></div>
+        </div>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#757c8c">Posture</span><span style="font-size:11.5px;color:#f2f3f5">More curator</span></div>
+          <div class="strandbar" style="background: rgba(255,255,255,0.09)"><div class="strandfill glow-bar-hot" style="width:71%; color:#ffa028"></div></div>
+        </div>
+        <div style="margin-top: 12px">
+          <div style="display: flex; justify-content: space-between"><span class="strandlbl" style="color:#757c8c">Depth</span><span style="font-size:11.5px;color:#f2f3f5">Writes it down</span></div>
+          <div class="strandbar" style="background: rgba(255,255,255,0.09)"><div class="strandfill glow-bar-hot" style="width:64%; color:#ff5cbb"></div></div>
+        </div>
+      </div>
+
+      <p style="font-size: 12px; line-height: 1.5; color: #8b93a3; margin: 14px 0 0">True black. Nothing competes with the hues, so the halo can come down rather than up — the contrast is doing the work the glow was doing.</p>
+    </div>
+
+  </div>
+
+  <!-- ── The finding ──────────────────────────────────────────────────── -->
+  <div style="display: flex; gap: 20px; border-top: 1px solid rgba(255,255,255,0.09); padding-top: 18px">
+    <div style="flex: 1">
+      <div class="seclabel" style="color: #757c8c; margin-bottom: 8px">Light is not a token swap</div>
+      <p style="font-size: 12.5px; line-height: 1.55; color: #8b93a3; margin: 0; text-wrap: pretty">Every Signature hue was chosen against near-black. On white they fail outright — neon yellow measures somewhere near 1.3:1, which is not a contrast problem so much as an invisibility one. Light needs its own darkened hue set (shown here, and still needing a formal AA pass), and it has to drop the glow and the particles entirely: a halo on white reads as a smudge, and glitter needs darkness to glitter against.</p>
+    </div>
+    <div style="flex: 1">
+      <div class="seclabel" style="color: #757c8c; margin-bottom: 8px">Two meanings of "theme"</div>
+      <p style="font-size: 12.5px; line-height: 1.55; color: #8b93a3; margin: 0; text-wrap: pretty">Worth separating before either is built. This is an <span style="color:#f2f3f5">app appearance setting</span> — the viewer's choice, applied everywhere they look. BRAND_BIBLE §6 already promises something different: <span style="color:#f2f3f5">Harmony v2 profile themes</span>, chosen by the profile's owner and seen by visitors. One is a preference, the other is self-expression, and they should not share a control or a token layer.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":880}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #0b0d12; }
+    a { color: #2f8cff; } a:hover { color: #5aa6ff; }
+    .sheet { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .disp { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; }
+  </style>
+</helmet>
+
+<div class="sheet" style="width: 1120px; min-height: 960px; background: #0b0d12; color: #f2f3f5; padding: 56px; display: flex; flex-direction: column; gap: 30px">
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <div class="disp" style="font-size: 20px; font-weight: 500; letter-spacing: -0.01em">harmoniq — three logo directions</div>
+    <div style="font-size: 13px; color: #8b93a3; max-width: 620px; text-wrap: pretty">Each row is one complete idea: the wordmark on the left, the square app mark on the right. One accent, one face, no gradients and no glow — the brightness is flat saturated colour on near-black.</div>
+  </div>
+
+  <div style="display: flex; gap: 40px; align-items: flex-end">
+    <div class="disp" style="flex: 1; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: #757c8c">Wordmark</div>
+    <div class="disp" style="width: 300px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: #757c8c">App mark</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 34px">
+
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: baseline; gap: 10px">
+        <span class="disp" style="font-size: 13px; font-weight: 500; color: #f2f3f5">A · Note Q</span>
+        <span style="font-size: 12px; color: #757c8c">the terminal q drawn as a quarter note — notehead and stem</span>
+      </div>
+      <div style="display: flex; gap: 40px">
+
+        <div style="flex: 1; background: #0e1015; border-radius: 14px; height: 200px; display: flex; align-items: center; justify-content: center">
+          <div class="disp" style="display: flex; align-items: baseline; font-size: 84px; font-weight: 500; letter-spacing: -0.02em; color: #f2f3f5; line-height: 1">
+            <span>harmoni</span>
+            <svg width="48" height="62" viewBox="0 0 48 62" fill="none" style="display: block; margin-left: 3px; transform: translateY(18px); color: {{accent}}" aria-hidden="true">
+              <circle cx="22" cy="22" r="22" fill="currentColor" />
+              <rect x="35" y="0" width="9" height="62" rx="2.5" fill="currentColor" />
+            </svg>
+          </div>
+        </div>
+
+        <div style="width: 300px; background: #0e1015; border-radius: 14px; height: 200px; display: flex; align-items: center; justify-content: center">
+          <div style="width: 132px; height: 132px; border-radius: 29px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+            <svg width="92" height="92" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+              <circle cx="60" cy="46" r="30" fill="currentColor" />
+              <rect x="78" y="16" width="12" height="88" rx="3" fill="currentColor" />
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: baseline; gap: 10px">
+        <span class="disp" style="font-size: 13px; font-weight: 500; color: #f2f3f5">B · Level H</span>
+        <span style="font-size: 12px; color: #757c8c">an H whose legs are unequal equalizer bars — grows out of the glyph already in the app</span>
+      </div>
+      <div style="display: flex; gap: 40px">
+
+        <div style="flex: 1; background: #0e1015; border-radius: 14px; height: 200px; display: flex; align-items: center; justify-content: center">
+          <div style="display: flex; align-items: center; gap: 22px">
+            <svg width="64" height="64" viewBox="0 0 120 120" fill="none" style="display: block; color: {{accent}}" aria-hidden="true">
+              <rect x="18" y="18" width="14" height="84" rx="3" fill="currentColor" />
+              <rect x="58" y="42" width="14" height="60" rx="3" fill="currentColor" />
+              <rect x="18" y="54" width="54" height="14" rx="3" fill="currentColor" />
+              <rect x="88" y="66" width="14" height="36" rx="3" fill="currentColor" opacity="0.45" />
+            </svg>
+            <span class="disp" style="font-size: 84px; font-weight: 500; letter-spacing: -0.02em; color: #f2f3f5; line-height: 1">harmoniq</span>
+          </div>
+        </div>
+
+        <div style="width: 300px; background: #0e1015; border-radius: 14px; height: 200px; display: flex; align-items: center; justify-content: center">
+          <div style="width: 132px; height: 132px; border-radius: 29px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+            <svg width="92" height="92" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+              <rect x="18" y="18" width="14" height="84" rx="3" fill="currentColor" />
+              <rect x="58" y="42" width="14" height="60" rx="3" fill="currentColor" />
+              <rect x="18" y="54" width="54" height="14" rx="3" fill="currentColor" />
+              <rect x="88" y="66" width="14" height="36" rx="3" fill="currentColor" opacity="0.45" />
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: baseline; gap: 10px">
+        <span class="disp" style="font-size: 13px; font-weight: 500; color: #f2f3f5">C · Octave</span>
+        <span style="font-size: 12px; color: #757c8c">two waves an octave apart (2:1), meeting at shared nodes — the simplest possible harmony</span>
+      </div>
+      <div style="display: flex; gap: 40px">
+
+        <div style="flex: 1; background: #0e1015; border-radius: 14px; height: 200px; display: flex; align-items: center; justify-content: center">
+          <div style="display: inline-block">
+            <span class="disp" style="display: block; font-size: 84px; font-weight: 500; letter-spacing: -0.02em; color: #f2f3f5; line-height: 1">harmoniq</span>
+            <div style="position: relative; height: 30px; margin-top: 4px">
+              <svg viewBox="0 0 400 40" fill="none" preserveAspectRatio="none" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; color: {{accent}}" aria-hidden="true">
+                <path d="M 4 20 Q 53 0 102 20 T 200 20 T 298 20 T 396 20" stroke="currentColor" stroke-width="5" stroke-linecap="round" />
+                <path d="M 4 20 Q 28.5 8 53 20 T 102 20 T 151 20 T 200 20 T 249 20 T 298 20 T 347 20 T 396 20" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" opacity="0.45" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div style="width: 300px; background: #0e1015; border-radius: 14px; height: 200px; display: flex; align-items: center; justify-content: center">
+          <div style="width: 132px; height: 132px; border-radius: 29px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+            <svg width="104" height="104" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+              <path d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="10" stroke-linecap="round" />
+              <path d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.45" />
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2f8cff","options":["#2f8cff","#4fd0ff","#00e5ff","#6f9bff"]},"$preview":{"width":1120,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#2f8cff' };
+  }
+}
+</script>
+</body>
+</html>

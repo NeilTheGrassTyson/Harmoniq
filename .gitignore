@@ -88,3 +88,10 @@ Desktop.ini
 *.orig
 plan.txt
 SIDE_PROJECTS.md
+
+# ─── Design canvas ───────────────────────────────────────────────────────────
+# The .dc.html artboards and canvas.json under .design/ ARE tracked — they are
+# the source for the Beta UI mockups the specs reference. The seeded output is
+# a ~2.6MB build artifact regenerated from them by the design skill's
+# seed-canvas.mjs, so it stays out.
+.design/**/harmoniq-logo-directions.html

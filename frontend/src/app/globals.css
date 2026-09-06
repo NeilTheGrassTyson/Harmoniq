@@ -19,7 +19,7 @@
   --color-accent: #2f8cff;
   /* Logo only — the Octave mark and wordmark. Deliberately NOT the same value
      as --color-accent: that one is load-bearing for the focus ring and was
-     contrast-verified at #2f8cff. See DESIGN_SYSTEM.md §2 and ADR 0012. */
+     contrast-verified at #2f8cff. See DESIGN_SYSTEM.md §2 and ADR 0013. */
   --color-brand: #19d8ff;
   --color-icon-trend: #343b4d;
   --color-icon-friend: #34507c;

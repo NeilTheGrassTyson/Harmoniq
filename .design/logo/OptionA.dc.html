@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #0b0d12; }
+    a { color: #2f8cff; } a:hover { color: #5aa6ff; }
+    .sheet { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .disp { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; }
+    .lbl { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: #757c8c; }
+  </style>
+</helmet>
+
+<div class="sheet" style="width: 520px; min-height: 660px; background: #0b0d12; color: #f2f3f5; padding: 36px; display: flex; flex-direction: column; gap: 26px">
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <div class="disp" style="font-size: 17px; font-weight: 500; letter-spacing: -0.01em">A · Note Q</div>
+    <div style="font-size: 12.5px; line-height: 1.55; color: #8b93a3; text-wrap: pretty">A lowercase q is already a notehead with a stem hanging off its right shoulder. Drawing it that way makes the last letter of the name do the work — no separate symbol bolted on, and no other brand can borrow it, because no other brand ends in q.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <div class="lbl">Mark</div>
+    <div style="background: #0e1015; border-radius: 14px; padding: 28px; display: flex; align-items: center; justify-content: center; gap: 28px">
+      <div style="width: 132px; height: 132px; border-radius: 29px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="92" height="92" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+          <circle cx="60" cy="46" r="30" fill="currentColor" />
+          <rect x="78" y="16" width="12" height="88" rx="3" fill="currentColor" />
+        </svg>
+      </div>
+      <div style="width: 132px; height: 132px; border-radius: 29px; background: {{accent}}; display: flex; align-items: center; justify-content: center; color: #05070a">
+        <svg width="92" height="92" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+          <circle cx="60" cy="46" r="30" fill="currentColor" />
+          <rect x="78" y="16" width="12" height="88" rx="3" fill="currentColor" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <div class="lbl">Scaled down · 32 / 24 / 16px</div>
+    <div style="background: #0e1015; border-radius: 14px; padding: 22px; display: flex; align-items: center; gap: 24px">
+      <div style="width: 32px; height: 32px; border-radius: 7px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="22" height="22" viewBox="0 0 120 120" fill="none" aria-hidden="true"><circle cx="60" cy="46" r="30" fill="currentColor" /><rect x="78" y="16" width="12" height="88" rx="3" fill="currentColor" /></svg>
+      </div>
+      <div style="width: 24px; height: 24px; border-radius: 5px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="17" height="17" viewBox="0 0 120 120" fill="none" aria-hidden="true"><circle cx="60" cy="46" r="30" fill="currentColor" /><rect x="78" y="16" width="12" height="88" rx="3" fill="currentColor" /></svg>
+      </div>
+      <div style="width: 16px; height: 16px; border-radius: 4px; background: #05070a; display: flex; align-items: center; justify-content: center; color: {{accent}}">
+        <svg width="11" height="11" viewBox="0 0 120 120" fill="none" aria-hidden="true"><circle cx="60" cy="46" r="30" fill="currentColor" /><rect x="78" y="16" width="12" height="88" rx="3" fill="currentColor" /></svg>
+      </div>
+      <div style="font-size: 12px; color: #757c8c; margin-left: 4px">favicon · tab · touch icon</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <div class="lbl">In the header, at 14px</div>
+    <div style="background: #0e1015; border-radius: 14px; height: 52px; padding: 0 20px; display: flex; align-items: center">
+      <div class="disp" style="display: flex; align-items: baseline; font-size: 14px; font-weight: 500; color: #f2f3f5; line-height: 1">
+        <span>harmoni</span>
+        <svg width="8" height="10.3" viewBox="0 0 48 62" fill="none" style="display: block; margin-left: 0.5px; transform: translateY(3px); color: {{accent}}" aria-hidden="true">
+          <circle cx="22" cy="22" r="22" fill="currentColor" />
+          <rect x="35" y="0" width="9" height="62" rx="2.5" fill="currentColor" />
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 18px">
+    <div class="lbl">Tradeoff</div>
+    <div style="font-size: 12.5px; line-height: 1.55; color: #8b93a3; text-wrap: pretty">The idea is strongest in the wordmark. Alone in a square, the mark asks the viewer to read a letter — it works, but it earns recognition more slowly than a pure symbol would. The solid notehead is also heavier than the surrounding 500-weight letterforms; that contrast is deliberate, but it is the one thing to look at hardest.</div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2f8cff","options":["#2f8cff","#4fd0ff","#00e5ff","#6f9bff"]},"$preview":{"width":520,"height":660}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#2f8cff' };
+  }
+}
+</script>
+</body>
+</html>

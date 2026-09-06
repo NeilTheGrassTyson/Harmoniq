@@ -1,4 +1,4 @@
-# ADR 0013 — "Website Appearance": three themes, and the cost of Light
+# ADR 0014 — "Website Appearance": three themes, and the cost of Light
 
 **Date:** 2026-08-30
 **Status:** Accepted
@@ -11,7 +11,7 @@
 Harmoniq has shipped as a single dark theme since the design system was
 written. Two things pushed on that at once.
 
-First, the Signature surface (ADR 0012's Octave mark, extended into the
+First, the Signature surface (ADR 0013's Octave mark, extended into the
 profile "listening DNA") acquired a saturated six-hue palette, a glow, film
 grain and ~68 animated particles. Its whole aesthetic is dark-native, and the
 Founder observed that a deeper black made the hues read better still — on true

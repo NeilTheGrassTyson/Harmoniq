@@ -2,7 +2,7 @@
 
 > How the Harmoniq logo is served, and what to do when it needs to leave the app.
 > Design rules for the mark live in DESIGN_SYSTEM.md §6.1. The decision behind
-> it lives in ADR 0012.
+> it lives in ADR 0013.
 
 ---
 

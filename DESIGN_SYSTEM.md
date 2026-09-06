@@ -52,7 +52,7 @@ Derived from mockup iteration (chat, June 2026), checked against BRAND_BIBLE.md 
 - `--color-text-tertiary` (`#757c8c`) on `--color-bg` (`#0b0d12`): ~4.65:1 ✓ (minimum 4.5:1 for normal text)
   - Previous value `#6b7385` measured 4.08:1 and failed; adjusted to `#757c8c`.
 
-**Two blues, deliberately (ADR 0012).** `--color-brand` is the logo colour and
+**Two blues, deliberately (ADR 0013).** `--color-brand` is the logo colour and
 `--color-accent` is the interface colour, and they are not the same value. The
 accent is load-bearing for the focus ring every keyboard user depends on and
 was contrast-verified at that value; re-pointing it to the neon is a separate
@@ -149,7 +149,7 @@ load-bearing: it is the *viewer's* preference, applied everywhere they look.
 It is **not** Harmony v2 profile themes (BRAND_BIBLE §6), which are chosen by
 a profile's owner and seen by visitors. One is a preference, the other is
 self-expression. They must not share a control, a token layer, or a stored
-field — see ADR 0013.
+field — see ADR 0014.
 
 | Token                     | Light (unverified) | Dark (default) | Midnight  |
 | ------------------------- | ------------------ | -------------- | --------- |
@@ -251,7 +251,7 @@ No pill-shaped elements. No single uniform radius applied to everything — this
 ## 6. Iconography
 
 - **UI chrome** (menu, search, profile, sidebar nav): Tabler Icons, outline style. Generic is fine here — navigation icons aren't a branding opportunity, and forcing originality onto them adds noise without adding meaning.
-- **Music glyph**: a custom three-bar equalizer mark (flat SVG fill, no gradient), in two tonal variants — neutral gray (`--color-accent-icon-trending`) and blue-tinted (`--color-accent-icon-friend`). Use it as the album-art placeholder before real artwork loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself. **It is not the logo** (ADR 0012). It appears hundreds of times per session, which is exactly what disqualifies it from also being the mark that means "Harmoniq"; a placeholder that frequent reads as chrome, not identity.
+- **Music glyph**: a custom three-bar equalizer mark (flat SVG fill, no gradient), in two tonal variants — neutral gray (`--color-accent-icon-trending`) and blue-tinted (`--color-accent-icon-friend`). Use it as the album-art placeholder before real artwork loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself. **It is not the logo** (ADR 0013). It appears hundreds of times per session, which is exactly what disqualifies it from also being the mark that means "Harmoniq"; a placeholder that frequent reads as chrome, not identity.
 
 ### 6.1 Brand mark (the logo)
 

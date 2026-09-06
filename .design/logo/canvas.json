@@ -1,0 +1,151 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Beta UI"
+    },
+    {
+      "id": "page-2",
+      "name": "Octave forks"
+    },
+    {
+      "id": "page-3",
+      "name": "Round 1"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 840,
+      "title": "Home",
+      "page": "page-1"
+    },
+    {
+      "file": "MelodiesBeta.dc.html",
+      "x": 1400,
+      "y": 0,
+      "w": 1440,
+      "h": 980,
+      "title": "Melodies + friends rail",
+      "page": "page-1"
+    },
+    {
+      "file": "ProfileBeta.dc.html",
+      "x": 0,
+      "y": 1140,
+      "w": 1280,
+      "h": 1120,
+      "title": "Profile — Signature (midnight)",
+      "page": "page-1"
+    },
+    {
+      "file": "MelodyBeta.dc.html",
+      "x": 1400,
+      "y": 1140,
+      "w": 390,
+      "h": 844,
+      "title": "Melody arrival (phone)",
+      "page": "page-1"
+    },
+    {
+      "file": "OctaveForks.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1120,
+      "h": 1160,
+      "title": "Octave forks",
+      "page": "page-2"
+    },
+    {
+      "file": "Round1.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1120,
+      "h": 960,
+      "title": "Three directions",
+      "page": "page-3"
+    },
+    {
+      "file": "OptionA.dc.html",
+      "x": 0,
+      "y": 1100,
+      "w": 520,
+      "h": 680,
+      "page": "page-3"
+    },
+    {
+      "file": "OptionB.dc.html",
+      "x": 610,
+      "y": 1100,
+      "w": 520,
+      "h": 680,
+      "page": "page-3"
+    },
+    {
+      "file": "OptionC.dc.html",
+      "x": 1220,
+      "y": 1100,
+      "w": 520,
+      "h": 680,
+      "page": "page-3"
+    },
+    {
+      "file": "ThemesBeta.dc.html",
+      "x": 1400,
+      "y": 2100,
+      "w": 1280,
+      "h": 880,
+      "title": "Appearance — Light / Dark / Midnight",
+      "page": "page-1"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "signature-note",
+      "x": 1900,
+      "y": 1140,
+      "w": 340,
+      "page": "page-1",
+      "text": "HARMONY vs SIGNATURE\n\nKept apart on purpose.\n\nHarmony is one relational signal - does what you send get taken up? It has a magnitude, so it gets a band name (Finding its range / Carrying / Resonating / In tune) and never a number, a percentile, or a cross-user sort.\n\nSignature is the DNA: six strands, none with a good end. Range, Current, Posture, Depth, Era, Circle. You cannot win at them, which is what stops the profile becoming a ladder.\n\nSTRAND HUES\nRange green, Current yellow, Posture orange, Depth pink, Era white, Circle cyan. Each strand keeps its hue permanently so colour becomes learnable. The wave takes the hue of whichever strand sits furthest from centre - Mara reads green because Range is the most pronounced.\n\nDEFERRED, but five of six strands are arithmetic, not AI. See ROADMAP LATER."
+    },
+    {
+      "id": "beta-note",
+      "x": 1400,
+      "y": 1030,
+      "w": 390,
+      "page": "page-1",
+      "text": "Still mockups - nothing is wired into the app.\n\nSection labels are Space Mono. Space Grotesk was derived from Space Mono (both Colophon), so it is the wordmark's own sibling rather than a third voice.\n\nEvery Melody carries a local received stamp, plus the outcome stamp once accepted, opened or passed.\n\nThe profile now showcases highlighted reviews - self-curated, same gesture as highlighting a song. No 'top', no 'most helpful', no helpfulness count.\n\nThe friends rail borrows Discord's shape and drops its pressure: no status text, no idle timers, nothing sorted by any measure of a person."
+    },
+    {
+      "id": "forks-note",
+      "x": 1220,
+      "y": 0,
+      "w": 300,
+      "page": "page-2",
+      "text": "Four forks of direction C. C1 - the unmodified wave - was chosen and is now the logo."
+    },
+    {
+      "id": "round-one",
+      "x": 1220,
+      "y": 0,
+      "w": 300,
+      "page": "page-3",
+      "text": "Round one, kept for reference. Direction C was chosen from here."
+    },
+    {
+      "id": "themes-note",
+      "x": 0,
+      "y": 2320,
+      "w": 340,
+      "page": "page-1",
+      "text": "MIDNIGHT\n\nThe Profile artboard is now true black so you can see the hues at full strength. Home and Melodies are still on Dark (#0b0d12) so you can compare the two side by side.\n\nThe Appearance artboard carries the real finding: light is not a recolour of dark. The Signature hues were all chosen against near-black and are effectively invisible on white, so light needs its own darkened set and has to drop the glow and particles entirely."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

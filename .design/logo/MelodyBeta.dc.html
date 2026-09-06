@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Space+Mono:wght@400;700&display=swap">
+  <style>
+    body { margin: 0; background: #0b0d12; }
+    a { color: #19d8ff; } a:hover { color: #7ce8ff; }
+    .app { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .disp { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; }
+
+    .octave-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: octave-draw 2.6s cubic-bezier(.4,0,.2,1) infinite; }
+    .octave-draw.second { animation-delay: 140ms; }
+    @keyframes octave-draw { 0% { stroke-dashoffset: 1; } 32%,100% { stroke-dashoffset: 0; } }
+
+    /* The arrival card settles once, in step with the mark tracing itself.
+       Opacity and 6px of travel — no scale, no bounce. */
+    .arrive { animation: arrive 2.6s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes arrive { 0% { opacity: 0; transform: translateY(6px); } 26%,100% { opacity: 1; transform: none; } }
+
+    .seclabel { font-family: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: #757c8c; }
+    .tsgrid { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin-top: 8px; }
+    .tslbl { font-family: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #5a6072; }
+    .tsval { font-family: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 11px; color: #757c8c; }
+    .ttl { font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; font-size: 14px; font-weight: 500; color: #f2f3f5; }
+    .art { border-radius: 8px; background: #151821; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    /* 44px minimum hit target on a phone surface. */
+    .act { height: 44px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; justify-content: center; flex: 1; }
+  </style>
+</helmet>
+
+<div class="app" style="width: 390px; height: 844px; background: #0b0d12; color: #f2f3f5; display: flex; flex-direction: column; overflow: hidden">
+
+  <header style="height: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid rgba(255,255,255,0.07)">
+    <div style="display: inline-block; color: #19d8ff">
+      <span class="disp" style="display: block; font-size: 15px; font-weight: 500; letter-spacing: -0.02em; color: #f2f3f5; line-height: 1">harmoniq</span>
+      <span style="position: relative; display: block; height: 5px; margin-top: 1px">
+        <svg viewBox="0 0 400 40" fill="none" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; display:block">
+          <path d="M 6 20 Q 103 2 200 20 T 394 20" stroke="currentColor" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+      </span>
+    </div>
+    <div style="width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8b93a3">B</div>
+  </header>
+
+  <div style="flex: 1; padding: 22px 18px; overflow: hidden">
+
+    <!-- ── The arrival ────────────────────────────────────────────────
+         The one moment in the product where motion carries meaning: the
+         mark traces itself as the card settles. It says "a person just
+         sent you this", which is the whole contract of a Melody. -->
+    <div class="seclabel" style="margin-bottom: 14px">A Melody arrived</div>
+
+    <div class="arrive" style="background: #151821; border: 1px solid rgba(25,216,255,0.22); border-radius: 14px; padding: 16px; margin-bottom: 34px">
+      <div style="display: flex; align-items: center; gap: 14px">
+        <div class="art" style="width: 64px; height: 64px">
+          <svg width="34" height="27" viewBox="0 0 20 16" fill="#343b4d"><rect x="1" y="8" width="4" height="8" rx="1"/><rect x="8" y="2" width="4" height="14" rx="1"/><rect x="15" y="6" width="4" height="10" rx="1"/></svg>
+        </div>
+        <div style="min-width: 0; flex: 1">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <svg width="15" height="15" viewBox="0 0 120 120" fill="none" style="color:#19d8ff; flex-shrink:0">
+              <path class="octave-draw" d="M 12 60 Q 36 16 60 60 T 108 60" stroke="currentColor" stroke-width="11" stroke-linecap="round" pathLength="1"/>
+              <path class="octave-draw second" d="M 12 60 Q 24 30 36 60 T 60 60 T 84 60 T 108 60" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity=".45" pathLength="1"/>
+            </svg>
+            <span class="ttl" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap">Pyramid Song</span>
+          </div>
+          <div style="font-size: 12px; color: #8b93a3; margin-top: 2px">Radiohead</div>
+          <div style="font-size: 12px; color: #757c8c; margin-top: 4px">From Mara <span style="color:#5a6072">@mara</span></div><div class="tsgrid"><span class="tslbl">Received</span><span class="tsval">Sun 30 Aug, 8:22 PM</span></div>
+        </div>
+      </div>
+
+      <!-- Accept / Open / Reject — all three neutral in weight. Rejecting
+           must cost nothing socially (BRAND_BIBLE §5.2), so it cannot be
+           the visually quiet option next to two loud ones. -->
+      <div style="display: flex; gap: 8px; margin-top: 16px">
+        <div class="act" style="background: #19d8ff; color: #05070a; font-weight: 500">Accept</div>
+        <div class="act" style="background: rgba(255,255,255,0.05); color: #f2f3f5">Open</div>
+        <div class="act" style="background: rgba(255,255,255,0.05); color: #f2f3f5">Pass</div>
+      </div>
+    </div>
+
+    <!-- ── Inbox ──────────────────────────────────────────────────────── -->
+    <div class="seclabel" style="margin-bottom: 14px">Your Melodies</div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #151821; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px">
+        <div class="art" style="width: 44px; height: 44px"><svg width="24" height="19" viewBox="0 0 20 16" fill="#343b4d"><rect x="1" y="8" width="4" height="8" rx="1"/><rect x="8" y="2" width="4" height="14" rx="1"/><rect x="15" y="6" width="4" height="10" rx="1"/></svg></div>
+        <div style="min-width: 0; flex: 1">
+          <div class="ttl" style="font-size: 13px">Sunday</div>
+          <div style="font-size: 12px; color: #8b93a3; margin-top: 2px">Earl Sweatshirt</div>
+          <div style="font-size: 12px; color: #757c8c; margin-top: 3px">From Devon</div><div class="tsgrid"><span class="tslbl">Received</span><span class="tsval">Sat 29 Aug, 9:14 PM</span><span class="tslbl">Accepted</span><span class="tsval">Sat 29 Aug, 9:20 PM</span></div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #151821; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px">
+        <div class="art" style="width: 44px; height: 44px"><svg width="24" height="19" viewBox="0 0 20 16" fill="#343b4d"><rect x="1" y="8" width="4" height="8" rx="1"/><rect x="8" y="2" width="4" height="14" rx="1"/><rect x="15" y="6" width="4" height="10" rx="1"/></svg></div>
+        <div style="min-width: 0; flex: 1">
+          <div class="ttl" style="font-size: 13px">Untrue</div>
+          <div style="font-size: 12px; color: #8b93a3; margin-top: 2px">Burial</div>
+          <div style="font-size: 12px; color: #757c8c; margin-top: 3px">From Jules</div><div class="tsgrid"><span class="tslbl">Received</span><span class="tsval">Fri 28 Aug, 11:02 AM</span><span class="tslbl">Opened</span><span class="tsval">Fri 28 Aug, 11:05 AM</span></div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #151821; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; opacity: .62">
+        <div class="art" style="width: 44px; height: 44px"><svg width="24" height="19" viewBox="0 0 20 16" fill="#343b4d"><rect x="1" y="8" width="4" height="8" rx="1"/><rect x="8" y="2" width="4" height="14" rx="1"/><rect x="15" y="6" width="4" height="10" rx="1"/></svg></div>
+        <div style="min-width: 0; flex: 1">
+          <div class="ttl" style="font-size: 13px">Night Time</div>
+          <div style="font-size: 12px; color: #8b93a3; margin-top: 2px">The Sundays</div>
+          <div style="font-size: 12px; color: #757c8c; margin-top: 3px">From Devon · <span style="color:#8b93a3">undo</span></div><div class="tsgrid"><span class="tslbl">Received</span><span class="tsval">Thu 27 Aug, 7:48 PM</span><span class="tslbl">Passed</span><span class="tsval">Thu 27 Aug, 10:31 PM</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <p style="font-size: 12px; line-height: 1.55; color: #757c8c; margin-top: 22px">Only you can see this list.</p>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

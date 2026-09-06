@@ -16,7 +16,7 @@ interface WordmarkProps {
  * app (press, social, a partner's site), export a PNG or have the wordmark
  * outlined in a vector editor once — see docs/BRAND_ASSETS.md.
  *
- * Not yet wired into the app shell — see ADR 0012.
+ * Not yet wired into the app shell — see ADR 0013.
  */
 export default function Wordmark({ size = 14, className = "" }: WordmarkProps) {
   // The wave sits under the word and inherits its width. It is absolutely

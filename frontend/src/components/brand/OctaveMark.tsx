@@ -22,7 +22,7 @@ interface OctaveMarkProps {
  * centreline together at shared nodes. Flat stroke, no gradient and no glow
  * (DESIGN_SYSTEM §2).
  *
- * Not yet wired into the app shell — see ADR 0012.
+ * Not yet wired into the app shell — see ADR 0013.
  */
 export default function OctaveMark({
   size = 24,
