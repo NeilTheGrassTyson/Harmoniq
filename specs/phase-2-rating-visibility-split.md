@@ -130,19 +130,26 @@ On any rating surface — a profile, a Highlight, an album page — a viewer see
 | Any other signed-in user | ✅ | ✗ — a **Follow** control in its place |
 | A signed-out visitor | ✅ | ✗ — a prompt to sign in |
 
-**A correction on the control's wording.** The Founder described a "follow
-request button." This codebase has no follow-request flow: `follow()` and
-`unfollow()` are one-directional and immediate
-(`backend/app/services/follow.py`), and "friend" means a *mutual* follow. So:
+**The control is a friend request, and it now has a mechanism.** The Founder
+described a "follow request button." At the time this codebase had no such
+flow — `follow()` and `unfollow()` are one-directional and immediate, and
+"friend" was derived from mutual following, so a viewer could not initiate
+anything that resolved.
 
-- The button can only **Follow**, not request.
-- Following does **not** grant access. The profile owner must follow back
-  before the viewer becomes a friend, and the viewer cannot make that happen.
+That gap is closed by `specs/phase-2-friend-requests.md` (Founder decision,
+2026-09-06: model it on Steam), which makes friendship explicit and
+requestable. **This spec depends on it.** Friends-only commentary is a wall
+rather than a door until a viewer can ask.
 
-The copy must therefore not promise access. Something honest — "Follow to see
-their reviews when they follow back" — rather than anything implying the click
-unlocks it. Building an actual follow-request/approval flow would be a separate
-feature and a departure from ENGINEERING_BIBLE §4's one-directional model.
+With that in place the control is an honest **Add friend** — a request the
+owner accepts or declines. A decline is silent, per the Melody precedent in
+ENGINEERING_BIBLE §3, so no one is put in the position of having visibly
+refused someone.
+
+Note also, correcting the earlier framing here: explicit friendship is not a
+departure from the Bible. §3 already lists "explicit friendships,
+one-directional follows, and trust relationships" as distinct types; only the
+first was missing from the code.
 
 ---
 
@@ -174,8 +181,7 @@ feature and a departure from ENGINEERING_BIBLE §4's one-directional model.
 
 - A signed-out visitor sees a score and no commentary, and no commentary text
   appears anywhere in the API response.
-- A signed-in non-friend sees a score and a Follow control whose copy does not
-  promise access.
+- A signed-in non-friend sees a score and an Add-friend control.
 - A mutual follow sees both.
 - A moderated rating (`hidden_at` set) discloses nothing to anyone but its
   author — score included. Verified by test.
@@ -225,14 +231,16 @@ _Founder decides._
 
 1. **The migration decision (A, B or C above).** Blocking.
 2. **The constitutional amendment wording.** Blocking.
-3. **May a viewer know that a review they cannot read exists?** Rendering a
+3. **Sequencing.** Friend requests must ship first, or the friends-only tier
+   has no way in. That ordering is a decision, not an assumption.
+4. **May a viewer know that a review they cannot read exists?** Rendering a
    "read more" affordance only when there is something to read discloses that
    the author wrote something. Always showing the control discloses nothing but
    is misleading when there is nothing behind it.
-4. **Should score-only ratings become possible?** `review_text` is
+5. **Should score-only ratings become possible?** `review_text` is
    `nullable=False` today, so rating something currently requires writing about
    it. If the score is the public signal, requiring prose to produce one is a
    meaningful barrier.
-5. **Does this change the per-rating `visibility` control at all,** or does a
+6. **Does this change the per-rating `visibility` control at all,** or does a
    user keep setting individual reviews to private/friends/public while the
    score ignores it?
