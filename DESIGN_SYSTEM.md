@@ -214,8 +214,10 @@ drops a step in size and gains tracking relative to the old Grotesk labels.
 | Search input/placeholder | Body    | 13px                            | 400    |
 | Caption / friend name    | Body    | 11px                            | 400    |
 
-No weight above 500 anywhere — contrast comes from size, color, and face, not bold
-weight stacking.
+No weight above 500 in the display or body faces — contrast there comes from
+size, color, and face, not from bold weight stacking. The label face is the one
+exception: Space Mono 700 at 10.5px is the weight that makes a micro-label
+legible at all, and it is doing the work the old Grotesk labels did with size.
 
 ---
 
@@ -268,8 +270,20 @@ agreement, which makes the mark a picture of the resonance Harmony measures
 | `components/brand/Wordmark.tsx`             | In-app lockup — live Space Grotesk plus the wave beneath     |
 | `app/icon.svg`                              | Browser tab icon                                            |
 | `app/apple-icon.tsx`                        | iOS home screen, generated at build time by `next/og`       |
+| `app/opengraph-image.tsx`                   | Link-preview card, same generator, real Space Grotesk       |
 | `public/brand/harmoniq-mark.svg`            | Full-colour mark for anything outside the app               |
 | `public/brand/harmoniq-mark-mono.svg`       | One-colour mark — `currentColor` when inlined               |
+
+**Three sites carry the logo, and only three** (ADR 0013): the `AppShell`
+header, `AuthScreen`, and the signed-out landing. Everywhere else the
+three-bar `EqualizerGlyph` keeps its placeholder role. The line between them
+is not a judgement call — a logo is the mark *next to the wordmark*; a
+placeholder is the glyph standing in for absent artwork. The header shows the
+compact mark alone below `sm` and the full lockup from `sm` up, because at
+390px the wordmark and the search field compete for the same row.
+
+The mark is coloured `--color-brand`, never `--color-accent`. It is the only
+thing in the app that uses that token.
 
 **The small mark is a redraw, not a scale.** Below roughly 20px the overtone
 renders under a pixel and reads as noise, so `compact` drops it and thickens

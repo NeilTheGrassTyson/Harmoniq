@@ -12,6 +12,8 @@
 | --------------------------------------- | -------------------------------- | ---------------------------------------- |
 | `frontend/src/app/icon.svg`             | `/icon.svg`                      | Browser tab icon (all modern browsers)   |
 | `frontend/src/app/apple-icon.tsx`       | `/apple-icon`                    | iOS home screen, 180×180 PNG             |
+| `frontend/src/app/opengraph-image.tsx`  | `/opengraph-image`               | Link-preview card, 1200×630 PNG          |
+| `frontend/src/app/manifest.ts`          | `/manifest.webmanifest`          | Web app manifest — name, colours, icons  |
 | `frontend/src/app/favicon.ico`           | `/favicon.ico`                   | Legacy favicon slot, 16/32/48            |
 | `frontend/public/brand/harmoniq-mark.svg`      | `/brand/harmoniq-mark.svg`      | Full-colour mark, outside the app  |
 | `frontend/public/brand/harmoniq-mark-mono.svg` | `/brand/harmoniq-mark-mono.svg` | One-colour mark                    |
@@ -33,8 +35,23 @@ Verify after any change:
 cd frontend && npm run build
 ```
 
-Both routes should appear in the route table as `○ /icon.svg` and
-`○ /apple-icon` (`○` = prerendered static).
+All four routes should appear in the route table as `○ /icon.svg`,
+`○ /apple-icon`, `○ /opengraph-image` and `○ /manifest.webmanifest`
+(`○` = prerendered static).
+
+**Two things outside these files have to stay true, or the routes build and
+still do nothing:**
+
+- **`metadataBase` in `layout.tsx`.** `og:image` is emitted as an absolute
+  URL. Unset, Next resolves it against the `*.vercel.app` name (or against
+  `http://localhost:3000` where that variable is absent) and warns only in the
+  build log — so every shared link ships a card nobody else can fetch.
+- **`/opengraph-image` and `/apple-icon` are listed in `proxy.ts`'s
+  `isPublicRoute`.** Neither has a file extension, so neither is covered by
+  the extension exclusions in that file's `config.matcher`. Without the
+  explicit entries `clerkMiddleware` answers a crawler with a redirect to
+  sign-in, and the preview silently never appears. `/icon.svg` and
+  `/manifest.webmanifest` do have extensions and are exempt already.
 
 ---
 
@@ -97,10 +114,22 @@ The steps that actually matter in production:
 
 ### Social / link previews
 
-Not yet built. A shared Harmoniq link currently has no `og:image`, so it
-previews as a bare title and description. When that matters, the same pattern
-as `apple-icon.tsx` applies — an `opengraph-image.tsx` in `src/app/` using
-`next/og`. Deliberately out of scope for the logo work.
+`opengraph-image.tsx` renders the card at 1200×630: the wordmark in real Space
+Grotesk over the octave, on the canvas colour, with one line of orientation.
+Next emits `og:image` and the `twitter:image` pair from it automatically, plus
+`twitter:card=summary_large_image`.
+
+The face comes from `public/brand/fonts/SpaceGrotesk-Medium.ttf`, read as bytes
+and passed through `ImageResponse`'s `fonts` option. That file is a **build
+input, not a served webfont** — the app itself loads Space Grotesk through
+`next/font`. Do not add an `@font-face` for it, and do not delete `OFL.txt`
+beside it (licence requirement). satori does not accept woff2, which is why the
+`next/font` cache cannot be reused here and the TTF has to be committed.
+
+To check a change without deploying, open `/opengraph-image` directly — it
+renders in the browser at full size. In development the emitted URL always
+resolves to `localhost:3000` regardless of `metadataBase`; that is Next's
+behaviour, not a misconfiguration.
 
 ---
 

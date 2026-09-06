@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -17,7 +17,29 @@ const spaceGrotesk = Space_Grotesk({
   weight: ["400", "500"],
 });
 
+// Label face: section labels, strand labels, timestamps (DESIGN_SYSTEM.md §3).
+// Space Grotesk was derived from Space Mono — both Colophon — so this is the
+// wordmark's own sibling rather than a third voice.
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
 export const metadata: Metadata = {
+  // The origin og:image and twitter:image are resolved against. Unset, Next
+  // falls back to VERCEL_PROJECT_PRODUCTION_URL — the *.vercel.app name, not
+  // the custom domain — and to http://localhost:3000 anywhere that variable
+  // is absent, with only a build-log warning to show for it. A wrong value is
+  // invisible from inside the app and only surfaces in someone else's chat
+  // window, which is ADR 0011's class of bug.
+  //
+  // Hardcoded rather than read from an env var: an unset variable would
+  // reintroduce exactly the silent fallback this line exists to close.
+  // Vercel preview deployments still override it with their own URL (Next
+  // prefers VERCEL_BRANCH_URL when VERCEL_ENV is "preview"), so a preview's
+  // card is its own, and dev always resolves to localhost by design.
+  metadataBase: new URL("https://harmoniq.live"),
   title: "Harmoniq",
   description: "A social music discovery network built around trust and musical identity.",
 };
@@ -40,7 +62,7 @@ export default async function RootLayout({
   // picks up Harmoniq's tokens without per-call-site theming.
   return (
     <ClerkProvider appearance={clerkAppearance}>
-      <html lang="en" className={`${spaceGrotesk.variable} h-full`}>
+      <html lang="en" className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
         <body className="bg-canvas text-primary h-full antialiased">
           <ViewerProvider value={viewer}>
             <QueryProvider>{children}</QueryProvider>

@@ -7,7 +7,8 @@ import SearchBar, { SearchBarFallback } from "@/components/SearchBar";
 import NavAuth from "@/components/NavAuth";
 import { useViewer } from "@/components/ViewerProvider";
 import NotificationBell from "@/components/NotificationBell";
-import EqualizerGlyph from "@/components/EqualizerGlyph";
+import OctaveMark from "@/components/brand/OctaveMark";
+import Wordmark from "@/components/brand/Wordmark";
 
 function IconMenu({ size = 18 }: { size?: number }) {
   return (
@@ -207,12 +208,21 @@ export default function AppShell({ children }: AppShellProps) {
           >
             <IconMenu />
           </button>
-          <Link href="/" className="flex items-center gap-2">
-            <EqualizerGlyph className="text-accent" size={16} />
-            {/* Below sm the glyph carries the mark alone — at 390px the
-                wordmark competes with the search field for the same row. */}
-            <span className="font-display text-primary hidden text-sm font-medium tracking-normal select-none sm:inline">
-              harmoniq
+          {/* Both marks are aria-hidden, so the link needs its own name — and
+              needed one before, since the only text was hidden below sm. */}
+          <Link href="/" aria-label="Harmoniq home" className="flex items-center">
+            {/* Below sm the mark carries the identity alone — at 390px the
+                wordmark competes with the search field for the same row.
+                `compact` because 18px is under the overtone's legible floor. */}
+            <span className="text-brand flex items-center sm:hidden">
+              <OctaveMark size={18} compact />
+            </span>
+            {/* Visibility lives on a wrapper, not on Wordmark's className:
+                Wordmark hardcodes `inline-block` on its root, and `hidden`
+                alongside it is a same-layer utility collision whose winner is
+                decided by stylesheet order rather than by intent. */}
+            <span className="text-brand hidden sm:block">
+              <Wordmark size={14} />
             </span>
           </Link>
         </div>

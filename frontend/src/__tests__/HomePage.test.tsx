@@ -21,8 +21,8 @@ vi.mock("@/components/TrackTile", () => ({
   default: ({ title }: { title: string }) => <span>{title}</span>,
 }));
 
-vi.mock("@/components/EqualizerGlyph", () => ({
-  default: () => <span data-testid="equalizer-glyph" />,
+vi.mock("@/components/brand/Wordmark", () => ({
+  default: () => <span data-testid="wordmark" />,
 }));
 
 import Home from "@/app/page";

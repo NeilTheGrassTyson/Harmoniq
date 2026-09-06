@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { disconnectSpotify, getSpotifyConnection, getSpotifyConnectUrl } from "@/lib/spotify";
 import type { SpotifyConnectionStatus } from "@/types";
 import { friendlyError } from "@/lib/apiBase";
+import SectionLabel from "@/components/SectionLabel";
 
 interface ConnectedAccountsProps {
   /** True immediately after the Spotify OAuth callback redirects back here. */
@@ -79,9 +80,7 @@ export default function ConnectedAccounts({ justConnected = false }: ConnectedAc
 
   return (
     <section>
-      <h2 className="text-tertiary mb-3 text-xs font-medium tracking-widest uppercase">
-        Connected accounts
-      </h2>
+      <SectionLabel>Connected accounts</SectionLabel>
 
       {checkFailed ? (
         <p role="alert" className="text-secondary text-sm">

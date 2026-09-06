@@ -23,6 +23,15 @@ const isPublicRoute = createRouteMatcher([
   "/track/(.*)",
   // Profile pages — publicly readable
   "/u/(.*)",
+  // Generated metadata images. These are fetched by link-preview crawlers and
+  // by the OS, none of which carry a session — behind auth.protect() they
+  // answer a redirect to sign-in and the card silently never appears.
+  //
+  // They are not covered by the extension exclusions in `config.matcher`
+  // below: those routes have no file extension. /icon.svg and
+  // /manifest.webmanifest do, and are already exempt there.
+  "/opengraph-image(.*)",
+  "/apple-icon(.*)",
 ]);
 
 // True/false when the backend answered definitively, null when it couldn't

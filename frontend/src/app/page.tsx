@@ -1,21 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
 import TrackTile from "@/components/TrackTile";
-import EqualizerGlyph from "@/components/EqualizerGlyph";
+import SectionLabel from "@/components/SectionLabel";
+import Wordmark from "@/components/brand/Wordmark";
 import { getHome } from "@/lib/home";
 import type { FriendEntry, HomeResponse, TrendingEntry } from "@/types";
 
-// ── Section label ─────────────────────────────────────────────────────────────
+// ── Empty state ───────────────────────────────────────────────────────────────
 
-// Section label: 11px display face, uppercase, 0.6px tracking (DESIGN_SYSTEM §3),
-// 14px to its content (§5).
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-display text-tertiary mb-[14px] text-[11px] font-medium tracking-[0.6px] uppercase">
-      {children}
-    </h2>
-  );
-}
+// SectionLabel moved to components/ when the settings headings needed the same
+// object — see the comment there.
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return <p className="text-tertiary text-[13px]">{children}</p>;
@@ -94,8 +88,11 @@ function FriendsGrid({
 function SignedOutLanding() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 pt-20">
-      <EqualizerGlyph className="text-accent" size={36} />
-      <p className="font-display text-primary text-sm font-medium">harmoniq</p>
+      {/* The lockup carries the name, so the separate word line beneath the old
+          glyph is gone rather than repeated. */}
+      <span className="text-brand">
+        <Wordmark size={28} />
+      </span>
       <p className="text-secondary text-[13px]">Sign in to see what&rsquo;s trending.</p>
     </div>
   );

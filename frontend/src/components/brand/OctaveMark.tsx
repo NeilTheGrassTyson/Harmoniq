@@ -22,7 +22,8 @@ interface OctaveMarkProps {
  * centreline together at shared nodes. Flat stroke, no gradient and no glow
  * (DESIGN_SYSTEM §2).
  *
- * Not yet wired into the app shell — see ADR 0013.
+ * Wired into the AppShell header below `sm`, where the wordmark would
+ * compete with the search field. See ADR 0013 and DESIGN_SYSTEM.md §6.1.
  */
 export default function OctaveMark({
   size = 24,

@@ -34,9 +34,14 @@
   --radius-nav: 6px;
 }
 
-/* Display font references the CSS var injected by next/font */
+/* Display and label fonts reference the CSS vars injected by next/font */
 @theme inline {
   --font-display: var(--font-space-grotesk), system-ui, sans-serif;
+  /* Label face (DESIGN_SYSTEM.md §3). The fallback is the platform mono stack
+     rather than system-ui: if Space Mono fails to load, a label set at 1.1px
+     tracking should still land as monospace channel labelling, not as a
+     stretched proportional face. */
+  --font-label: var(--font-space-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
   /* shadcn utility names → :root primitives below. The names that would
      collide with Harmoniq's own tokens (--color-primary, --color-secondary,
      --color-accent) are deliberately NOT mapped — those stay defined by the

@@ -52,8 +52,12 @@ vi.mock("@/components/NavAuth", () => ({
   default: () => <span data-testid="nav-auth" />,
 }));
 
-vi.mock("@/components/EqualizerGlyph", () => ({
-  default: () => <span data-testid="equalizer-glyph" />,
+vi.mock("@/components/brand/OctaveMark", () => ({
+  default: () => <span data-testid="octave-mark" />,
+}));
+
+vi.mock("@/components/brand/Wordmark", () => ({
+  default: () => <span data-testid="wordmark" />,
 }));
 
 vi.mock("@/components/NotificationBell", () => ({

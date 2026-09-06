@@ -1,4 +1,4 @@
-import EqualizerGlyph from "@/components/EqualizerGlyph";
+import Wordmark from "@/components/brand/Wordmark";
 
 interface AuthScreenProps {
   /** One calm line of orientation. Guides without persuading (BRAND_BIBLE §10.2). */
@@ -18,8 +18,12 @@ export default function AuthScreen({ caption, children }: AuthScreenProps) {
   return (
     <main className="bg-canvas flex min-h-screen flex-col items-center justify-center px-6 py-16">
       <div className="mb-7 flex flex-col items-center gap-3">
-        <EqualizerGlyph size={28} className="text-accent" />
-        <span className="font-display text-primary text-sm font-medium select-none">harmoniq</span>
+        {/* The lockup replaces the glyph-plus-word pair that stood here: at 28px
+            the wave already carries the name, so a separate word beneath it was
+            saying "harmoniq" twice. */}
+        <span className="text-brand">
+          <Wordmark size={26} />
+        </span>
         <p className="text-secondary max-w-[26ch] text-center text-[13px] text-balance">
           {caption}
         </p>

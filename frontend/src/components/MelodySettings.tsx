@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { getOwnProfile, updateProfile } from "@/lib/users";
 import type { MelodyAcceptScope } from "@/types";
+import SectionLabel from "@/components/SectionLabel";
 
 const OPTIONS: { value: MelodyAcceptScope; label: string }[] = [
   { value: "everyone", label: "Everyone" },
@@ -57,10 +58,8 @@ export default function MelodySettings() {
 
   return (
     <section className="mt-8" data-testid="melody-settings">
-      <h2 className="text-primary" style={{ fontSize: 14, fontWeight: 500 }}>
-        Melodies
-      </h2>
-      <div className="mt-3 flex items-center justify-between">
+      <SectionLabel>Melodies</SectionLabel>
+      <div className="flex items-center justify-between">
         <label htmlFor="melody-accept-scope" className="text-secondary" style={{ fontSize: 13 }}>
           Who can send you Melodies
         </label>
