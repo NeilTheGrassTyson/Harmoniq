@@ -1,0 +1,19 @@
+# Line endings are normalised to LF in the repository and on checkout, for
+# every platform. `.editorconfig` already says `end_of_line = lf`, but nothing
+# enforced it: three files were committed with CRLF from a Windows editor, and
+# a one-line edit to any of them from a Linux checkout rewrote the whole file
+# in the diff — a six-line change reading as 244.
+*         text=auto eol=lf
+
+# Binary, so Git must not touch them.
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.webp    binary
+*.ico     binary
+*.woff    binary
+*.woff2   binary
+*.ttf     binary
+*.otf     binary
+*.pdf     binary
