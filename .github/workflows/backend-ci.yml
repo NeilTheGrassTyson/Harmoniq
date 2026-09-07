@@ -1,22 +1,65 @@
 name: Backend CI
 
+# There is deliberately no workflow-level `paths:` filter. Path filtering
+# happens per-job, via the `changes` job below, so this workflow always
+# produces a `Backend CI gate` check run — including on PRs that touch no
+# backend files, where the real jobs skip and the gate passes green.
+#
+# That is what makes the gate safe to mark as a required status check. A
+# workflow-level filter would mean a frontend-only PR never starts the
+# workflow at all, leaving the required check permanently "expected" and
+# wedging the merge forever.
 on:
   push:
     branches: [main, dev]
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-ci.yml"
   # dev is included deliberately: feature work merges into dev first, so
   # limiting this to main let every feature PR merge without CI.
   pull_request:
     branches: [main, dev]
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-ci.yml"
 
 jobs:
+  changes:
+    name: Detect backend changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # merge-base against the PR base branch needs the full history.
+          fetch-depth: 0
+
+      - name: Check whether backend files changed
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # Pushes to main/dev always run the full suite. They are the
+          # integration branches; a green history there is worth more than
+          # the handful of minutes skipping would save.
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags origin "$BASE_REF"
+          base="$(git merge-base HEAD "origin/$BASE_REF")"
+
+          if git diff --name-only "$base" HEAD \
+              | grep -Eq '^(backend/|\.github/workflows/backend-ci\.yml$)'; then
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
   lint-and-type-check:
     name: Lint & type check
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -45,11 +88,16 @@ jobs:
       - name: Mypy type check
         run: poetry run mypy app
 
+      # -c is required: bandit does NOT auto-discover pyproject.toml, so
+      # without it the [tool.bandit] block is silently ignored. No extra
+      # dependency is needed — bandit uses stdlib tomllib on Python 3.11+.
       - name: Bandit security scan
-        run: poetry run bandit -r app
+        run: poetry run bandit -r app -c pyproject.toml
 
   test:
     name: Tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     # ubuntu-latest has Docker pre-installed; Testcontainers uses it for the
     # Postgres container that backs the integration tier (ADR 0007).
     runs-on: ubuntu-latest
@@ -90,3 +138,28 @@ jobs:
           files: backend/coverage.xml
           flags: backend
         continue-on-error: true
+
+  gate:
+    # The single required status check for this workflow. It always runs, so
+    # it is never left "expected"; it fails only when a job that actually ran
+    # failed. Jobs skipped because no backend file changed leave it green.
+    #
+    # The name is deliberately unique: `Tests` is a job name in BOTH
+    # backend-ci and frontend-ci, so requiring a check by that name would be
+    # ambiguous between the two workflows.
+    name: Backend CI gate
+    needs: [changes, lint-and-type-check, test]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fail if any backend job failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "A backend CI job failed or was cancelled — see the jobs above."
+          exit 1
+
+      - name: Report
+        run: |
+          echo "Backend CI gate passed."
+          echo "Backend files changed: ${{ needs.changes.outputs.backend }}"

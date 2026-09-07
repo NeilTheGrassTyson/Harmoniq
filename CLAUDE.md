@@ -78,7 +78,9 @@ referencing the file by name in your prompt:
 
 - **Dependency management:** Poetry (`pyproject.toml`). Poetry not on PATH on Windows — invoke via `py -m poetry` or the full `.venv` path.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
-- **Security scan:** Bandit (`bandit -r app`), runs in CI alongside lint/type checks.
+- **Security scan:** Bandit (`bandit -r app -c pyproject.toml`), runs in CI alongside
+  lint/type checks. The `-c` is required — Bandit does not auto-discover
+  `pyproject.toml`, so without it the `[tool.bandit]` block is silently ignored.
 - **Type check:** `mypy` (or pyright — check `pyproject.toml`).
 - **Tests:** `pytest`, `pytest-asyncio`, `pytest-cov`. Integration tests use Testcontainers (real PostgreSQL). `NullPool` required in test fixtures to avoid asyncpg connection conflicts.
 - **Run tests:** `cd backend && python -m pytest`
