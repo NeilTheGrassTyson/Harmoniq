@@ -404,6 +404,43 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   Note that `TOKEN_ENCRYPTION_KEY` belongs to this group even though it is
   not a Spotify credential: without it a stored refresh token cannot be
   decrypted, so the connection exists and cannot be used.
+- **`SPOTIFY_REDIRECT_URI` left at the development value** (2026-09-07).
+  All four Spotify variables were set, so the boot log reported Spotify fully
+  configured, and Connect correctly redirected to Spotify. After logging in,
+  the user was sent to `http://127.0.0.1:3000/spotify-callback` — their own
+  device — and got a browser "couldn't connect to the server" page. **Nothing
+  errors server-side in this state**: Spotify redirects the browser to
+  whatever we pass, so the callback simply never arrives and there is nothing
+  to log.
+
+  In production the value must be the deployed callback URL, and it must be
+  registered in the Spotify dashboard **byte-identically** — no trailing
+  slash. Keep the loopback entry registered alongside it for local
+  development; Spotify requires a loopback IP literal for `http` and `https`
+  for everything else. Confirm from the service shell (this value is not a
+  secret):
+
+  ```bash
+  echo $SPOTIFY_REDIRECT_URI
+  ```
+
+  The backend now warns at boot when `APP_ENV=production` and the value is
+  loopback or `http`, and separately when its origin is absent from
+  `CORS_ALLOWED_ORIGINS` — which catches an apex/www mismatch that would send
+  the user to an origin not holding their session (`app/main.py`).
+- **A 400 from `POST /api/token` during the OAuth callback.** The status
+  alone is ambiguous; Spotify names the cause in the response body, which the
+  backend now logs (`app/services/spotify.py`). The three meanings:
+
+  | Body | Cause | Fix |
+  | --- | --- | --- |
+  | `invalid_grant` | the code was already used, expired (~10 min), or was issued against a different `redirect_uri` | restart the flow from Connect; if it recurs, the redirect URI changed between authorize and callback (e.g. a redeploy mid-flow) |
+  | `invalid_client` | `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` are from different Spotify apps | re-copy both from the same dashboard app |
+  | `invalid_request` naming the redirect URI | the URI sent doesn't match one registered | make the dashboard entry and the env var byte-identical |
+
+  An authorization code is single-use, so refreshing the callback page always
+  produces `invalid_grant` on the second attempt — that is expected, not a
+  new fault.
 
 ---
 

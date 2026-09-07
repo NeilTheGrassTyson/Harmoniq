@@ -160,6 +160,89 @@ class TestRequireConfig:
         assert redirect_uri == settings.spotify_redirect_uri
 
 
+# ── Token failure reporting ───────────────────────────────────────────────────
+# A 400 from Spotify's token endpoint means one of three unrelated things, each
+# with a different fix, and the status code picks none of them. Spotify says
+# which in the response body; the log used to discard it and print "status=400"
+# alone. That happened on 2026-09-07 and had to be diagnosed by elimination.
+
+
+class TestTokenErrorDetail:
+    @pytest.mark.parametrize(
+        ("body", "expected"),
+        [
+            # A code already used, expired, or issued for a different
+            # redirect_uri. The fix is to retry the flow.
+            (
+                {
+                    "error": "invalid_grant",
+                    "error_description": "Invalid authorization code",
+                },
+                "invalid_grant",
+            ),
+            # Client id and secret from different Spotify apps — the shape you
+            # get after filling in one of the pair from the wrong dashboard.
+            (
+                {"error": "invalid_client", "error_description": "Invalid client"},
+                "invalid_client",
+            ),
+            (
+                {
+                    "error": "invalid_request",
+                    "error_description": "Invalid redirect URI",
+                },
+                "redirect",
+            ),
+        ],
+    )
+    def test_names_spotifys_own_reason(
+        self, body: dict[str, str], expected: str
+    ) -> None:
+        resp = Response(400, json=body)
+
+        assert expected in spotify_svc._token_error_detail(resp)
+
+    def test_includes_the_description_not_just_the_code(self) -> None:
+        resp = Response(
+            400,
+            json={
+                "error": "invalid_grant",
+                "error_description": "Invalid authorization code",
+            },
+        )
+
+        detail = spotify_svc._token_error_detail(resp)
+
+        assert "invalid_grant" in detail
+        assert "Invalid authorization code" in detail
+
+    def test_survives_a_non_json_body(self) -> None:
+        # An upstream proxy or an outage can answer with HTML; the logger must
+        # not raise inside the error path it exists to report.
+        resp = Response(502, text="<html>Bad Gateway</html>")
+
+        assert "Bad Gateway" in spotify_svc._token_error_detail(resp)
+
+    def test_survives_an_empty_body(self) -> None:
+        assert spotify_svc._token_error_detail(Response(400, text="")) != ""
+
+    def test_survives_a_json_body_that_is_not_an_object(self) -> None:
+        assert spotify_svc._token_error_detail(Response(400, json=["nope"])) != ""
+
+    def test_is_bounded(self) -> None:
+        # It goes to the log on every failure; an upstream error page must not
+        # be able to flood Deploy Logs.
+        resp = Response(400, text="x" * 10_000)
+
+        assert len(spotify_svc._token_error_detail(resp)) <= 200
+
+    def test_reports_a_body_with_no_error_field(self) -> None:
+        detail = spotify_svc._token_error_detail(Response(400, json={"foo": "bar"}))
+
+        assert detail  # something, rather than an empty log line
+        assert "error" in detail
+
+
 # ── Payload mapping ───────────────────────────────────────────────────────────
 
 
