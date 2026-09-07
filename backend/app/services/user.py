@@ -171,6 +171,11 @@ async def get_profile(
     # Listening activity: Phase 1 — always a placeholder when visible.
     if can_see(user.visibility_activity):
         fields["activity_placeholder"] = True
+        # The scope itself goes only to the owner, so their own profile can
+        # say "only you can see this" instead of looking silently broken.
+        # Disclosing it to anyone else would leak a visibility setting.
+        if is_own:
+            fields["activity_scope"] = VisibilityScope(user.visibility_activity)
 
     # Ratings count: queried live from ratings table.
     if can_see(user.visibility_ratings):

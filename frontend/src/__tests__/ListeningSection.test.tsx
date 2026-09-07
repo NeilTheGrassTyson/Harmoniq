@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ListeningSection, { formatRelative } from "@/components/ListeningSection";
 import { renderWithQuery } from "@/__tests__/test-utils";
-import type { ListeningResponse, RecentlyPlayedItem } from "@/types";
+import type { ListeningResponse, RecentlyPlayedItem, VisibilityScope } from "@/types";
 
 // The component polls via usePolledListening (which calls getListening) —
 // mock it so no real network/timer activity happens during render.
@@ -23,8 +23,19 @@ function makeItem(overrides: Partial<RecentlyPlayedItem> = {}): RecentlyPlayedIt
   };
 }
 
-function renderSection(listening: ListeningResponse) {
-  return renderWithQuery(<ListeningSection username="testuser" token="tok" initial={listening} />);
+function renderSection(
+  listening: ListeningResponse,
+  opts: { isOwnProfile?: boolean; scope?: VisibilityScope } = {}
+) {
+  return renderWithQuery(
+    <ListeningSection
+      username="testuser"
+      token="tok"
+      initial={listening}
+      isOwnProfile={opts.isOwnProfile}
+      scope={opts.scope}
+    />
+  );
 }
 
 describe("ListeningSection", () => {
@@ -128,5 +139,57 @@ describe("formatRelative", () => {
   it("falls back to a short date after a week", () => {
     const result = formatRelative("2026-06-20T12:00:00Z", now);
     expect(result).toMatch(/Jun/);
+  });
+});
+
+// ── Owner-only scope note ─────────────────────────────────────────────────────
+// Activity defaults to private. Without a note the owner sees their own tracks,
+// assumes everyone does, and reads every other profile's missing section as a
+// broken feature. The note is owner-only: who can see someone's activity must
+// not be disclosed to another viewer (HARMONIQ.md §6).
+
+describe("ListeningSection — visibility note", () => {
+  const idle: ListeningResponse = {
+    connected: true,
+    now_playing: null,
+    recently_played: [],
+  };
+
+  it("tells the owner when their listening is private", () => {
+    renderSection(idle, { isOwnProfile: true, scope: "private" });
+    expect(screen.getByText("Only you can see this.")).toBeTruthy();
+  });
+
+  it("tells the owner when their listening is friends-only", () => {
+    renderSection(idle, { isOwnProfile: true, scope: "friends" });
+    expect(screen.getByText("Visible to friends.")).toBeTruthy();
+  });
+
+  it("says nothing when the owner's listening is public", () => {
+    renderSection(idle, { isOwnProfile: true, scope: "public" });
+    expect(screen.queryByText("Only you can see this.")).toBeNull();
+    expect(screen.queryByText("Visible to friends.")).toBeNull();
+  });
+
+  it("never shows the note to another viewer", () => {
+    // A scope should never reach a non-owner, but if one ever did, the
+    // component must not render it.
+    renderSection(idle, { isOwnProfile: false, scope: "private" });
+    expect(screen.queryByText("Only you can see this.")).toBeNull();
+  });
+
+  it("distinguishes an unlinked Spotify account from a quiet one, for the owner", () => {
+    renderSection(
+      { connected: false, now_playing: null, recently_played: [] },
+      { isOwnProfile: true, scope: "public" }
+    );
+    // "No listening activity yet" conflated the two; only the owner can fix it.
+    expect(screen.getByText(/Spotify isn.t connected/)).toBeTruthy();
+    expect(screen.getByText("Connect it in settings")).toBeTruthy();
+  });
+
+  it("keeps the neutral wording for a visitor when the account is unlinked", () => {
+    renderSection({ connected: false, now_playing: null, recently_played: [] });
+    expect(screen.getByText("No listening activity yet.")).toBeTruthy();
   });
 });
