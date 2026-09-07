@@ -115,6 +115,8 @@ export interface ProfileResponse {
   follow?: FollowState;
   bio?: string | null;
   activity_placeholder?: boolean;
+  /** Owner-only — absent for every other viewer. */
+  activity_scope?: VisibilityScope;
   ratings_count?: number;
 }
 

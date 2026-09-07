@@ -124,6 +124,10 @@ class ProfileResponse(BaseModel):
     # The following are present only when visibility allows:
     bio: str | None = None
     activity_placeholder: bool | None = None  # True = show placeholder section
+    # Owner-only. Lets your own profile explain why nobody else sees your
+    # listening. Never sent to another viewer — who may see your activity is
+    # your business, not theirs (HARMONIQ.md §6).
+    activity_scope: VisibilityScope | None = None
     ratings_count: int | None = None
 
 

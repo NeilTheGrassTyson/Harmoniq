@@ -186,6 +186,9 @@ class TestVisibilityEnforcement:
         assert "bio" in profile.model_fields_set
         assert "activity_placeholder" in profile.model_fields_set
         assert "ratings_count" in profile.model_fields_set
+        # The owner is told their own scope, so their profile can explain why
+        # nobody else sees the section instead of looking broken.
+        assert profile.activity_scope == VisibilityScope.PRIVATE
 
     async def test_stranger_denied_private_bio(self, db_session: AsyncSession) -> None:
         await _create_with_visibility(
@@ -242,6 +245,9 @@ class TestVisibilityEnforcement:
 
         profile = await user_svc.get_profile(db_session, "vis_t4", "clerk_v_s4")
         assert "activity_placeholder" in profile.model_fields_set  # type: ignore[union-attr]
+        # A visibility setting is the owner's business alone (HARMONIQ.md §6):
+        # a permitted viewer sees the section but never the scope behind it.
+        assert "activity_scope" not in profile.model_fields_set  # type: ignore[union-attr]
 
     async def test_stranger_denied_private_ratings(
         self, db_session: AsyncSession
