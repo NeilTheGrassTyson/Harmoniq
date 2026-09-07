@@ -76,8 +76,9 @@ referencing the file by name in your prompt:
 
 ### Backend tooling
 
-- **Dependency management:** Poetry (`pyproject.toml`). Invoke it as plain
-  `poetry` first; `py -m poetry` only works if Poetry is installed *into* the
+- **Dependency management:** Poetry (`backend/pyproject.toml` — the only one in
+  the repo; the root `package.json` is unrelated, so every `poetry` command
+  must be run from `backend/`). Invoke it as plain `poetry` first; `py -m poetry` only works if Poetry is installed *into* the
   interpreter `py` resolves to, which it usually is not — on 2026-09-07 `py`
   resolved to a 3.14 install with no Poetry in it while `poetry` itself was on
   PATH and working.
