@@ -202,8 +202,22 @@ branch lists; that is the only authoritative mapping.
 | Environment | Frontend           | Backend                 | Database                 |
 | ----------- | ------------------ | ----------------------- | ------------------------ |
 | Development | `localhost:3000`   | `localhost:8000`        | Neon `staging` branch    |
-| Staging     | Vercel preview URL | Railway staging service | Neon `staging` branch    |
+| Shared dev  | Tailscale `:443`   | Tailscale `:8443`       | Neon `staging` branch    |
+| Staging     | Vercel preview URL | *not provisioned*       | Neon `staging` branch    |
 | Production  | Vercel production  | Railway production      | Neon `production` branch |
+
+**The Staging row is a plan, not a description.** No Railway staging service
+exists — the name appears in this table and nowhere else in the repository: no
+`railway.json` target, no CI job, no secret. A Vercel preview URL therefore has
+no backend of its own, and pointing one at the production Railway service would
+write to the live database. Standing the service up is a Tier 1 decision
+(WORKFLOW.md §1 — hosting platform, and a new recurring cost), so it needs a
+spec first. This table said something similar and untrue about the Neon
+branches until 2026-08-30; the correction cost an hour.
+
+**To let someone else try a branch today, use the Shared dev row** — your local
+servers published to your tailnet, against `staging`. Setup, limits and
+teardown: `docs/DEV_SHARING.md`.
 
 Local `backend/.env` points at `staging`, which is correct — development must
 not write to the live database. It also means a migration run locally has not
