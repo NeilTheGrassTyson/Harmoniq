@@ -86,9 +86,11 @@ Musical taste is personal.
 
 What one person sees about another should always be something that person intentionally chose to share.
 
-Visibility of identity, activity, and behavior should be explicit, specific, and revocable.
+Visibility of identity, activity, and behaviour should be explicit, specific, and revocable. Where a signal is structurally required for the product to function — a numerical rating being the sole case — its publication is a condition of participation, disclosed before the user creates it, and the user retains the right to withhold the signal entirely by not rating, and to withdraw it by deleting the rating.
 
 _This principle fails when a user's activity or identity becomes visible without that user's informed choice._
+
+_Amended 2026-09-07 (Founder-ratified). The second sentence is new; it is deliberately narrowed to one signal and is not a general exemption. Previous wording, reasoning, and the migration decision it carries: `docs/amendments/0001-rating-score-visibility.md`._
 
 ---
 

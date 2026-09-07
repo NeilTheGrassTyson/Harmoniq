@@ -1,9 +1,20 @@
 # Rating Visibility — Splitting the Score from the Commentary
 
-> **Status: DRAFT — awaiting Founder approval, and requiring a constitutional
-> amendment before it can be implemented.** Tier 1 per WORKFLOW.md §1 ("any
-> change to how user data is collected, stored, or shared"). Nothing here is
-> implemented.
+> **Status: UNBLOCKED — both blocking decisions taken by the Founder on
+> 2026-09-07. Not yet implemented.** Tier 1 per WORKFLOW.md §1 ("any change to
+> how user data is collected, stored, or shared").
+>
+> - The **constitutional amendment is ratified**. HARMONIQ.md §6 now carries
+>   the new wording; the record, with previous wording and reasoning, is
+>   `docs/amendments/0001-rating-score-visibility.md`.
+> - The **migration is approach C** (publish all scores at rollout), chosen on
+>   the grounds that Harmoniq has no users beyond the Founder and a small
+>   number of close friends. Two conditions attach to that choice — verify the
+>   affected-row count before rollout, and re-decide if the user base stops
+>   being personal contacts. Both are recorded in the amendment.
+>
+> Open questions 3–6 below are still open and are not blocking in the same
+> way, but sequencing (3) does gate the build: friend requests ship first.
 >
 > Raised by the Founder on 2026-09-06 while specifying Highlights, with the
 > observation that "this may need a constitutional amendment entirely." It
@@ -229,8 +240,11 @@ that re-enabling does not disclose the ratings it was protecting.
 
 _Founder decides._
 
-1. **The migration decision (A, B or C above).** Blocking.
-2. **The constitutional amendment wording.** Blocking.
+1. ~~**The migration decision (A, B or C above).**~~ **RESOLVED 2026-09-07 —
+   approach C**, with the two conditions recorded in
+   `docs/amendments/0001-rating-score-visibility.md`.
+2. ~~**The constitutional amendment wording.**~~ **RESOLVED 2026-09-07 —
+   ratified as proposed**, and applied to HARMONIQ.md §6.
 3. **Sequencing.** Friend requests must ship first, or the friends-only tier
    has no way in. That ordering is a decision, not an assumption.
 4. **May a viewer know that a review they cannot read exists?** Rendering a
