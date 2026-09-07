@@ -86,9 +86,19 @@ referencing the file by name in your prompt:
   admits 3.14, but CI runs 3.12 and mypy is configured for 3.12, so letting
   Poetry pick a newer interpreter resolves a different dependency set than the
   one that gets tested. Check with `poetry env info`.
-- **Never run Poetry with another virtualenv activated.** Poetry defers to an
-  active `VIRTUAL_ENV`, so an unrelated `.venv` silently shadows the managed
-  environment and every dependency looks missing. `deactivate` first.
+- **The env lives at `backend/.venv`, and Poetry creates it.** Poetry 2.x
+  prefers an in-project venv with or without a `virtualenvs.in-project`
+  setting, and `scripts/start-dev.ps1` looks for
+  `backend\.venv\Scripts\uvicorn.exe`, so that path is effectively required.
+  Never make one by hand, and never run Poetry with a virtualenv activated:
+  Poetry defers to an active `VIRTUAL_ENV`, so an unrelated `.venv` shadows the
+  managed environment and every declared dependency looks missing.
+  **`deactivate` alone is not enough** — a stale `backend/.venv` is picked up
+  even with nothing activated, so it has to be deleted. A venv also does not
+  survive the project folder being moved: the interpreter path is baked into
+  `pyvenv.cfg` and into every `Scripts\*.exe` launcher, and the symptom is
+  `Fatal error in launcher` naming the old path. `docs/setup.md` §2 has the
+  full sequence.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
 - **Security scan:** Bandit (`bandit -r app -c pyproject.toml`), runs in CI alongside
   lint/type checks. The `-c` is required — Bandit does not auto-discover
