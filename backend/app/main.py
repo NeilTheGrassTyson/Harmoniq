@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api.v1.router import api_router
 from app.config import settings
+from app.core import crypto
 from app.core.cors import OriginAuditMiddleware
 from app.core.rate_limit import limiter
 from app.core.security import SecurityHeadersMiddleware
@@ -42,6 +43,33 @@ def _log_cors_configuration() -> None:
             "docs/deployment.md.",
             ", ".join(local),
         )
+
+
+def _log_token_encryption_configuration() -> None:
+    """Flag a TOKEN_ENCRYPTION_KEY that is set but is not a usable Fernet key.
+
+    The last member of a family of four failures this codebase hit in one
+    morning, each a variable that was present, well-formed to the eye, and
+    wrong. This one was checked for presence in three places and for validity
+    in none, so `_log_feature_configuration` reported Spotify fully configured
+    while every account link was doomed to fail at the final step.
+
+    Unlike the Spotify redirect URI, validity here is exact rather than
+    heuristic: either the key parses as Fernet or it does not.
+    """
+    problem = crypto.describe_key_problem()
+    if problem is None:
+        if settings.token_encryption_key:
+            logger.info("TOKEN_ENCRYPTION_KEY: valid")
+        return
+    logger.error(
+        "TOKEN_ENCRYPTION_KEY is set but unusable — %s. Linking a Spotify "
+        "account will fail at the last step, after the user has already "
+        "authorised, and stored tokens cannot be decrypted. Generate one "
+        'with: python -c "from cryptography.fernet import Fernet; '
+        'print(Fernet.generate_key().decode())". See docs/deployment.md.',
+        problem,
+    )
 
 
 def _log_spotify_configuration() -> None:
@@ -245,6 +273,7 @@ _log_cors_configuration()
 _log_app_env_configuration()
 _log_feature_configuration()
 _log_spotify_configuration()
+_log_token_encryption_configuration()
 _log_clerk_configuration()
 _log_clerk_secret_key_configuration()
 
