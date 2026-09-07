@@ -176,7 +176,10 @@ the stacks the push actually touches — it reuses the same merge-base diff and
 the same `core.quotePath=false` anchoring as the CI `changes` jobs, so what it
 decides to run matches what CI will run. It exits non-zero on a real failure
 and reports, rather than fails, when a toolchain is missing: a fresh clone
-without `node_modules` should not be unable to push.
+without `node_modules` should not be unable to push. The same applies to
+Docker — when the daemon is not running it runs `pytest tests/unit` and says
+the integration tier was not verified, rather than blocking the push on an
+absent dependency.
 
 Two ways to make it automatic — they are independent, and doing both is
 reasonable since they cover different pushes:

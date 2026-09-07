@@ -155,20 +155,39 @@ if [ "$check_backend" -eq 1 ]; then
   if [ -z "$poetry_cmd" ]; then
     skipped="${skipped}backend (poetry not found on PATH or via 'py -m poetry') "
   else
+    # The integration tier uses Testcontainers against real PostgreSQL, so it
+    # needs a running Docker daemon (ADR 0007). Docker being down is a missing
+    # toolchain, not a failing check — blocking every push on it would make
+    # this script something to be disabled. Report it and run the unit tier,
+    # which is the same call the docs give for this situation.
+    if docker info >/dev/null 2>&1; then
+      pytest_target=""
+    else
+      pytest_target="tests/unit"
+      skipped="${skipped}backend integration tests (Docker is not running) "
+    fi
+
     say "pre-push: running backend checks ..."
-    # Placeholders only. Settings() reads these at import time; nothing here
-    # connects to a database. Same values backend-ci.yml uses.
+    # Placeholders only, and `export`ed rather than prefixed: a `VAR=x cmd`
+    # prefix applies to the first command alone, so in an `&&` chain everything
+    # after it runs without them. ruff, mypy and bandit do not import `app` and
+    # passed anyway; pytest does, and died on a Settings ValidationError — a
+    # failure invisible on any machine with a real backend/.env, and certain on
+    # a clean clone. Existing values win, so a real .env is never overridden.
+    #
+    # Settings() reads these at import time; nothing here connects to a
+    # database. Same values backend-ci.yml uses.
     if (
-      cd backend \
-        && DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://ci:ci@localhost/ci_placeholder}" \
-           CLERK_JWKS_URL="${CLERK_JWKS_URL:-https://example.clerk.accounts.dev/.well-known/jwks.json}" \
-           MUSICBRAINZ_USER_AGENT="${MUSICBRAINZ_USER_AGENT:-Harmoniq/0.1.0 (ci@harmoniq.test)}" \
-           APP_ENV=test \
-        $poetry_cmd run ruff check . \
+      cd backend || exit 1
+      export DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://ci:ci@localhost/ci_placeholder}"
+      export CLERK_JWKS_URL="${CLERK_JWKS_URL:-https://example.clerk.accounts.dev/.well-known/jwks.json}"
+      export MUSICBRAINZ_USER_AGENT="${MUSICBRAINZ_USER_AGENT:-Harmoniq/0.1.0 (ci@harmoniq.test)}"
+      export APP_ENV="${APP_ENV:-test}"
+      $poetry_cmd run ruff check . \
         && $poetry_cmd run ruff format --check . \
         && $poetry_cmd run mypy app \
         && $poetry_cmd run bandit -r app -c pyproject.toml -q \
-        && $poetry_cmd run pytest -q
+        && $poetry_cmd run pytest $pytest_target -q
     ) 2>&1 | tee -a "$log_file" >&2; then
       say "pre-push: backend OK"
     else
