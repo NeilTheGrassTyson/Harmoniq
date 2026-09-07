@@ -169,6 +169,52 @@ The backend test suite needs Docker running, since the integration tests use
 Testcontainers against real PostgreSQL. Without it, `pytest tests/unit` still
 runs the full unit tier.
 
+### Or let it run itself
+
+`scripts/pre_push_verify.sh` runs the two blocks above automatically, for only
+the stacks the push actually touches — it reuses the same merge-base diff and
+the same `core.quotePath=false` anchoring as the CI `changes` jobs, so what it
+decides to run matches what CI will run. It exits non-zero on a real failure
+and reports, rather than fails, when a toolchain is missing: a fresh clone
+without `node_modules` should not be unable to push.
+
+Two ways to make it automatic — they are independent, and doing both is
+reasonable since they cover different pushes:
+
+```bash
+# Any push you make yourself, from any tool
+ln -sf ../../scripts/pre_push_verify.sh .git/hooks/pre-push
+```
+
+For pushes Claude Code makes, add a `PreToolUse` hook in `.claude/settings.json`
+(untracked, so it is per-machine):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git push *)",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/pre_push_verify.sh\" --hook",
+            "timeout": 600,
+            "statusMessage": "Running CI checks before push..."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The `if` clause means the hook is only spawned for `git push`, not for every
+shell command. `--hook` makes the script emit the deny decision as JSON with
+the failing output as the reason, so a blocked push says which check failed
+and where — not just that something did.
+
 **A red PR does not get merged.** If CI is failing, fix it or explicitly
 document why the failure is acceptable — merging red puts the failure on the
 receiving branch, where the next person inherits it.
