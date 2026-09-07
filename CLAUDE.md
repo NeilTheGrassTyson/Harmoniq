@@ -76,7 +76,18 @@ referencing the file by name in your prompt:
 
 ### Backend tooling
 
-- **Dependency management:** Poetry (`pyproject.toml`). Poetry not on PATH on Windows — invoke via `py -m poetry` or the full `.venv` path.
+- **Dependency management:** Poetry (`pyproject.toml`). Invoke it as plain
+  `poetry` first; `py -m poetry` only works if Poetry is installed *into* the
+  interpreter `py` resolves to, which it usually is not — on 2026-09-07 `py`
+  resolved to a 3.14 install with no Poetry in it while `poetry` itself was on
+  PATH and working.
+- **Pin the Poetry env to 3.12** (`poetry env use 3.12`). `python = "^3.12"`
+  admits 3.14, but CI runs 3.12 and mypy is configured for 3.12, so letting
+  Poetry pick a newer interpreter resolves a different dependency set than the
+  one that gets tested. Check with `poetry env info`.
+- **Never run Poetry with another virtualenv activated.** Poetry defers to an
+  active `VIRTUAL_ENV`, so an unrelated `.venv` silently shadows the managed
+  environment and every dependency looks missing. `deactivate` first.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
 - **Security scan:** Bandit (`bandit -r app -c pyproject.toml`), runs in CI alongside
   lint/type checks. The `-c` is required — Bandit does not auto-discover
