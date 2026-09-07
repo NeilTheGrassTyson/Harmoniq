@@ -187,12 +187,9 @@ describe("USERNAME_RE", () => {
     expect(USERNAME_RE.test(value)).toBe(true);
   });
 
-  it.each(["ab", "a".repeat(31), "has space", "dots.not", "emoji🎵", ""])(
-    "rejects %s",
-    (value) => {
-      expect(USERNAME_RE.test(value)).toBe(false);
-    }
-  );
+  it.each(["ab", "a".repeat(31), "has space", "dots.not", "emoji🎵", ""])("rejects %s", (value) => {
+    expect(USERNAME_RE.test(value)).toBe(false);
+  });
 
   it("is character-for-character the backend's rule", async () => {
     // Asserted against the source rather than a copy of it. A comment saying
@@ -201,10 +198,7 @@ describe("USERNAME_RE", () => {
     const { readFileSync } = await import("node:fs");
     const { resolve } = await import("node:path");
     // Vitest runs with the frontend package as cwd.
-    const schema = readFileSync(
-      resolve(process.cwd(), "../backend/app/schemas/user.py"),
-      "utf-8"
-    );
+    const schema = readFileSync(resolve(process.cwd(), "../backend/app/schemas/user.py"), "utf-8");
     const match = schema.match(/_USERNAME_RE = re\.compile\(r"(.+)"\)/);
 
     expect(match, "backend/app/schemas/user.py no longer declares _USERNAME_RE").toBeTruthy();

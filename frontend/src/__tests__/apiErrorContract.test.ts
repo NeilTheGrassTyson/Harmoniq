@@ -84,8 +84,7 @@ const HELPERS: Record<string, Record<string, Call>> = {
         review_text: "Good.",
         visibility: "public",
       }),
-    updateRatingVisibility: () =>
-      ratings.updateRatingVisibility("tok", "id", "public"),
+    updateRatingVisibility: () => ratings.updateRatingVisibility("tok", "id", "public"),
     deleteRating: () => ratings.deleteRating("tok", "id"),
     reportRating: () => ratings.reportRating("tok", "id"),
   },
