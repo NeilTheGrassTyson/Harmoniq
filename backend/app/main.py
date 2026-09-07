@@ -149,8 +149,49 @@ def _log_clerk_secret_key_configuration() -> None:
     )
 
 
+def _log_feature_configuration() -> None:
+    """Name the optional feature groups that are not configured, at boot.
+
+    Every group below fails per-request, deep inside a handler, with a body
+    that deliberately does not name the missing variable — so a user reports
+    "Spotify isn't connected" and nothing in Deploy Logs says why. Chasing one
+    of these to a missing variable has cost several sessions (ADR 0011).
+
+    One line at startup makes it answerable before anyone opens the app.
+    Values are never logged, only whether each group is complete.
+    """
+    groups: dict[str, tuple[object, ...]] = {
+        "Spotify (account linking, listening)": (
+            settings.spotify_client_id,
+            settings.spotify_client_secret,
+            settings.spotify_redirect_uri,
+            settings.token_encryption_key,
+        ),
+        "R2 (avatar upload)": (
+            settings.r2_account_id,
+            settings.r2_access_key_id,
+            settings.r2_secret_access_key,
+            settings.r2_bucket_name,
+            settings.r2_public_url,
+        ),
+        "Clerk management API (onboarded flag)": (settings.clerk_secret_key,),
+        "Clerk webhooks": (settings.clerk_webhook_secret,),
+    }
+
+    unconfigured = [name for name, values in groups.items() if not all(values)]
+    if not unconfigured:
+        logger.info("Optional features: all configured")
+        return
+    logger.warning(
+        "Optional features NOT configured, and each fails silently at "
+        "request time: %s. See docs/deployment.md.",
+        "; ".join(unconfigured),
+    )
+
+
 _log_cors_configuration()
 _log_app_env_configuration()
+_log_feature_configuration()
 _log_clerk_configuration()
 _log_clerk_secret_key_configuration()
 

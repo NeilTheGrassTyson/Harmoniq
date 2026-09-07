@@ -373,13 +373,37 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
 - **Malformed `TOKEN_ENCRYPTION_KEY`** (set, but not a valid Fernet key —
   32 url-safe base64 bytes) 500'd `GET /spotify/listening/{username}` for
   any user with a linked Spotify connection. Found by the 2026-07-09 live
-  visibility audit. The code now degrades this to `connected: false`
-  (`app/core/crypto.py` raises `TokenCryptoError` for malformed keys, not
-  raw `ValueError`), but the env var still needs a real key: generate with
+  visibility audit. The code now degrades this to
+  `connected: true, needs_reconnect: true` (`app/core/crypto.py` raises
+  `TokenCryptoError` for malformed keys, not raw `ValueError`) — it reported
+  `connected: false` until 2026-09-07, which told the user to *connect*
+  Spotify on a profile whose settings page said they already had, a
+  contradiction that never resolved itself. The env var still needs a real
+  key: generate with
   `python -c "from cryptography.fernet import Fernet;
   print(Fernet.generate_key().decode())"`, set it on Railway, then
   reconnect Spotify on any affected account (tokens encrypted under the
   old value are orphaned by a key change).
+- **Spotify 503, "Spotify integration isn't available right now."** The
+  handler raises this when any of `SPOTIFY_CLIENT_ID`,
+  `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` or `TOKEN_ENCRYPTION_KEY`
+  is missing. The response body deliberately names none of them, so the
+  answer is only in Railway's Deploy Logs. Two lines to grep for:
+
+  ```
+  Optional features NOT configured
+  Spotify connect unavailable
+  ```
+
+  The first is printed once at boot and lists every incomplete feature group;
+  the second is printed per request and names the missing variables. **If
+  neither line appears and the 503 still happens, the container answering the
+  request is not the one whose logs you are reading** — check the Deployments
+  tab for a stale replica, per the entry above.
+
+  Note that `TOKEN_ENCRYPTION_KEY` belongs to this group even though it is
+  not a Spotify credential: without it a stored refresh token cannot be
+  decrypted, so the connection exists and cannot be used.
 
 ---
 

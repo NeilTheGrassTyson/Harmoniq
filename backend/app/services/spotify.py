@@ -72,22 +72,45 @@ class SpotifyAPIError(Exception):
     """Spotify returned an unexpected error."""
 
 
+# Every variable the integration needs, in the order an operator sets them.
+# TOKEN_ENCRYPTION_KEY is here despite not being a Spotify credential: without
+# it a stored refresh token cannot be decrypted, so a connection exists and
+# cannot be used.
+_REQUIRED_SETTINGS = (
+    "spotify_client_id",
+    "spotify_client_secret",
+    "spotify_redirect_uri",
+    "token_encryption_key",
+)
+
+
 def _require_config() -> tuple[str, str, str]:
-    if not (
-        settings.spotify_client_id
-        and settings.spotify_client_secret
-        and settings.spotify_redirect_uri
-        and settings.token_encryption_key
-    ):
-        raise SpotifyNotConfiguredError(
-            "SPOTIFY_CLIENT_ID/SECRET, SPOTIFY_REDIRECT_URI, and "
-            "TOKEN_ENCRYPTION_KEY must all be set"
-        )
-    return (
-        settings.spotify_client_id,
-        settings.spotify_client_secret,
-        settings.spotify_redirect_uri,
-    )
+    client_id = settings.spotify_client_id
+    client_secret = settings.spotify_client_secret
+    redirect_uri = settings.spotify_redirect_uri
+    # Read into locals and tested as a chain so the return type narrows; the
+    # per-variable report below is only built on the failure path.
+    if not (client_id and client_secret and redirect_uri):
+        raise SpotifyNotConfiguredError(_missing_settings_message())
+    if not settings.token_encryption_key:
+        raise SpotifyNotConfiguredError(_missing_settings_message())
+    return client_id, client_secret, redirect_uri
+
+
+def _missing_settings_message() -> str:
+    """Name the variables that are actually missing, not the whole group.
+
+    The 503 body deliberately names none of them, so this message is the
+    entire diagnosis and it only reaches Deploy Logs. "One of these four"
+    costs a round of guessing against a platform UI where all four look
+    present — which is exactly how 2026-09-06 went.
+
+    Names only. It is logged at ERROR on every 503.
+    """
+    missing = [
+        name.upper() for name in _REQUIRED_SETTINGS if not getattr(settings, name)
+    ]
+    return f"not configured — missing or empty: {', '.join(missing)}"
 
 
 # ── OAuth state (HMAC-signed, time-limited, user-bound) ───────────────────────
@@ -423,8 +446,18 @@ async def get_listening(
 
     try:
         payload = await _fetch_listening_payload(session, conn)
-    except SpotifyNotConnectedError:
-        return ListeningResponse(connected=False)
+    except SpotifyNotConnectedError as exc:
+        # A linked account whose token is unusable. Logged because it is
+        # otherwise invisible: the revoked-grant branch below deletes the row
+        # and logs, while this one used to leave a connection the settings
+        # page still calls "connected" and say nothing anywhere.
+        logger.warning(
+            "Listening unavailable for internal_id=%s — connection present but "
+            "unusable (%s). The user must reconnect Spotify.",
+            profile_user.id,
+            exc,
+        )
+        return ListeningResponse(connected=True, needs_reconnect=True)
     except (SpotifyAPIError, SpotifyNotConfiguredError, httpx.HTTPError):
         logger.exception(
             "Listening fetch failed internal_id=%s — rendering empty", profile_user.id
