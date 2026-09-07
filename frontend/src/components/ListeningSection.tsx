@@ -143,6 +143,30 @@ export default function ListeningSection({
 
   const note = isOwnProfile && scope ? <ScopeNote scope={scope} /> : null;
 
+  // A linked account whose token no longer works. Distinct from "never
+  // connected": telling this user to *connect* Spotify sends them to a
+  // settings page that says they already have — the dead end this fixes.
+  if (listening.needs_reconnect) {
+    return (
+      <>
+        {note}
+        <p className="text-tertiary" style={{ fontSize: 13 }}>
+          {isOwnProfile ? (
+            <>
+              Spotify needs reconnecting.{" "}
+              <Link href="/settings" className="underline underline-offset-2">
+                Reconnect it in settings
+              </Link>
+              .
+            </>
+          ) : (
+            "No listening activity right now."
+          )}
+        </p>
+      </>
+    );
+  }
+
   if (!listening.connected) {
     // "No activity yet" conflated an unlinked account with a quiet one. Only
     // the owner can act on this, and only they are told which it is.

@@ -282,6 +282,44 @@ class TestListeningVisibility:
         )
         assert await spotify_svc.get_listening(db_session, owner, viewer=None) is None
 
+    async def test_unusable_token_reports_needs_reconnect(
+        self, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A linked account whose token will not decrypt is not "disconnected".
+
+        Regression: this returned connected=False, so the profile told the user
+        to connect Spotify while the settings page — which only checks that a
+        connection row exists — said they already had. The two surfaces
+        contradicted each other and the state never resolved itself.
+        """
+        owner = await _make_user(db_session, clerk_id="sp_vis_09", username="sp_vis_09")
+        await self._connect(db_session, owner)
+
+        async def _unusable(*_args: object, **_kwargs: object) -> None:
+            raise spotify_svc.SpotifyNotConnectedError("Stored token unusable")
+
+        monkeypatch.setattr(spotify_svc, "_fetch_listening_payload", _unusable)
+
+        result = await spotify_svc.get_listening(db_session, owner, viewer=owner)
+
+        assert result is not None
+        assert result.needs_reconnect is True
+        # Still "connected": the row is there, and saying otherwise is what
+        # sent the user to a settings page that disagreed.
+        assert result.connected is True
+
+    async def test_no_connection_is_not_needs_reconnect(
+        self, db_session: AsyncSession
+    ) -> None:
+        """A genuinely unlinked account must stay distinguishable."""
+        owner = await _make_user(db_session, clerk_id="sp_vis_10", username="sp_vis_10")
+
+        result = await spotify_svc.get_listening(db_session, owner, viewer=owner)
+
+        assert result is not None
+        assert result.connected is False
+        assert result.needs_reconnect is False
+
     async def test_public_visible_to_anonymous(
         self, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
     ) -> None:

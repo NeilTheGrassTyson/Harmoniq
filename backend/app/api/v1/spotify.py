@@ -37,6 +37,11 @@ async def get_connect_url(current_user: CurrentUser) -> ConnectUrlResponse:
     try:
         url = spotify_svc.build_authorize_url(current_user.id)
     except spotify_svc.SpotifyNotConfiguredError as exc:
+        # The exception names which variables are missing; the 503 body
+        # deliberately does not, so without this line the operator sees a
+        # bare "503" in the access log and nothing else. Deploy Logs are the
+        # only place this can be answered from.
+        logger.error("Spotify connect unavailable — %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_NOT_CONFIGURED
         ) from exc
@@ -59,6 +64,7 @@ async def spotify_callback(
         result = await spotify_svc.connect(session, current_user, req.code, req.state)
         await session.commit()
     except spotify_svc.SpotifyNotConfiguredError as exc:
+        logger.error("Spotify callback unavailable — %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_NOT_CONFIGURED
         ) from exc

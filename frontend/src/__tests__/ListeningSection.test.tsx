@@ -193,3 +193,40 @@ describe("ListeningSection — visibility note", () => {
     expect(screen.getByText("No listening activity yet.")).toBeTruthy();
   });
 });
+
+// ── Unusable connection ───────────────────────────────────────────────────────
+// Regression: a linked account whose stored token will not decrypt reported
+// `connected: false`, so the profile said "Spotify isn't connected. Connect it
+// in settings." while the settings page said it was connected — a dead end.
+
+describe("ListeningSection — needs reconnecting", () => {
+  const unusable: ListeningResponse = {
+    connected: true,
+    needs_reconnect: true,
+    now_playing: null,
+    recently_played: [],
+  };
+
+  it("tells the owner to reconnect, not to connect", () => {
+    renderSection(unusable, { isOwnProfile: true, scope: "public" });
+    expect(screen.getByText(/Spotify needs reconnecting/)).toBeTruthy();
+    expect(screen.getByText("Reconnect it in settings")).toBeTruthy();
+    // The old copy contradicted the settings page; it must not come back.
+    expect(screen.queryByText(/isn.t connected/)).toBeNull();
+  });
+
+  it("says nothing about the account to another viewer", () => {
+    renderSection(unusable, { isOwnProfile: false });
+    expect(screen.getByText("No listening activity right now.")).toBeTruthy();
+    expect(screen.queryByText(/reconnect/i)).toBeNull();
+  });
+
+  it("still distinguishes a genuinely unlinked account", () => {
+    renderSection(
+      { connected: false, now_playing: null, recently_played: [] },
+      { isOwnProfile: true, scope: "public" }
+    );
+    expect(screen.getByText(/Spotify isn.t connected/)).toBeTruthy();
+    expect(screen.queryByText(/needs reconnecting/)).toBeNull();
+  });
+});

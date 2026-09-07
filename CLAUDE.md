@@ -82,6 +82,12 @@ referencing the file by name in your prompt:
 - **Type check:** `mypy` (or pyright — check `pyproject.toml`).
 - **Tests:** `pytest`, `pytest-asyncio`, `pytest-cov`. Integration tests use Testcontainers (real PostgreSQL). `NullPool` required in test fixtures to avoid asyncpg connection conflicts.
 - **Run tests:** `cd backend && python -m pytest`
+- **Run everything CI runs** (`.github/workflows/backend-ci.yml`), before pushing:
+  ```
+  poetry run ruff check . && poetry run ruff format --check . \
+    && poetry run mypy app && poetry run bandit -r app && poetry run pytest -q
+  ```
+  Note `ruff` runs over the whole `backend/` directory, not just `app tests`.
 - **Run dev server:** `cd backend && uvicorn app.main:app --reload`
 - **Migrations:** `cd backend && alembic upgrade head`
 
@@ -89,7 +95,13 @@ referencing the file by name in your prompt:
 
 - **Lint:** ESLint (`npm run lint`). ESLint 9→10 and TypeScript 5→6 upgrades held pending `eslint-config-next` peer dep support. (Dependabot was removed 2026-07-09 — dependency bumps are manual now; config stashed at `Old/dependabot.yml`, gitignored, if it's ever revived.)
 - **Type check:** `npm run typecheck`
-- **Format:** Prettier with `prettier-plugin-tailwindcss`
+- **Format:** Prettier with `prettier-plugin-tailwindcss` — `npm run format:check`
+  is its own CI step, separate from `npm run lint`, and passing lint says
+  nothing about it.
+- **Run everything CI runs:** `cd frontend && npm run verify` — typecheck,
+  lint, format:check, tests, build, in the order
+  `.github/workflows/frontend-ci.yml` runs them. Added because a hand-picked
+  subset of these missed the format step and turned CI red.
 - **Run dev server:** `cd frontend && npm run dev`
 
 ### Skills

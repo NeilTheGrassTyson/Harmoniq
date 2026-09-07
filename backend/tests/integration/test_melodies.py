@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.enums import MelodyAcceptScope, MelodyStatus
 from app.models.catalog import Track
 from app.models.melody import Melody
+from app.models.notification import Notification
 from app.models.user import User
 from app.services import follow as follow_svc
 from app.services import melody as melody_svc
@@ -398,3 +399,58 @@ class TestMelodyRespond:
             db_session, melody_id=uuid.uuid4(), recipient_id=b.id, action="accept"
         )
         assert item is None and error == "Melody not found."
+
+    # ── The rule that must never bend ─────────────────────────────────────────
+    # ENGINEERING_BIBLE §3: a rejected Melody "must never produce a
+    # notification or penalty visible to anyone else". The whole reason a
+    # decline is recoverable is that it is invisible — nobody is put in the
+    # position of having visibly refused someone, and nobody learns they were
+    # refused. `tests/unit/test_notification_policy.py` pins the enum that
+    # makes it impossible to express; this pins the behaviour.
+
+    async def _notifications_for(
+        self, session: AsyncSession, *users: User
+    ) -> list[Notification]:
+        result = await session.execute(
+            select(Notification).where(Notification.user_id.in_([u.id for u in users]))
+        )
+        return list(result.scalars().all())
+
+    async def test_reject_notifies_nobody(self, db_session: AsyncSession) -> None:
+        a, b, melody = await self._setup(db_session, "07")
+
+        # The send itself notifies the recipient — that one is legitimate and
+        # is the baseline this test measures against.
+        before = await self._notifications_for(db_session, a, b)
+        assert [n.user_id for n in before] == [b.id]
+
+        _, error = await melody_svc.respond(
+            db_session, melody_id=melody.id, recipient_id=b.id, action="reject"
+        )
+        assert error == ""
+
+        after = await self._notifications_for(db_session, a, b)
+        # Nothing new, for either party. Not "nothing for the sender" — a
+        # notification to *anyone* is the thing §3 forbids.
+        assert {n.id for n in after} == {n.id for n in before}
+
+    async def test_accept_notifies_nobody_either(
+        self, db_session: AsyncSession
+    ) -> None:
+        """The sender is not told their Melody landed.
+
+        Not required by §3 in the way rejection is, but it is the current
+        design and it is load-bearing: if acceptance notified the sender,
+        silence would itself signal a rejection and the invisibility above
+        would be worth nothing.
+        """
+        a, b, melody = await self._setup(db_session, "08")
+        before = await self._notifications_for(db_session, a, b)
+
+        _, error = await melody_svc.respond(
+            db_session, melody_id=melody.id, recipient_id=b.id, action="accept"
+        )
+        assert error == ""
+
+        after = await self._notifications_for(db_session, a, b)
+        assert {n.id for n in after} == {n.id for n in before}

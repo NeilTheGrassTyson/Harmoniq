@@ -177,6 +177,8 @@ export interface RecentlyPlayedItem extends ListeningTrack {
 
 export interface ListeningResponse {
   connected: boolean;
+  /** Linked, but the stored token is unusable — the user must reconnect. */
+  needs_reconnect?: boolean;
   now_playing: ListeningTrack | null;
   recently_played: RecentlyPlayedItem[];
 }

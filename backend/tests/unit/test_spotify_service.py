@@ -90,6 +90,76 @@ class TestAuthorizeUrl:
             spotify_svc.build_authorize_url(_USER_ID)
 
 
+# ── Configuration reporting ───────────────────────────────────────────────────
+# The 503 this raises reaches the user as "Spotify integration isn't available
+# right now" and names nothing. Whatever the exception says is therefore the
+# entire diagnosis, and it only reaches Deploy Logs — so it has to say which
+# variable, not which group. Chasing exactly this cost a session on 2026-09-06.
+
+
+class TestRequireConfig:
+    @pytest.mark.parametrize("field", spotify_svc._REQUIRED_SETTINGS)
+    def test_names_the_missing_variable(
+        self, monkeypatch: pytest.MonkeyPatch, field: str
+    ) -> None:
+        monkeypatch.setattr(settings, field, None)
+
+        with pytest.raises(spotify_svc.SpotifyNotConfiguredError) as exc:
+            spotify_svc._require_config()
+
+        message = str(exc.value)
+        assert field.upper() in message
+        # Only the missing one. Listing all four is what made the message
+        # useless — every candidate looks present in the platform's UI.
+        for other in spotify_svc._REQUIRED_SETTINGS:
+            if other != field:
+                assert other.upper() not in message
+
+    def test_names_every_missing_variable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for field in spotify_svc._REQUIRED_SETTINGS:
+            monkeypatch.setattr(settings, field, None)
+
+        with pytest.raises(spotify_svc.SpotifyNotConfiguredError) as exc:
+            spotify_svc._require_config()
+
+        for field in spotify_svc._REQUIRED_SETTINGS:
+            assert field.upper() in str(exc.value)
+
+    @pytest.mark.parametrize("field", spotify_svc._REQUIRED_SETTINGS)
+    def test_empty_string_is_missing(
+        self, monkeypatch: pytest.MonkeyPatch, field: str
+    ) -> None:
+        # A platform UI stores "" happily, and `is not None` would call that
+        # configured — the reading that makes a broken deployment look healthy.
+        monkeypatch.setattr(settings, field, "")
+
+        with pytest.raises(spotify_svc.SpotifyNotConfiguredError) as exc:
+            spotify_svc._require_config()
+
+        assert field.upper() in str(exc.value)
+
+    def test_no_secret_value_is_ever_in_the_message(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # It is logged at ERROR on every 503, so it must carry names only.
+        monkeypatch.setattr(settings, "spotify_client_id", None)
+        monkeypatch.setattr(settings, "spotify_client_secret", "super-secret")
+
+        with pytest.raises(spotify_svc.SpotifyNotConfiguredError) as exc:
+            spotify_svc._require_config()
+
+        assert "super-secret" not in str(exc.value)
+
+    def test_fully_configured_returns_the_credentials(self) -> None:
+        client_id, client_secret, redirect_uri = spotify_svc._require_config()
+
+        assert client_id == settings.spotify_client_id
+        assert client_secret == settings.spotify_client_secret
+        assert redirect_uri == settings.spotify_redirect_uri
+
+
 # ── Payload mapping ───────────────────────────────────────────────────────────
 
 

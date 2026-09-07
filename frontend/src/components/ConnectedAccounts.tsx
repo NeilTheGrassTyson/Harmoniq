@@ -50,7 +50,10 @@ export default function ConnectedAccounts({ justConnected = false }: ConnectedAc
       const { url } = await getSpotifyConnectUrl(token);
       window.location.assign(url);
     } catch (err: unknown) {
-      setError(friendlyError(err, "Spotify integration isn't available right now."));
+      // Deliberately not the server's own 503 wording: when both said the same
+      // thing, an unreachable backend and a genuinely unconfigured one produced
+      // identical text, and there was no way to tell them apart from the screen.
+      setError(friendlyError(err, "Couldn't start the Spotify connection. Try again."));
       setBusy(false);
     }
   };
