@@ -441,6 +441,34 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   An authorization code is single-use, so refreshing the callback page always
   produces `invalid_grant` on the second attempt — that is expected, not a
   new fault.
+- **`TOKEN_ENCRYPTION_KEY` set to something that is not a Fernet key**
+  (2026-09-07). The last of four consecutive single-variable failures, and
+  the most deceptive: presence was checked in three places, validity in none.
+  The boot log reported Spotify fully configured, `/authorize` worked, the
+  token exchange returned 200 and `/v1/me` returned 200 — then `encrypt_token`
+  raised at the final step of the callback, **after the user had already
+  authorised**, as a 500. It read as an application bug, not configuration.
+
+  A valid key is **exactly 44 url-safe base64 characters ending in `=`**.
+  Check the length from the service shell:
+
+  ```bash
+  echo ${#TOKEN_ENCRYPTION_KEY}
+  ```
+
+  `43` means the trailing `=` was lost in a copy — by far the most common
+  cause. Anything else means the value was never a Fernet key. Note that a
+  valid key with *trailing whitespace* is accepted by Fernet, so whitespace is
+  not a cause of this failure. Generate a real one with:
+
+  ```bash
+  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  ```
+
+  The backend now validates the key at boot (`app/core/crypto.py`,
+  `app/main.py`) and logs an error naming the length — never the value.
+  Rotating orphans any already-stored refresh tokens; affected users simply
+  reconnect.
 
 ---
 
