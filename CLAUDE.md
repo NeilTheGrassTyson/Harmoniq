@@ -87,9 +87,12 @@ referencing the file by name in your prompt:
 - **Run everything CI runs** (`.github/workflows/backend-ci.yml`), before pushing:
   ```
   poetry run ruff check . && poetry run ruff format --check . \
-    && poetry run mypy app && poetry run bandit -r app && poetry run pytest -q
+    && poetry run mypy app && poetry run bandit -r app -c pyproject.toml \
+    && poetry run pytest -q
   ```
-  Note `ruff` runs over the whole `backend/` directory, not just `app tests`.
+  Note `ruff` runs over the whole `backend/` directory, not just `app tests`,
+  and Bandit needs `-c pyproject.toml` here too — the same flag the bullet
+  above explains, easy to lose when this block is the part that gets pasted.
 - **Run dev server:** `cd backend && uvicorn app.main:app --reload`
 - **Migrations:** `cd backend && alembic upgrade head`
 
