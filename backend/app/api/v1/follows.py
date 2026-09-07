@@ -61,13 +61,15 @@ async def follow_user(
             detail="You cannot follow yourself.",
         )
 
+    # Captured before rollback can expire it — see the note in spotify.py.
+    follower_id, target_id = current_user.id, target.id
     try:
-        created = await follow_svc.follow(session, current_user.id, target.id)
+        created = await follow_svc.follow(session, follower_id, target_id)
         if created:
             # Same transaction as the follow edge; idempotent via the partial
             # unique index, so a re-follow after unfollow never re-notifies.
             await notification_svc.create_follower_notification(
-                session, user_id=target.id, actor_id=current_user.id
+                session, user_id=target_id, actor_id=follower_id
             )
         await session.commit()
     except ValueError as exc:
@@ -76,9 +78,7 @@ async def follow_user(
         ) from exc
     except Exception as exc:
         await session.rollback()
-        logger.exception(
-            "Follow failed: follower=%s target=%s", current_user.id, target.id
-        )
+        logger.exception("Follow failed: follower=%s target=%s", follower_id, target_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_FOLLOW_ERROR
         ) from exc
@@ -102,13 +102,15 @@ async def unfollow_user(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
+    # Captured before rollback can expire it — see the note in spotify.py.
+    follower_id, target_id = current_user.id, target.id
     try:
-        await follow_svc.unfollow(session, current_user.id, target.id)
+        await follow_svc.unfollow(session, follower_id, target_id)
         await session.commit()
     except Exception as exc:
         await session.rollback()
         logger.exception(
-            "Unfollow failed: follower=%s target=%s", current_user.id, target.id
+            "Unfollow failed: follower=%s target=%s", follower_id, target_id
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_FOLLOW_ERROR

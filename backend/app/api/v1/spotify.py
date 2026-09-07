@@ -60,6 +60,13 @@ async def spotify_callback(
     session: DbSession,
     current_user: CurrentUser,
 ) -> SpotifyConnectionStatus:
+    # Captured before the transaction can be rolled back. `rollback()`
+    # expires every ORM object in the session (independent of
+    # expire_on_commit), so reading an attribute afterwards issues a
+    # refresh SELECT — sync IO in an async context, which raises
+    # MissingGreenlet from inside the error handler and destroys the
+    # original exception before it can be logged.
+    user_id = current_user.id
     try:
         result = await spotify_svc.connect(session, current_user, req.code, req.state)
         await session.commit()
@@ -75,7 +82,7 @@ async def spotify_callback(
         ) from exc
     except Exception as exc:
         await session.rollback()
-        logger.exception("Spotify callback failed internal_id=%s", current_user.id)
+        logger.exception("Spotify callback failed internal_id=%s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_CALLBACK_ERROR
         ) from exc
