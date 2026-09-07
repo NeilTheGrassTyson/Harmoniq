@@ -46,6 +46,8 @@ async def send_melody(
     session: DbSession,
     current_user: CurrentActiveUser,
 ) -> MelodySentItem:
+    # Captured before rollback can expire it — see the note in spotify.py.
+    user_id = current_user.id
     item, error = await melody_svc.send_melody(
         session,
         sender=current_user,
@@ -58,7 +60,7 @@ async def send_melody(
         await session.commit()
     except Exception as exc:
         await session.rollback()
-        logger.exception("Melody send commit failed: sender_id=%s", current_user.id)
+        logger.exception("Melody send commit failed: sender_id=%s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_SEND_ERROR
         ) from exc
@@ -108,10 +110,12 @@ async def respond_to_melody(
     session: DbSession,
     current_user: CurrentActiveUser,
 ) -> MelodyInboxItem:
+    # Captured before rollback can expire it — see the note in spotify.py.
+    user_id = current_user.id
     item, error = await melody_svc.respond(
         session,
         melody_id=melody_id,
-        recipient_id=current_user.id,
+        recipient_id=user_id,
         action=req.action,
     )
     if item is None:
@@ -123,7 +127,7 @@ async def respond_to_melody(
         logger.exception(
             "Melody respond commit failed: melody_id=%s user_id=%s",
             melody_id,
-            current_user.id,
+            user_id,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_RESPOND_ERROR

@@ -37,6 +37,8 @@ async def submit_rating(
     session: DbSession,
     current_user: CurrentActiveUser,
 ) -> RatingRead:
+    # Captured before rollback can expire it — see the note in spotify.py.
+    user_id = current_user.id
     entity_id = await rating_svc.resolve_entity(
         session, req.entity_type, req.entity_mbid
     )
@@ -48,7 +50,7 @@ async def submit_rating(
     try:
         rating = await rating_svc.submit(
             session,
-            user_id=current_user.id,
+            user_id=user_id,
             entity_type=req.entity_type,
             entity_id=entity_id,
             score=req.score,
@@ -58,7 +60,7 @@ async def submit_rating(
         await session.commit()
     except Exception as exc:
         await session.rollback()
-        logger.exception("Rating submission failed for user_id=%s", current_user.id)
+        logger.exception("Rating submission failed for user_id=%s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_SUBMIT_ERROR
         ) from exc
@@ -178,7 +180,9 @@ async def report_rating(
     session: DbSession,
     current_user: CurrentActiveUser,
 ) -> None:
-    success, error = await rating_svc.report_rating(session, current_user.id, rating_id)
+    # Captured before rollback can expire it — see the note in spotify.py.
+    user_id = current_user.id
+    success, error = await rating_svc.report_rating(session, user_id, rating_id)
     if not success:
         if "not found" in error.lower():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error)
@@ -193,7 +197,7 @@ async def report_rating(
         await session.rollback()
         logger.exception(
             "Report commit failed: reporter_id=%s rating_id=%s",
-            current_user.id,
+            user_id,
             rating_id,
         )
         raise HTTPException(

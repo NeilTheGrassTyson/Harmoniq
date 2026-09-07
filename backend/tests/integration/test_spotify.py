@@ -6,6 +6,7 @@ External Spotify HTTP calls are monkeypatched — these tests exercise the
 database and visibility layers, not Spotify itself.
 """
 
+import logging
 from typing import Any
 
 import pytest
@@ -129,6 +130,84 @@ class TestSpotifyConnectionAPI:
         assert row.refresh_token_encrypted != "refresh-token-plaintext"
         assert row.refresh_token_encrypted.startswith("gAAAA")
         assert decrypt_token(row.refresh_token_encrypted) == "refresh-token-plaintext"
+
+    async def test_unexpected_failure_returns_a_clean_500(
+        self,
+        authed_client: tuple[AsyncClient, str],
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The 500 path must report the fault, not become a second one.
+
+        Regression, 2026-09-07. The handler read `current_user.id` to build
+        its log message *after* `await session.rollback()`. rollback() expires
+        every ORM object in the session, so that read issued a refresh SELECT
+        — synchronous IO in an async context — and SQLAlchemy raised
+        MissingGreenlet while evaluating the arguments to `logger.exception`.
+
+        The logging call therefore never ran: the original exception was
+        destroyed, and the client got an unhandled crash instead of the 500
+        the handler was written to return. In production this hid a
+        TokenCryptoError behind a stack trace about greenlets.
+
+        `tests/unit/test_error_handler_safety.py` pins the shape across every
+        handler; this pins the behaviour on the one that failed.
+        """
+        ac, clerk_id = authed_client
+        user = await _make_user(db_session, clerk_id=clerk_id, username="sp_u500")
+        state = spotify_svc.create_state(user.id)
+
+        async def _boom(*_args: object, **_kwargs: object) -> None:
+            # Stands in for the real fault (a malformed TOKEN_ENCRYPTION_KEY),
+            # which is neither SpotifyAPIError nor SpotifyNotConfiguredError
+            # and so lands in the bare `except Exception` handler.
+            raise RuntimeError("token encryption failed")
+
+        monkeypatch.setattr(spotify_svc, "connect", _boom)
+
+        resp = await ac.post(
+            "/api/v1/spotify/callback",
+            json={"code": "auth-code", "state": state},
+        )
+
+        # A JSON 500 the frontend can render — not an unhandled exception.
+        assert resp.status_code == 500
+        assert (
+            resp.json()["detail"] == "Couldn't connect your Spotify account. Try again."
+        )
+
+    async def test_unexpected_failure_logs_the_original_exception(
+        self,
+        authed_client: tuple[AsyncClient, str],
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """The point of the handler is the log line; assert it survives.
+
+        A 500 that reaches the client correctly but logs nothing would pass
+        the test above and still leave the fault undiagnosable — which is
+        exactly the state this regression created.
+        """
+        ac, clerk_id = authed_client
+        user = await _make_user(db_session, clerk_id=clerk_id, username="sp_u501")
+        state = spotify_svc.create_state(user.id)
+
+        async def _boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("token encryption failed")
+
+        monkeypatch.setattr(spotify_svc, "connect", _boom)
+
+        with caplog.at_level(logging.ERROR, logger="app.api.v1.spotify"):
+            await ac.post(
+                "/api/v1/spotify/callback",
+                json={"code": "auth-code", "state": state},
+            )
+
+        assert "Spotify callback failed" in caplog.text
+        # The original exception, with its traceback — the thing that was lost.
+        assert "token encryption failed" in caplog.text
+        assert "MissingGreenlet" not in caplog.text
 
     async def test_callback_state_for_other_user_rejected(
         self,

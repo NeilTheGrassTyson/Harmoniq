@@ -145,6 +145,8 @@ async def update_profile(
     # Determine which bio update to apply based on what was sent in the request.
     # req.bio == None can mean "not included" or "clear it" — use fields_set to
     # distinguish. If "bio" is in the request payload, apply it (even if null).
+    # Captured before rollback can expire it — see the note in spotify.py.
+    user_id = current_user.id
     bio_update = req.bio if "bio" in req.model_fields_set else current_user.bio
 
     if req.username is not None and req.username != current_user.username:
@@ -177,7 +179,7 @@ async def update_profile(
         ) from exc
     except Exception as exc:
         await session.rollback()
-        logger.exception("Profile update failed for internal_id=%s", current_user.id)
+        logger.exception("Profile update failed for internal_id=%s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_SAVE_ERROR,
@@ -195,6 +197,8 @@ async def upload_avatar(
     session: DbSession,
     current_user: CurrentActiveUser,
 ) -> AvatarUploadResponse:
+    # Captured before rollback can expire it — see the note in spotify.py.
+    user_id = current_user.id
     # Client-side validation catches most issues; server-side is authoritative.
     data = await file.read(storage.MAX_AVATAR_BYTES + 1)
     if len(data) > storage.MAX_AVATAR_BYTES:
@@ -213,9 +217,7 @@ async def upload_avatar(
     try:
         avatar_url = await storage.upload_avatar(data, content_type)
     except StorageError as exc:
-        logger.error(
-            "Avatar upload failed for internal_id=%s: %s", current_user.id, exc
-        )
+        logger.error("Avatar upload failed for internal_id=%s: %s", user_id, exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=_AVATAR_ERROR,
@@ -226,7 +228,7 @@ async def upload_avatar(
         await session.commit()
     except Exception as exc:
         logger.exception(
-            "DB update failed after avatar upload for internal_id=%s", current_user.id
+            "DB update failed after avatar upload for internal_id=%s", user_id
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
