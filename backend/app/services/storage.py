@@ -8,6 +8,7 @@ The DB stores the resulting public URL only; raw bytes never touch Postgres.
 
 import asyncio
 import logging
+import re
 import uuid
 from functools import lru_cache, partial
 
@@ -29,6 +30,9 @@ ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset(_CONTENT_TYPE_TO_EXT)
 
 MAX_AVATAR_BYTES: int = 5 * 1024 * 1024  # 5 MB
 
+# Cloudflare account ids are 32 lowercase hex characters.
+_ACCOUNT_ID_RE = re.compile(r"[0-9a-f]{32}")
+
 
 def detect_image_content_type(data: bytes) -> str | None:
     """
@@ -43,6 +47,73 @@ def detect_image_content_type(data: bytes) -> str | None:
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp"
     return None
+
+
+def describe_configuration_problems() -> list[str]:
+    """Why the configured R2 variables cannot work, or an empty list.
+
+    Sibling of `crypto.describe_key_problem`, and here for the same reason:
+    `_log_feature_configuration` checks this group for presence, and presence
+    is not validity. Every failure in the 2026-09-07 family was a variable
+    that was set, looked right, and was wrong (ADR 0011).
+
+    Only the checks that are free and certain live here — no network, no
+    credentials sent anywhere, so this is safe to call at boot. Anything
+    needing a round trip (does the bucket exist, does R2_PUBLIC_URL actually
+    serve it) belongs in scripts/verify_r2.py, which uses this first.
+
+    Absence is deliberately not reported: that is
+    `_log_feature_configuration`'s job, and duplicating it would mean an
+    unconfigured deployment logs the same complaint twice.
+
+    Returns reasons rather than raising. A broken R2 config must not stop the
+    service booting — avatars are one feature, and refusing to start would
+    turn a broken integration into an outage.
+    """
+    values = {
+        "R2_ACCOUNT_ID": settings.r2_account_id,
+        "R2_ACCESS_KEY_ID": settings.r2_access_key_id,
+        "R2_SECRET_ACCESS_KEY": settings.r2_secret_access_key,
+        "R2_BUCKET_NAME": settings.r2_bucket_name,
+        "R2_PUBLIC_URL": settings.r2_public_url,
+    }
+    if not all(values.values()):
+        return []
+
+    problems: list[str] = []
+
+    for name, value in values.items():
+        # `value` is known non-empty from the all() guard above; the truthiness
+        # test re-narrows it for mypy without an `assert`, which Bandit flags
+        # under B101 because -O strips it out of the running service.
+        # Unlike Fernet, which accepts a key with trailing whitespace, an S3
+        # signature does not — a stray space silently invalidates the secret,
+        # and no dashboard will show it to you.
+        if value and value != value.strip():
+            problems.append(f"{name} has leading or trailing whitespace")
+
+    account_id = settings.r2_account_id or ""
+    if not _ACCOUNT_ID_RE.fullmatch(account_id):
+        problems.append(
+            f"R2_ACCOUNT_ID is {len(account_id)} characters and not 32 lowercase "
+            "hex — it is the id from the dashboard URL, not an API token"
+        )
+
+    public_url = settings.r2_public_url or ""
+    if not public_url.startswith("https://"):
+        problems.append("R2_PUBLIC_URL does not start with https://")
+    if public_url.endswith("/"):
+        problems.append(
+            "R2_PUBLIC_URL ends with a slash, which yields a double slash in "
+            "every avatar URL this service returns"
+        )
+    if ".r2.cloudflarestorage.com" in public_url:
+        problems.append(
+            "R2_PUBLIC_URL points at the S3 API endpoint, which requires signed "
+            "requests — every avatar would 401 for end users"
+        )
+
+    return problems
 
 
 @lru_cache(maxsize=1)

@@ -1,22 +1,70 @@
 name: Frontend CI
 
+# There is deliberately no workflow-level `paths:` filter, for the same
+# reason backend-ci has none: path filtering happens per-job, via the
+# `changes` job below, so this workflow always produces a `Frontend CI gate`
+# check run — including on PRs that touch no frontend files, where the real
+# jobs skip and the gate passes green.
+#
+# That is what makes the gate safe to mark as a required status check. A
+# workflow-level filter would mean a backend-only PR never starts the
+# workflow at all, leaving the required check permanently "expected" and
+# wedging the merge forever.
 on:
   push:
     branches: [main, dev]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
   # dev is included deliberately: feature work merges into dev first, so
   # limiting this to main let every feature PR merge without CI.
   pull_request:
     branches: [main, dev]
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
 
 jobs:
+  changes:
+    name: Detect frontend changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # merge-base against the PR base branch needs the full history.
+          fetch-depth: 0
+
+      - name: Check whether frontend files changed
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # Pushes to main/dev always run the full suite. They are the
+          # integration branches; a green history there is worth more than
+          # the handful of minutes skipping would save.
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags origin "$BASE_REF"
+          base="$(git merge-base HEAD "origin/$BASE_REF")"
+
+          # core.quotePath=false is load-bearing: by default git wraps paths
+          # containing non-ASCII bytes in quotes ("frontend/caf\303\251.tsx"),
+          # which the ^frontend/ anchor would not match — silently skipping
+          # the checks on exactly the PR that changed frontend code.
+          if git -c core.quotePath=false diff --name-only "$base" HEAD \
+              | grep -Eq '^(frontend/|\.github/workflows/frontend-ci\.yml$)'; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+
   lint-type-format:
     name: Lint, typecheck & format
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -41,11 +89,15 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      # A separate step from ESLint on purpose: passing lint says nothing
+      # about Prettier, and this is the check most often forgotten locally.
       - name: Prettier format check
         run: npm run format:check
 
   test:
     name: Tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -72,6 +124,8 @@ jobs:
 
   build:
     name: Build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -99,3 +153,28 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  gate:
+    # The single required status check for this workflow. It always runs, so
+    # it is never left "expected"; it fails only when a job that actually ran
+    # failed. Jobs skipped because no frontend file changed leave it green.
+    #
+    # The name is deliberately unique: `Tests` is a job name in BOTH
+    # backend-ci and frontend-ci, so requiring a check by that name would be
+    # ambiguous between the two workflows.
+    name: Frontend CI gate
+    needs: [changes, lint-type-format, test, build]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fail if any frontend job failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "A frontend CI job failed or was cancelled — see the jobs above."
+          exit 1
+
+      - name: Report
+        run: |
+          echo "Frontend CI gate passed."
+          echo "Frontend files changed: ${{ needs.changes.outputs.frontend }}"

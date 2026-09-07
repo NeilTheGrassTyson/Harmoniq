@@ -79,7 +79,9 @@ origins) unless one redirects to the other before any page loads.
    - `CLERK_WEBHOOK_SECRET` — without it every inbound Clerk webhook fails
    - `TOKEN_ENCRYPTION_KEY` — Fernet key; see the troubleshooting note below
    - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
-     `R2_BUCKET_NAME`, `R2_PUBLIC_URL` — without these avatar upload fails
+     `R2_BUCKET_NAME`, `R2_PUBLIC_URL` — without these avatar upload fails.
+     Where each comes from, and how to check all five at once, is in the
+     R2 troubleshooting entry below
    - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI` —
      without these account linking is unavailable
 
@@ -469,6 +471,57 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   `app/main.py`) and logs an error naming the length — never the value.
   Rotating orphans any already-stored refresh tokens; affected users simply
   reconnect.
+
+### Avatar upload fails, or every avatar 404s
+
+R2 has five variables, and four of them fail the way `TOKEN_ENCRYPTION_KEY`
+did — set, plausible, wrong. The fifth is worse: **`R2_PUBLIC_URL` can point
+somewhere else entirely and the upload still succeeds.** Nothing fails at
+upload time; the avatar simply never loads, for everyone, with a green upload
+path behind it. No presence check can catch that, and neither can a boot log.
+
+So there is a script that uses the credentials rather than inspecting them —
+it HEADs the bucket, writes a probe object, fetches it back over
+`R2_PUBLIC_URL`, and deletes it, attributing each step to the variable it
+proves:
+
+```bash
+cd backend && poetry run python scripts/verify_r2.py
+```
+
+To check production values before trusting them, pass them in rather than
+editing anything — nothing is written and no secret is printed:
+
+```bash
+cd backend && R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
+  R2_BUCKET_NAME=harmoniq-avatars R2_PUBLIC_URL=https://pub-xxxx.r2.dev \
+  poetry run python scripts/verify_r2.py
+```
+
+Where each value comes from, in the Cloudflare dashboard under **R2**:
+
+| Variable | Where |
+| --- | --- |
+| `R2_ACCOUNT_ID` | R2 overview, right sidebar — also the hex id in the dashboard URL. 32 lowercase hex characters |
+| `R2_BUCKET_NAME` | The bucket you created (`harmoniq-avatars`) |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | **Manage R2 API Tokens** → Create → **Object Read & Write**. Both halves are shown once, together — a mismatched pair means one came from an older token |
+| `R2_PUBLIC_URL` | Bucket → Settings → **Public access** → the `r2.dev` domain, or a custom domain. **No trailing slash** |
+
+Three traps worth naming, because each one uploads successfully and fails
+later:
+
+- **A trailing slash on `R2_PUBLIC_URL`.** `storage.py` builds URLs as
+  `f"{r2_public_url}/{key}"`, so a trailing slash yields a double slash.
+- **`R2_PUBLIC_URL` set to the S3 API endpoint**
+  (`https://<account>.r2.cloudflarestorage.com`). That endpoint requires
+  signed requests, so every avatar 401s for end users.
+- **Public access never switched on.** Uploads succeed; every fetch is 403.
+
+Unlike Fernet, an S3 signature does *not* tolerate whitespace — a trailing
+newline on the secret makes it silently wrong. The boot log now checks these
+cheap, certain rules (`storage.describe_configuration_problems`, called from
+`_log_r2_configuration` in `app/main.py`) and names the variable; the script
+shares that function and then does the round trip a boot path cannot.
 
 ---
 

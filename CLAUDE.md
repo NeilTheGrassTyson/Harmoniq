@@ -78,16 +78,21 @@ referencing the file by name in your prompt:
 
 - **Dependency management:** Poetry (`pyproject.toml`). Poetry not on PATH on Windows — invoke via `py -m poetry` or the full `.venv` path.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
-- **Security scan:** Bandit (`bandit -r app`), runs in CI alongside lint/type checks.
+- **Security scan:** Bandit (`bandit -r app -c pyproject.toml`), runs in CI alongside
+  lint/type checks. The `-c` is required — Bandit does not auto-discover
+  `pyproject.toml`, so without it the `[tool.bandit]` block is silently ignored.
 - **Type check:** `mypy` (or pyright — check `pyproject.toml`).
 - **Tests:** `pytest`, `pytest-asyncio`, `pytest-cov`. Integration tests use Testcontainers (real PostgreSQL). `NullPool` required in test fixtures to avoid asyncpg connection conflicts.
 - **Run tests:** `cd backend && python -m pytest`
 - **Run everything CI runs** (`.github/workflows/backend-ci.yml`), before pushing:
   ```
   poetry run ruff check . && poetry run ruff format --check . \
-    && poetry run mypy app && poetry run bandit -r app && poetry run pytest -q
+    && poetry run mypy app && poetry run bandit -r app -c pyproject.toml \
+    && poetry run pytest -q
   ```
-  Note `ruff` runs over the whole `backend/` directory, not just `app tests`.
+  Note `ruff` runs over the whole `backend/` directory, not just `app tests`,
+  and Bandit needs `-c pyproject.toml` here too — the same flag the bullet
+  above explains, easy to lose when this block is the part that gets pasted.
 - **Run dev server:** `cd backend && uvicorn app.main:app --reload`
 - **Migrations:** `cd backend && alembic upgrade head`
 
