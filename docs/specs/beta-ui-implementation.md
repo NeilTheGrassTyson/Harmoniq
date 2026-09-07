@@ -50,7 +50,8 @@
 - **Harmony v2 profile themes** — a different feature from Website Appearance
   (ADR 0014). Do not let the two share a control, a token layer, or a stored
   field.
-- **Cross-device sync of the appearance preference** — see Phase 3.
+- **Cross-device sync of the appearance preference.** Decided 2026-09-06:
+  not needed. The preference is a cookie; this feature is frontend-only.
 - **Any change to the Octave mark itself.** The geometry, colour, and raster
   assets are settled (ADR 0013). Do not redraw, recolour, or re-export them.
 - **Renaming `EqualizerGlyph` or removing it.** It keeps its placeholder role.
@@ -222,8 +223,19 @@ enum/model/migration/schema/route/service change entirely.
 
 ## What to build
 
-- `[data-theme="light" | "midnight"]` on `<html>`, set server-side from the
-  cookie. Dark is the default and needs no attribute.
+- **Midnight is the default** (Founder decision 2026-09-06), so
+  `[data-theme="light" | "dark"]` on `<html>`, set server-side from the cookie.
+  Midnight needs no attribute.
+- **This inverts the token base.** `globals.css` currently holds the Dark
+  values in its base block. Phase 3 moves the base to Midnight and adds Dark as
+  an explicit `[data-theme="dark"]` override. Do this **here, not in Phase 2** —
+  Phase 2 must stay visually inert, and this is a deliberate, visible change.
+- Midnight needs **no new contrast work**: it inherits Dark's text and accent
+  values unchanged and only drops the surfaces, so every ratio in
+  DESIGN_SYSTEM.md §2 improves against `#000000`. Dark stays selectable and is
+  still the column those ratios were measured against.
+- No stored preferences exist yet, so nothing migrates — but note the app
+  **visibly changes for every user on deploy**. That is intended.
 - Token override blocks per theme, layered on Phase 2's single token set.
 - A Settings section following `MelodySettings.tsx`'s pattern: optimistic
   update, no save button, error in a `role="alert"`. There is no network call
@@ -239,6 +251,7 @@ enum/model/migration/schema/route/service change entirely.
 
 ## Acceptance criteria
 
+- [ ] A first-time visitor with no cookie gets **Midnight**.
 - [ ] Switching theme repaints without a full reload.
 - [ ] Hard reload in each theme shows **no flash** of the previous theme.
 - [ ] Signed-out pages honour the cookie.
@@ -369,19 +382,22 @@ review with an excerpt, then two compact ones. See
 
 _Do not answer these while implementing. Bring them to the Founder._
 
-1. **Does Midnight become the default instead of Dark?** ADR 0014 leaves this
-   open. Adding an option and changing a default are different decisions; the
-   second changes the product for people who never asked.
-2. **Is there an "Auto" option** following `prefers-color-scheme`? Recommend
+1. **Is there an "Auto" option** following `prefers-color-scheme`? Recommend
    deferring — it reintroduces the flash problem the cookie approach solves.
-3. **Cross-device sync of the appearance preference** — accepted as deferred,
-   or wanted in v1? Wanting it means the backend change Phase 3 avoids.
-4. **Friends rail visibility** — which scope governs presence? A new field, or
+2. **Friends rail visibility** — which scope governs presence? A new field, or
    does it reuse `visibility_activity`?
-5. **Are reviews public by default?** Determines whether Phase 6 is Tier 1 or
+3. **Are reviews public by default?** Determines whether Phase 6 is Tier 1 or
    Tier 2.
-6. **`beta-ui` does not match `GITHUB_WORKFLOW.md`'s `type/short-kebab`
+4. **`beta-ui` does not match `GITHUB_WORKFLOW.md`'s `type/short-kebab`
    branch convention.** Leave it, or rename before the PR to `dev`?
+
+## Already resolved — do not reopen
+
+- **Midnight is the default** (2026-09-06). Dark remains selectable.
+- **No cross-device sync** (2026-09-06). Cookie only; Phase 3 touches no
+  backend.
+- **Light ships**, as one of the three (2026-08-30) — with the contrast pass
+  Phase 3 requires, not the drafted values.
 
 ---
 

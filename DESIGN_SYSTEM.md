@@ -161,9 +161,21 @@ field — see ADR 0014.
 | `--color-text-secondary`  | `#565d6b`          | `#8b93a3`      | `#8b93a3` |
 | `--color-text-tertiary`   | `#6b7280`          | `#757c8c`      | `#757c8c` |
 
-Dark remains the default and is the only column whose contrast is verified
-(§2). **Midnight** inherits Dark's text and accent values unchanged — only the
-surfaces drop — so it needs no new contrast work; every ratio improves.
+**Midnight is the default** (Founder decision 2026-09-06). It inherits Dark's
+text and accent values unchanged — only the surfaces drop — so it needs no
+contrast work of its own: every ratio in §2 improves against `#000000`. Dark
+remains a selectable theme and is still the column those §2 ratios were
+verified against.
+
+Because Midnight is the default, **it is the base token set, and Dark is an
+explicit `[data-theme="dark"]` override** — the inverse of how `globals.css` is
+written today, where the Dark values sit in the base `@theme` block. Flipping
+that is a Phase 3 change, not a Phase 2 one; Phase 2 must stay visually inert.
+
+The preference is stored in a **cookie**, read server-side in the root layout.
+There is no server-side field and no cross-device sync (Founder decision
+2026-09-06) — see ADR 0014 for why the cookie is what avoids a flash of the
+wrong theme on every load.
 
 **Light is not a token swap, and should not be planned as one.** Two things
 break rather than degrade:

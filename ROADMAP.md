@@ -263,7 +263,8 @@ set it. Separate control, separate token layer, separate stored field — ADR
 ### Website Appearance (Light / Dark / Midnight)
 
 A Settings surface letting a viewer pick the theme applied everywhere they
-look. Dark stays the default; Midnight is true black. Decided 2026-08-30, ADR
+look. Midnight (true black) is the default; Dark remains selectable. Decided
+2026-08-30 and amended 2026-09-06, ADR
 0014; not yet specced or built. Tier 1 — net-new user-facing feature.
 
 Independent of the Listening Signature above: it can ship first.
@@ -275,9 +276,12 @@ Two things to settle in the spec rather than in flight:
   palette is invisible on white — so Light means a darkened accent, a darkened
   hue set, and dropping the glow, grain and particles. That is two Signature
   treatments to maintain forever. Dark + Midnight alone is coherent.
-- **Whether Midnight becomes the default.** Adding an option and changing a
-  default are different decisions; the second one changes the product for
-  people who never asked.
+- ~~Whether Midnight becomes the default.~~ Resolved 2026-09-06: yes. Costs no
+  new contrast work — Midnight inherits Dark's text and accent values, so every
+  ratio improves. No stored preferences exist yet, so nothing migrates; the app
+  simply changes appearance for everyone on deploy.
+- ~~Cross-device sync.~~ Resolved 2026-09-06: not needed. The preference is a
+  cookie, which keeps this feature frontend-only.
 
 _Security: a stored appearance preference is per-viewer and never shown to
 anyone else — it must not be added to any profile payload, where it would

@@ -28,7 +28,9 @@ converging on the same word.
 
 ## Decision
 
-**1. Three themes: Light, Dark, Midnight.** Dark remains the default.
+**1. Three themes: Light, Dark, Midnight.** **Midnight is the default**
+(Founder decision, 2026-09-06, superseding this ADR's original "Dark remains
+the default").
 Midnight is true black (`#000000`) with near-black surfaces.
 
 **2. They live in Settings under "Website Appearance."** The name is
@@ -88,10 +90,15 @@ Other consequences:
 
 ## Open questions
 
-- **Does Midnight become the default instead of Dark?** The Founder's reaction
-  to true black was favourable. Deferred — changing a default changes the
-  product for existing users, which is a different decision from adding an
-  option.
+- ~~Does Midnight become the default?~~ **Resolved 2026-09-06: yes.** Safe to
+  do without new contrast work, because Midnight inherits Dark's text and
+  accent values unchanged — only the surfaces drop, so every ratio improves.
+  Two consequences worth carrying: the app visibly changes for everyone on
+  deploy (no stored preferences exist yet, so there is nothing to migrate), and
+  **Midnight becomes the base token set with Dark as an explicit override** —
+  the inverse of how the tokens are written today.
+- ~~Cross-device sync?~~ **Resolved 2026-09-06: not needed.** This confirms the
+  cookie-only approach and keeps the backend out of the feature entirely.
 - **Does Light ship at all?** See the cost above. Worth deciding deliberately
   rather than by assuming three themes is the natural number.
 - **System preference.** Whether "Website Appearance" offers an "Auto" option
