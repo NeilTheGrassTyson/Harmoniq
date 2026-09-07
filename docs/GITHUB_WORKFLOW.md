@@ -103,10 +103,18 @@ _why_, not _what_ — the diff already says what.
 
 Two workflows, both in `.github/workflows/`:
 
-| Workflow      | Triggers on                 | Jobs                                                                      |
-| ------------- | --------------------------- | ------------------------------------------------------------------------- |
-| `backend-ci`  | changes under `backend/**`  | Lint & type check (ruff, mypy, bandit) · Tests (pytest)                   |
-| `frontend-ci` | changes under `frontend/**` | Lint, typecheck & format (ESLint, tsc, Prettier) · Tests (vitest) · Build |
+| Workflow      | Triggers on                 | Jobs                                                                                            |
+| ------------- | --------------------------- | ----------------------------------------------------------------------------------------------- |
+| `backend-ci`  | every PR; filters per job   | Detect backend changes · Lint & type check (ruff, mypy, bandit) · Tests (pytest) · **Backend CI gate** |
+| `frontend-ci` | changes under `frontend/**` | Lint, typecheck & format (ESLint, tsc, Prettier) · Tests (vitest) · Build                       |
+
+`backend-ci` deliberately has **no workflow-level `paths:` filter** — see
+§5 for why that is what makes its gate requireable. Instead a first
+`changes` job diffs the PR against its merge base, and the real jobs carry
+`if: needs.changes.outputs.backend == 'true'`. On a PR that touches no
+backend file they skip; on a push to `main` or `dev` they always run,
+because a green history on the integration branches is worth more than the
+saved minutes.
 
 Both run on pushes to `main` and `dev`, and on pull requests targeting
 `main` or `dev`. **`dev` must stay in those trigger lists.** They originally
@@ -130,7 +138,11 @@ cd frontend && npm run lint && npm run typecheck && npm run format:check && npm 
 ```
 
 ```bash
-cd backend && poetry run ruff check app tests && poetry run ruff format --check app tests && poetry run python -m pytest
+cd backend && poetry run ruff check app tests \
+  && poetry run ruff format --check app tests \
+  && poetry run mypy app \
+  && poetry run bandit -r app -c pyproject.toml \
+  && poetry run python -m pytest
 ```
 
 `format:check` is the one most easily forgotten, because ESLint passing feels
@@ -151,7 +163,7 @@ receiving branch, where the next person inherits it.
 | -------------------------------- | ------ | --------------------------------------------------------- |
 | Default branch                   | `main` | Production is what a visitor should land on.              |
 | Automatically delete head branch | On     | Keeps merged `feat/*` branches from accumulating.         |
-| Branch protection on `dev`       | On     | Blocks deletion (including auto-delete) and force-pushes. |
+| Branch protection on `dev`       | On     | Blocks deletion (including auto-delete) and force-pushes; requires `Backend CI gate`. |
 
 **Automatic head-branch deletion has one sharp edge.** It deletes the _head_
 branch of any merged PR — and in a `dev → main` PR, the head branch is `dev`.
@@ -165,11 +177,41 @@ GitHub refuses to delete a protected branch, so feature branches keep
 collapsing normally while `dev` survives its own release PR. Verified by
 attempting the delete: GitHub returns `422 Cannot delete this branch`.
 
-The rule blocks deletions and force-pushes. It deliberately does **not**
-require status checks, because both workflows use `paths:` filters: a
-frontend-only PR never triggers the backend jobs, so a required backend
-check would sit permanently "expected" and block the merge forever. Review
-requirements are also off, since a solo founder cannot approve their own PR.
+The rule blocks deletions and force-pushes, and — since 2026-09-07 —
+requires one status check: **`Backend CI gate`**. Review requirements stay
+off, since a solo founder cannot approve their own PR.
+
+That required check was previously impossible. Both workflows used
+workflow-level `paths:` filters, so a frontend-only PR never triggered the
+backend jobs at all, and a required backend check would sit permanently
+"expected" and block the merge forever. Until this was fixed, a Bandit
+finding showed up as a red check that nothing actually stopped — CI
+reported the problem and the merge proceeded anyway.
+
+Two details make the gate work, and both are load-bearing:
+
+- **`backend-ci` has no workflow-level `paths:` filter** (§4). The workflow
+  therefore starts on every PR and always produces the check. Filtering
+  moved into the `changes` job, so the expensive jobs still skip when no
+  backend file changed — the gate reports green off skipped dependencies,
+  which is exactly the "expected forever" trap it avoids.
+- **The check is named `Backend CI gate`, not `Tests`.** `Tests` is a job
+  name in *both* `backend-ci` and `frontend-ci`; requiring a check by that
+  name would be ambiguous between the two workflows. The gate's name is
+  unique on purpose — do not rename it without updating the branch
+  protection rule, or protection will silently wait on a check that no
+  longer exists.
+
+The gate fails if any backend job it depends on failed or was cancelled,
+and passes if they were skipped:
+
+```yaml
+if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+```
+
+`frontend-ci` is **not** yet gated this way — its jobs still sit behind a
+workflow-level `paths:` filter and remain advisory. Giving it the same
+treatment is a straightforward follow-up, not a change made here.
 
 If protection is ever removed, the fallback is to recreate `dev` by hand
 after every `dev → main` merge — worse, because it depends on someone
