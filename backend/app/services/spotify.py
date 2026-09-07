@@ -184,6 +184,34 @@ async def _token_request(data: dict[str, str]) -> httpx.Response:
         )
 
 
+def _token_error_detail(resp: httpx.Response) -> str:
+    """Spotify's own reason for refusing a token request.
+
+    Only ever called on a non-200: a failed token response carries
+    `{"error": ..., "error_description": ...}` and no credentials, while a
+    successful one carries the tokens themselves and must never be logged.
+
+    Without this the log said "status=400" and nothing else, which does not
+    distinguish the three things a 400 here actually means — a code that was
+    already used or expired (`invalid_grant`, retry the flow), a client id
+    and secret from different Spotify apps (`invalid_client`), or a
+    redirect_uri that does not match the one sent to /authorize. Each has a
+    different fix and the status code alone picks none of them.
+    """
+    try:
+        body = resp.json()
+    except ValueError:
+        return resp.text[:200] or "<empty body>"
+    if not isinstance(body, dict):
+        return str(body)[:200]
+    # The token endpoint's error shape is flat: {"error", "error_description"}.
+    # The nested {"error": {"status", "message"}} form belongs to the Web API
+    # endpoints, which never reach this helper.
+    parts = (body.get("error"), body.get("error_description"))
+    detail = " — ".join(str(part) for part in parts if part)
+    return detail[:200] or "<no error field>"
+
+
 async def _exchange_code(code: str) -> dict[str, Any]:
     _, _, redirect_uri = _require_config()
     resp = await _token_request(
@@ -194,7 +222,14 @@ async def _exchange_code(code: str) -> dict[str, Any]:
         }
     )
     if resp.status_code != 200:
-        logger.warning("Spotify code exchange failed: status=%s", resp.status_code)
+        logger.warning(
+            "Spotify code exchange failed: status=%s — %s (redirect_uri sent: "
+            "%s; it must match the one registered in the Spotify dashboard "
+            "exactly, and the authorize call that issued the code)",
+            resp.status_code,
+            _token_error_detail(resp),
+            redirect_uri,
+        )
         raise SpotifyAPIError("Code exchange failed")
     return resp.json()  # type: ignore[no-any-return]
 
@@ -315,9 +350,10 @@ async def _get_access_token(session: AsyncSession, conn: SpotifyConnection) -> s
     if resp.status_code in (400, 403):
         # invalid_grant → the user revoked access; treat as disconnected.
         logger.info(
-            "Spotify refresh rejected (revoked?) internal_id=%s status=%s",
+            "Spotify refresh rejected (revoked?) internal_id=%s status=%s — %s",
             conn.user_id,
             resp.status_code,
+            _token_error_detail(resp),
         )
         user_id = conn.user_id
         await session.execute(
@@ -327,6 +363,12 @@ async def _get_access_token(session: AsyncSession, conn: SpotifyConnection) -> s
         _listening_cache.pop(user_id, None)
         raise SpotifyNotConnectedError("Spotify grant revoked")
     if resp.status_code != 200:
+        logger.warning(
+            "Spotify token refresh failed: internal_id=%s status=%s — %s",
+            conn.user_id,
+            resp.status_code,
+            _token_error_detail(resp),
+        )
         raise SpotifyAPIError("Token refresh failed")
 
     tokens = resp.json()

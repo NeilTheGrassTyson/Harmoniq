@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +41,57 @@ def _log_cors_configuration() -> None:
             "CORS_ALLOWED_ORIGINS, every browser request from it fails. See "
             "docs/deployment.md.",
             ", ".join(local),
+        )
+
+
+def _log_spotify_configuration() -> None:
+    """Flag a SPOTIFY_REDIRECT_URI that cannot be the one production needs.
+
+    Spotify sends the browser to whatever `redirect_uri` we pass, so a
+    development value here fails *after* the user has authorised: they log in
+    to Spotify, get redirected to 127.0.0.1, and land on a dead page from
+    their own device. Nothing on the server errors — the callback simply
+    never arrives — so this cost a full round trip through Spotify to notice
+    on 2026-09-07, with the boot log saying Spotify was fully configured
+    because all four variables were present.
+
+    Same shape as the CORS check above, and warned about for the same reason:
+    a variable that is set, looks plausible, and is left over from local
+    development.
+    """
+    redirect_uri = settings.spotify_redirect_uri
+    if not redirect_uri:
+        return  # Absence is _log_feature_configuration's business, not this.
+
+    logger.info("Spotify redirect URI: %s", redirect_uri)
+
+    parsed = urlparse(redirect_uri)
+    host = parsed.hostname or ""
+    is_loopback = host in {"127.0.0.1", "::1", "localhost"}
+
+    if settings.app_env == "production" and (parsed.scheme != "https" or is_loopback):
+        logger.warning(
+            "Spotify: APP_ENV=production but SPOTIFY_REDIRECT_URI is %r, which "
+            "is a development value. Authorisation will appear to work and "
+            "then strand the user on a dead page after they log in to "
+            "Spotify. Set it to the deployed callback URL and register that "
+            "exact string in the Spotify dashboard. See docs/deployment.md.",
+            redirect_uri,
+        )
+        return
+
+    # The callback is a page on the frontend, so its origin should be one the
+    # frontend is served from. A mismatch is usually apex-vs-www, which sends
+    # the user to an origin that doesn't hold their session.
+    origins = settings.cors_origins_list
+    if origins and f"{parsed.scheme}://{parsed.netloc}" not in origins:
+        logger.warning(
+            "Spotify: SPOTIFY_REDIRECT_URI origin (%s://%s) is not in "
+            "CORS_ALLOWED_ORIGINS (%s). The callback is a frontend page, so "
+            "these normally match — check for an apex/www mismatch.",
+            parsed.scheme,
+            parsed.netloc,
+            ", ".join(origins),
         )
 
 
@@ -192,6 +244,7 @@ def _log_feature_configuration() -> None:
 _log_cors_configuration()
 _log_app_env_configuration()
 _log_feature_configuration()
+_log_spotify_configuration()
 _log_clerk_configuration()
 _log_clerk_secret_key_configuration()
 
