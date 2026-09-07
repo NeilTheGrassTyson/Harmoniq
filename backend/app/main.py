@@ -12,6 +12,7 @@ from app.core import crypto
 from app.core.cors import OriginAuditMiddleware
 from app.core.rate_limit import limiter
 from app.core.security import SecurityHeadersMiddleware
+from app.services import storage
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
@@ -229,6 +230,31 @@ def _log_clerk_secret_key_configuration() -> None:
     )
 
 
+def _log_r2_configuration() -> None:
+    """Flag R2 variables that are set but cannot work.
+
+    R2 was the last feature group whose only signal was presence. Four of its
+    five variables fail the way TOKEN_ENCRYPTION_KEY did — set, plausible,
+    wrong — and the fifth is worse: R2_PUBLIC_URL can point somewhere else
+    entirely and the upload still succeeds, so the failure surfaces as avatars
+    that 404 for every user with a green upload path behind them.
+
+    Only the free, certain checks run here. Proving the bucket exists and that
+    R2_PUBLIC_URL really serves it needs a round trip, which does not belong
+    in a boot path — `scripts/verify_r2.py` does that on demand and shares
+    this function for the cheap half.
+    """
+    problems = storage.describe_configuration_problems()
+    if not problems:
+        return
+    logger.error(
+        "R2 is configured but unusable — %s. Avatar upload will fail at "
+        "request time. Run `poetry run python scripts/verify_r2.py` to check "
+        "all five variables against R2 itself.",
+        "; ".join(problems),
+    )
+
+
 def _log_feature_configuration() -> None:
     """Name the optional feature groups that are not configured, at boot.
 
@@ -276,6 +302,7 @@ _log_spotify_configuration()
 _log_token_encryption_configuration()
 _log_clerk_configuration()
 _log_clerk_secret_key_configuration()
+_log_r2_configuration()
 
 app = FastAPI(
     title=settings.app_name,

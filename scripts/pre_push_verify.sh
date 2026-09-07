@@ -33,6 +33,34 @@ set -uo pipefail
 hook_mode=0
 [ "${1:-}" = "--hook" ] && hook_mode=1
 
+# In hook mode, confirm from the payload that this really is a `git push`.
+#
+# The hook config carries `if: "Bash(git push *)"` to avoid spawning on every
+# shell command, but that filter is not honoured everywhere — observed on
+# 2026-09-07 running the full suite against an unrelated Bash call and denying
+# it, which turns a useful gate into a two-minute tax on every command and,
+# worse, blocks work that had nothing to do with pushing. The guard belongs
+# here too, where it cannot be configured away.
+#
+# stdin is the PreToolUse JSON. Parsed with grep rather than jq or python
+# because neither is reliably on PATH in Git Bash. If the payload cannot be
+# read at all (run by hand with --hook), fall through and check.
+if [ "$hook_mode" -eq 1 ] && [ ! -t 0 ]; then
+  payload="$(cat)"
+  if [ -n "$payload" ]; then
+    command_field="$(printf '%s' "$payload" \
+      | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n 1)"
+    # Fall back to the whole payload if the field could not be isolated (an
+    # escaped quote inside the command). Erring toward running the checks is
+    # the safe direction; erring toward skipping them defeats the gate.
+    haystack="${command_field:-$payload}"
+    case "$haystack" in
+      *"git push"*) ;;
+      *) exit 0 ;;
+    esac
+  fi
+fi
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root" || exit 0
 
