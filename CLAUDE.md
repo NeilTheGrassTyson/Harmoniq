@@ -77,7 +77,8 @@ referencing the file by name in your prompt:
 ### Backend tooling
 
 - **Dependency management:** Poetry (`backend/pyproject.toml` — the only one in
-  the repo; every `poetry` command runs from `backend/`). Poetry **is** on PATH
+  the repo; the root `package.json` is unrelated, so every `poetry` command
+  runs from `backend/`). Poetry **is** on PATH
   on Windows as its own executable — call it as plain `poetry`. Do *not* use
   `py -m poetry`: `py` here is the legacy launcher and resolves to a Python with
   no Poetry installed, which reports a misleading "No module named poetry".
@@ -91,6 +92,16 @@ referencing the file by name in your prompt:
   system Pythons. Never activate a venv before `poetry run` — an active
   `VIRTUAL_ENV` takes priority over Poetry's own env, and a declared dependency
   then looks missing.
+- **Two ways that env goes stale, both of which look like a missing package.**
+  `deactivate` alone is not enough: because Poetry prefers the in-project
+  `.venv`, a stale one at that path is used even with nothing activated, so it
+  has to be *deleted* rather than just left unactivated. And a venv does not
+  survive the project folder being moved or renamed — the interpreter path is
+  baked into `pyvenv.cfg` and into the PE header of every `Scripts\*.exe`
+  launcher, so `python.exe` keeps working while `pip.exe` dies with
+  `Fatal error in launcher` naming the old path. Either way: delete
+  `backend/.venv` and re-run `poetry install`. `docs/setup.md` §2 has the full
+  sequence and §10 the error messages.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
 - **Security scan:** Bandit (`bandit -r app -c pyproject.toml`), runs in CI alongside
   lint/type checks. The `-c` is required — Bandit does not auto-discover
