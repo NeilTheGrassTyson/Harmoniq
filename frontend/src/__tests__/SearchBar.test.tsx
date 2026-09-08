@@ -38,7 +38,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/image", () => ({
   default: ({ src, alt }: { src: string; alt: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
+    // eslint-disable-next-line @next/next/no-img-element -- Plain img intentionally replaces next/image in jsdom.
     <img src={src} alt={alt} />
   ),
 }));
@@ -96,6 +96,19 @@ describe("SearchBar — People section", () => {
     expect(screen.getByText("People")).toBeTruthy();
     expect(screen.getByText("Beatles Fan")).toBeTruthy();
     expect(screen.getByText("@beatles_fan")).toBeTruthy();
+    const results = screen.getByRole("region", { name: "Search results" });
+    expect(input.getAttribute("aria-controls")).toBe(results.id);
+    expect(input.hasAttribute("aria-expanded")).toBe(false);
+    expect(input.hasAttribute("aria-haspopup")).toBe(false);
+    expect(screen.getByRole("link", { name: "Beatles Fan@beatles_fan" }).getAttribute("href")).toBe(
+      "/u/beatles_fan"
+    );
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(screen.queryByRole("region", { name: "Search results" })).toBeNull();
+    expect(input.hasAttribute("aria-controls")).toBe(false);
+    expect((input as HTMLInputElement).value).toBe("beatles");
   });
 
   it("omits People section when user results are empty", async () => {
