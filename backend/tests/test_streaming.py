@@ -87,6 +87,9 @@ def test_six_searches_encode_title_and_artist_without_private_parameters() -> No
     for url in links.values():
         assert "青い空" in unquote(url) and "#" not in url
         assert "A" in unquote(url) and "B" in unquote(url)
+    # Apple treats '+' as literal during its redirect, unlike form decoders.
+    assert unquote(links["apple"].partition("term=")[2]) == "青い空 / & ?# A + B"
+    assert "+" not in links["apple"]
 
 
 @pytest.fixture(autouse=True)

@@ -18,7 +18,7 @@ export default function StreamingAccess({ mbid }: { mbid: string }) {
     staleTime: 300_000,
     retry: false,
   });
-  if (query.isSuccess && (!query.data || !Array.isArray(query.data.links))) return null;
+  if (query.data === null || (query.isSuccess && !Array.isArray(query.data.links))) return null;
   return (
     <section aria-label="Listen on" className="mb-8">
       <h2 className="font-display text-tertiary mb-3 text-xs font-medium tracking-wide uppercase">

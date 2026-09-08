@@ -164,6 +164,20 @@ test("failed sections and old API keep the track and profile usable", async ({
   await expect(page.getByText(/Couldn't load music services/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "E2E 青い空 / & Song" })).toBeVisible();
   await expect(page.getByTestId("send-melody-panel")).toBeVisible();
+  for (const response of [
+    { status: 404, json: { detail: "older API" } },
+    { status: 200, json: {} },
+  ]) {
+    await page.route(api + "/api/v1/streaming/**", (route) =>
+      route.fulfill({ ...response, headers: { "Access-Control-Allow-Origin": origin } })
+    );
+    const request = page.waitForResponse(api + "/api/v1/streaming/" + fixtures.track);
+    await page.reload();
+    await request;
+    await expect(page.getByRole("region", { name: "Listen on" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "E2E 青い空 / & Song" })).toBeVisible();
+    await expect(page.getByTestId("send-melody-panel")).toBeVisible();
+  }
   await page.route(api + "/api/v1/harmony/**", (route) =>
     route.fulfill({
       status: 404,

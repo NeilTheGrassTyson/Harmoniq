@@ -36,3 +36,16 @@ run directory. Those tokens expire after two hours and only match the deleted
 test database/key. The run directory is gitignored. Do not deploy or publish
 the copied fixture build or its traces. A normal `npm run verify` independently
 validates the original frontend, including its real Clerk imports.
+
+For migration compatibility and query plans, also run from `backend`:
+
+```sh
+poetry run python ../e2e/audit.py
+```
+
+This separate disposable container starts at the preceding migration, seeds
+1,000 accounts and 100,000 historical Melodies, and applies the new migration.
+It checks private defaults, retained history, and old-column insert/update
+compatibility. It then captures the actual Harmony service queries and prints
+`EXPLAIN (ANALYZE, BUFFERS)` results. These local timings are not production
+latency or a concurrent load test.

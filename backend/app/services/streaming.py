@@ -126,7 +126,9 @@ def search_links(title: str, artist: str | None) -> dict[Provider, str]:
     encoded = quote(term, safe="")
     return {
         "spotify": f"https://open.spotify.com/search/{encoded}",
-        "apple": "https://music.apple.com/us/search?" + urlencode({"term": term}),
+        # Apple redirects form-style '+' spaces into literal '%2B' search terms.
+        "apple": "https://music.apple.com/us/search?"
+        + urlencode({"term": term}, quote_via=quote),
         "youtube": "https://music.youtube.com/search?" + urlencode({"q": term}),
         "tidal": "https://listen.tidal.com/search?" + urlencode({"q": term}),
         "deezer": f"https://www.deezer.com/search/{encoded}",
