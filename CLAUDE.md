@@ -78,27 +78,30 @@ referencing the file by name in your prompt:
 
 - **Dependency management:** Poetry (`backend/pyproject.toml` — the only one in
   the repo; the root `package.json` is unrelated, so every `poetry` command
-  must be run from `backend/`). Invoke it as plain `poetry` first; `py -m poetry` only works if Poetry is installed *into* the
-  interpreter `py` resolves to, which it usually is not — on 2026-09-07 `py`
-  resolved to a 3.14 install with no Poetry in it while `poetry` itself was on
-  PATH and working.
-- **Pin the Poetry env to 3.12** (`poetry env use 3.12`). `python = "^3.12"`
-  admits 3.14, but CI runs 3.12 and mypy is configured for 3.12, so letting
-  Poetry pick a newer interpreter resolves a different dependency set than the
-  one that gets tested. Check with `poetry env info`.
-- **The env lives at `backend/.venv`, and Poetry creates it.** Poetry 2.x
-  prefers an in-project venv with or without a `virtualenvs.in-project`
-  setting, and `scripts/start-dev.ps1` looks for
-  `backend\.venv\Scripts\uvicorn.exe`, so that path is effectively required.
-  Never make one by hand, and never run Poetry with a virtualenv activated:
-  Poetry defers to an active `VIRTUAL_ENV`, so an unrelated `.venv` shadows the
-  managed environment and every declared dependency looks missing.
-  **`deactivate` alone is not enough** — a stale `backend/.venv` is picked up
-  even with nothing activated, so it has to be deleted. A venv also does not
-  survive the project folder being moved: the interpreter path is baked into
-  `pyvenv.cfg` and into every `Scripts\*.exe` launcher, and the symptom is
-  `Fatal error in launcher` naming the old path. `docs/setup.md` §2 has the
-  full sequence.
+  runs from `backend/`). Poetry **is** on PATH
+  on Windows as its own executable — call it as plain `poetry`. Do *not* use
+  `py -m poetry`: `py` here is the legacy launcher and resolves to a Python with
+  no Poetry installed, which reports a misleading "No module named poetry".
+- **Virtualenv:** in-project at `backend/.venv` — `backend/poetry.toml` sets
+  `virtualenvs.in-project = true`, and `scripts/start-dev.ps1` hardcodes
+  `backend\.venv\Scripts\uvicorn.exe`, so the env must stay there. Note Poetry 2.x
+  prefers an existing in-project `.venv` even without that setting.
+  Create it with `poetry env use 3.12`: `^3.12` also admits 3.13/3.14, but CI and
+  the mypy `python_version` target 3.12, so let neither drift. If 3.12 is not
+  installed, `poetry python install 3.12` provisions one without touching the
+  system Pythons. Never activate a venv before `poetry run` — an active
+  `VIRTUAL_ENV` takes priority over Poetry's own env, and a declared dependency
+  then looks missing.
+- **Two ways that env goes stale, both of which look like a missing package.**
+  `deactivate` alone is not enough: because Poetry prefers the in-project
+  `.venv`, a stale one at that path is used even with nothing activated, so it
+  has to be *deleted* rather than just left unactivated. And a venv does not
+  survive the project folder being moved or renamed — the interpreter path is
+  baked into `pyvenv.cfg` and into the PE header of every `Scripts\*.exe`
+  launcher, so `python.exe` keeps working while `pip.exe` dies with
+  `Fatal error in launcher` naming the old path. Either way: delete
+  `backend/.venv` and re-run `poetry install`. `docs/setup.md` §2 has the full
+  sequence and §10 the error messages.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
 - **Security scan:** Bandit (`bandit -r app -c pyproject.toml`), runs in CI alongside
   lint/type checks. The `-c` is required — Bandit does not auto-discover
