@@ -29,7 +29,7 @@ async def seed(url: str) -> None:
             text("""
             INSERT INTO users (id, clerk_id, username, display_name)
             SELECT md5(i::text)::uuid, 'audit' || i, 'audit' || i, 'Audit'
-            FROM generate_series(1, 1000) AS i
+            FROM generate_series(1, 100) AS i
         """)
         )
         await connection.execute(
@@ -45,13 +45,13 @@ async def seed(url: str) -> None:
             INSERT INTO melodies (id, sender_id, recipient_id, track_id,
                                   status, created_at, responded_at)
             SELECT md5('melody' || i)::uuid,
-                   md5(((i % 999) + 1)::text)::uuid, md5('1000')::uuid,
-                   md5('track' || (i / 999))::uuid,
+                   md5(((i % 99) + 1)::text)::uuid, md5('100')::uuid,
+                   md5('track' || (i / 99))::uuid,
                    (ARRAY['sent','received','accepted','opened','rejected'])
                        [(i % 5) + 1],
                    '2026-09-08'::timestamptz - (i % 240) * interval '1 day',
                    CASE WHEN i % 5 >= 2 THEN '2026-09-08'::timestamptz END
-            FROM generate_series(1, 100000) AS i
+            FROM generate_series(1, 10000) AS i
         """)
         )
     await engine.dispose()
@@ -68,7 +68,7 @@ async def inspect(url: str) -> None:
             SELECT count(*) FROM users WHERE visibility_harmony = 'private'
         """)
             )
-        ).scalar_one() == 1000
+        ).scalar_one() == 100
         assert (
             await connection.execute(
                 text("""
@@ -76,7 +76,7 @@ async def inspect(url: str) -> None:
             WHERE reaction IS NULL AND reacted_at IS NULL
         """)
             )
-        ).scalar_one() == 100000
+        ).scalar_one() == 10000
         assert (
             await connection.execute(
                 text("""
@@ -85,7 +85,7 @@ async def inspect(url: str) -> None:
                 AND responded_at IS NOT NULL
         """)
             )
-        ).scalar_one() == 60000
+        ).scalar_one() == 6000
         await connection.execute(
             text("""
             INSERT INTO users (id, clerk_id, username, display_name)
@@ -151,7 +151,8 @@ async def inspect(url: str) -> None:
         event.remove(engine.sync_engine, "before_execute", capture)
     assert len(statements) == 2
     print(
-        "Migration: 1,000 existing users private; 100,000 historical rows retained; "
+        "Migration: 100 synthetic users private; 10,000 synthetic pre-migration "
+        "rows retained; "
         "old inserts/status updates compatible."
     )
     async with engine.connect() as connection:

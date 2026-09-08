@@ -1,7 +1,8 @@
 # Harmony, Melody Reactions and Streaming Access — Verification
 
 **Date:** 2026-09-08. **Engineer:** Astra.
-**Runtime revision:** `7b45214e5a0fadbd6098d07c8171eb284500fd01`.
+**Product source revision:** `7b45214e5a0fadbd6098d07c8171eb284500fd01`;
+later branch commits refine tests and documentation only.
 **Integration:** [PR #74 into dev](https://github.com/NeilTheGrassTyson/Harmoniq/pull/74).
 Founder review, merge and acceptance remain separate from these local checks.
 No production data was used or changed. `beta-ui` and other agent worktrees
@@ -39,12 +40,19 @@ Approved specs: [Harmony](../../specs/phase-2-harmony-v1.md),
 | Gate                      | Commands actually run                                                                                                                              | Result                                                                                          |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Backend static checks     | From `backend`: `poetry run ruff check .`, `poetry run ruff format --check .`, `poetry run mypy app`, `poetry run bandit -r app -c pyproject.toml` | Clean; 122 files formatted; 63 files type checked; no Bandit issues                             |
-| Full backend              | `poetry run python -m pytest -q`                                                                                                                   | **778 passed, 1 xfailed**; real PostgreSQL 16 via Docker/Testcontainers; 23.53 s                |
+| Full backend              | `poetry run python -m pytest -q`                                                                                                                   | **771 passed, 1 xfailed**; real PostgreSQL 16 via Docker/Testcontainers; 22.08 s                |
 | Frontend full gate        | From `frontend`: `npm run verify`                                                                                                                  | Types, ESLint, Prettier, **365 tests**, production Next.js build passed                         |
 | Built-app browser         | From `backend`: `poetry run python ../e2e/run.py`                                                                                                  | **4 passed**, desktop and 390 px mobile; 15.5 s; real HTTP reaction limiter returned 429        |
 | Migration and query audit | `poetry run python ../e2e/audit.py`                                                                                                                | Existing users/history and old-column writes preserved; actual aggregate plans use sender index |
 | Harness static checks     | `poetry run ruff check ../e2e`, `poetry run ruff format --check ../e2e`                                                                            | Clean, 3 Python files                                                                           |
 
+The 771 backend and 365 frontend counts are the complete repository suites,
+not tests added by this PR. Against the recorded baseline, this work adds 66
+backend cases and 28 frontend cases, plus four built-app browser scenarios.
+The original reaction test used a 5-by-3 Cartesian matrix and repeated its
+idempotence/list/no-notification checks 15 times. It is now seven transition
+cases covering every input status, reaction and output branch, plus one focused
+behavior case: seven fewer database executions with no branch removed.
 The backend xfail is the pre-existing follow limiter test's documented
 ASGITransport limitation. It is not a new feature failure. The browser runner
 separately verified the reaction limiter over real HTTP. The final assertion
@@ -63,9 +71,12 @@ both cases pass component and built-app browser coverage.
 
 - **Reception and privacy:** no responses vs zero reception, pending rows,
   mixed outcomes, rounding, historical responses, status recovery, explicit
-  reaction precedence, all 15 status/reaction combinations, sending-month UTC
-  boundaries and three-month/three-recipient thresholds. Owner, anonymous,
-  unrelated, mutual-follow and suspended callers follow existing policy.
+  reaction precedence, seven representative transitions covering all five
+  delivery states, all three reactions, and each resulting status branch,
+  plus one focused edit/idempotence/visibility/no-notification case.
+  Sending-month UTC boundaries and three-month/three-recipient thresholds.
+  Owner, anonymous, unrelated, mutual-follow and suspended callers follow
+  existing policy.
   Suspended users may read, but cannot mutate. Authorization precedes the
   Melody aggregate. Non-owners receive no counts, rates or recipient details.
   A new rejection of a pending Melody causes no shared payload delta.
@@ -98,16 +109,17 @@ both cases pass component and built-app browser coverage.
   No comparison surface, engagement reward or provider-derived scoring input
   is introduced. The approved historical-data decision is recorded above.
 
-The migration audit starts at `f8a9b0c1d2e3`, creates 1,000 users and 100,000
-Melodies, then upgrades to `a9b0c1d2e3f4`. All accounts defaulted private;
-historical reactions/timestamps stayed null and status response timestamps
-were retained. Inserts using only old columns still work; old status updates
-do not clear a newly stored opinion. This is SQL/API compatibility evidence,
-not a claim that two separately deployed historical app versions were tested.
+The migration audit starts at `f8a9b0c1d2e3`, creates 100 synthetic users and
+10,000 synthetic pre-migration Melodies, then upgrades to `a9b0c1d2e3f4`.
+All accounts defaulted private; reactions/timestamps stayed null and status
+response timestamps were retained. Inserts using only old columns still work;
+old status updates do not clear a newly stored opinion. This is SQL/API
+compatibility evidence, not a claim that two separately deployed historical
+app versions were tested.
 
 `EXPLAIN (ANALYZE, BUFFERS)` captured the actual service aggregates: both used
-`ix_melodies_sender_id`, scanning 100 of the 100,000 rows. Local warm execution
-was **0.177 ms owner / 0.137 ms shared**, with no temporary disk blocks. These
+`ix_melodies_sender_sent`, scanning 101 of the 10,000 rows. Local warm execution
+was **0.140 ms owner / 0.138 ms shared**, with no temporary disk blocks. These
 are query timings, not network latency or concurrent-load results. At 100 or
 1,000 users the sender-scoped design is sufficient for the expected history.
 At 100,000 users, unusually prolific senders, database concurrency and the

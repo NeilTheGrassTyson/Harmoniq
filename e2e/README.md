@@ -44,7 +44,9 @@ poetry run python ../e2e/audit.py
 ```
 
 This separate disposable container starts at the preceding migration, seeds
-1,000 accounts and 100,000 historical Melodies, and applies the new migration.
+100 synthetic accounts and 10,000 synthetic pre-migration Melodies, and applies
+the new migration. The selected sender still has roughly 100 rows, preserving
+the query-plan selectivity of the larger fixture with less setup work.
 It checks private defaults, retained history, and old-column insert/update
 compatibility. It then captures the actual Harmony service queries and prints
 `EXPLAIN (ANALYZE, BUFFERS)` results. These local timings are not production

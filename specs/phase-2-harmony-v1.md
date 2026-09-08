@@ -151,11 +151,12 @@ Baseline on `dev` commit `f584650`, before implementation:
 `cd backend && poetry run python -m pytest -q` completed with **705 passed,
 1 expected failure**, using Testcontainers and real PostgreSQL. The expected
 failure is the existing follow rate-limit test's ASGITransport limitation.
-Implementation verification on 2026-09-08: full backend gate **778 passed,
+Implementation verification on 2026-09-08: full backend gate **771 passed,
 1 expected failure**; full frontend gate **365 passed**, production build
 successful; desktop/mobile Playwright scenarios and real HTTP rate limiting
-passed. The migration audit preserved 100,000 historical rows and confirmed
-sender-index query plans. See `docs/reviews/phase-2-v1-verification.md` for
+passed. The migration audit preserved 10,000 synthetic pre-migration rows and
+confirmed sender-index query plans. See
+`docs/reviews/phase-2-v1-verification.md` for
 the tested revision, evidence, external-service limits, and release procedure.
 These checks use isolated auth/provider fixtures; hosted Clerk sign-in and
 native streaming-app handoff are not claimed as verified.

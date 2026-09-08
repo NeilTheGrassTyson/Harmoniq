@@ -54,33 +54,42 @@ async def sent(
 
 
 @pytest.mark.parametrize(
-    "status", ["sent", "received", "accepted", "opened", "rejected"]
+    ("status", "reaction", "expected_status"),
+    [
+        ("sent", "not_for_me", "rejected"),
+        ("sent", "liked", "accepted"),
+        ("sent", "loved", "accepted"),
+        ("received", "loved", "accepted"),
+        ("accepted", "not_for_me", "rejected"),
+        ("rejected", "loved", "accepted"),
+        ("opened", "not_for_me", "opened"),
+    ],
 )
-@pytest.mark.parametrize("reaction", ["not_for_me", "liked", "loved"])
-async def test_every_delivery_state_accepts_editable_idempotent_feedback(
-    db_session: AsyncSession, status: str, reaction: MelodyReaction
+async def test_reaction_transitions_cover_every_status_and_reaction(
+    db_session: AsyncSession,
+    status: str,
+    reaction: MelodyReaction,
+    expected_status: str,
 ) -> None:
     sender, recipient, track = await seed(db_session)
     row = await sent(db_session, sender, recipient, track, status)
     item, error = await melody.react(db_session, row.id, recipient.id, reaction)
     assert not error and item and item.reaction == reaction
-    assert item.status == (
-        "opened"
-        if status == "opened"
-        else "rejected"
-        if reaction == "not_for_me"
-        else "accepted"
-    )
+    assert item.status == expected_status
+
+
+async def test_feedback_is_editable_idempotent_visible_and_silent(
+    db_session: AsyncSession,
+) -> None:
+    sender, recipient, track = await seed(db_session)
+    row = await sent(db_session, sender, recipient, track)
+    item, error = await melody.react(db_session, row.id, recipient.id, "liked")
+    assert not error and item and item.reaction == "liked"
     timestamp = row.reacted_at
-    await melody.react(db_session, row.id, recipient.id, reaction)
+    await melody.react(db_session, row.id, recipient.id, "liked")
     assert row.reacted_at == timestamp
-    updated, error = await melody.react(
-        db_session,
-        row.id,
-        recipient.id,
-        "loved" if reaction != "loved" else "not_for_me",
-    )
-    assert not error and updated and updated.reaction != reaction
+    updated, error = await melody.react(db_session, row.id, recipient.id, "not_for_me")
+    assert not error and updated and updated.reaction == "not_for_me"
     assert (
         await db_session.execute(select(func.count()).select_from(Notification))
     ).scalar_one() == 0
