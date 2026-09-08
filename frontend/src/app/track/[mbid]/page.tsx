@@ -6,6 +6,7 @@ import ServiceUnavailable from "@/components/ServiceUnavailable";
 import CoverArt from "@/components/CoverArt";
 import RatingSection from "@/components/RatingSection";
 import SendMelodyPanel from "@/components/SendMelodyPanel";
+import StreamingAccess from "@/components/StreamingAccess";
 import { getTrack } from "@/lib/catalog";
 import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
 import { getEntityRatings } from "@/lib/ratings";
@@ -86,6 +87,8 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
             )}
           </div>
         </div>
+
+        <StreamingAccess mbid={mbid} />
 
         <SendMelodyPanel
           track={{

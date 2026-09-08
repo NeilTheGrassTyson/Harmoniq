@@ -1,10 +1,11 @@
 # Third-Party Song Access from Harmoniq
 
-> **Status: DRAFT — awaiting Founder approval.** Prepared 2026-09-08.
+> **Status: APPROVED — Founder decision 4, 2026-09-08.**
 > Founder request: offer an add-to-playlist / liked-songs action where feasible;
 > a direct route to the item in the streaming app is an acceptable baseline.
-> This proposal records provider coverage, consent, and failure behavior before
-> Tier 1 implementation under WORKFLOW.md §1. No feature code has been written.
+> Six-service links and optional Spotify saving are approved under WORKFLOW.md
+> §1. Saving remains contingent on verified write capability; links are the
+> accepted baseline without additional account consent or test credentials.
 
 ## Purpose
 
@@ -12,7 +13,7 @@ Let someone act on a human recommendation in their own music service, without
 turning Harmoniq into a streaming platform. This strengthens Discovery Through
 People (HARMONIQ.md §2; BRAND_BIBLE.md §3 and §14).
 
-## Scope — proposed
+## Scope
 
 ### In scope
 
@@ -152,10 +153,10 @@ the current track layout. Do not downgrade away existing connection data.
 Explain that a successful external playlist/library write is external state:
 rolling back Harmoniq code does not undo that user's explicit save.
 
-## Open questions
+## Founder decision and external verification dependency
 
-1. Ratify six-service link coverage with exact-link/search distinction, and
-   optional Spotify saving, or narrow the first release to links only?
+1. Six-service coverage with exact-link/search distinction and optional Spotify
+   saving approved. Ship links independently of account-write verification.
 2. A designated, allowlisted Spotify test account and owned test playlist are
    needed before claiming live save/playlist functionality is verified. No
    account credentials or user playlists have been accessed or modified.

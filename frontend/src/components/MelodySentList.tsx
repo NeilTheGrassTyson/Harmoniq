@@ -3,7 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import MelodyCard from "@/components/MelodyCard";
-import { getSentMelodies } from "@/lib/melodies";
+import { getSentMelodies, REACTION_LABELS } from "@/lib/melodies";
 import type { MelodySentItem } from "@/types";
 
 interface MelodySentListProps {
@@ -15,7 +15,7 @@ interface MelodySentListProps {
 const SENT_LABELS: Record<string, string> = {
   sent: "Sent",
   accepted: "Taken",
-  opened: "Listened",
+  opened: "Opened",
   rejected: "Passed",
 };
 
@@ -63,7 +63,11 @@ export default function MelodySentList({ initialItems, initialCursor }: MelodySe
           track={item.track}
           person={item.recipient}
           direction="to"
-          statusLabel={SENT_LABELS[item.status] ?? item.status}
+          statusLabel={
+            item.reaction
+              ? `Their reaction: ${REACTION_LABELS[item.reaction]}`
+              : (SENT_LABELS[item.status] ?? item.status)
+          }
         />
       ))}
       {cursor && (

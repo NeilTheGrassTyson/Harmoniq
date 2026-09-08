@@ -15,8 +15,8 @@
 > correctness comes from.
 
 **Revision 2026-07-07:** Restructured the NOW tier into a shipped/remaining
-split so the Phase 1 → Phase 2 boundary (ENGINEERING_BIBLE.md §11) is a
-checklist, not prose. Corrected the moderation item: report _intake_ on
+split so the Phase 1 → Phase 2 boundary (ENGINEERING*BIBLE.md §11) is a
+checklist, not prose. Corrected the moderation item: report \_intake* on
 ratings already ships (`POST /ratings/{id}/report`); what remains is the
 review/action side. Added a Deployment Verification item — hosting is
 decided and configured (ADR 0005) but a live deploy has not been confirmed.
@@ -180,6 +180,14 @@ Acceptance rate + reception signal, profile-level display only.
 _Security: computed from a user's own Melody history — no cross-user
 data gets exposed in the calculation itself._
 
+Spec approved 2026-09-08: `specs/phase-2-harmony-v1.md`. Implementation and
+verification are in PR #74, awaiting merge. Includes private reception
+statistics, an opt-in positive summary, and three editable Melody reactions
+(`specs/phase-2-melody-reactions.md`). All historical responses participate.
+Third-party song links are covered by `specs/phase-2-streaming-access.md`.
+XP rules remain draft; Harmony DNA and regional/global recommender rankings
+are future Founder ideas requiring their own spec and governance decisions.
+
 ### Demo + Open (Melody enhancement)
 
 Preview a song before accepting the recommendation.
@@ -253,8 +261,7 @@ testers — the checklist form of the NOW tier above.
 - [x] Melody
 - [x] Notifications
 - [x] Moderation review & action
-- [x] Deployment verified live — production Vercel (`harmoniq-two.vercel.app`)
-      + Railway (`harmoniq-production-ac1f.up.railway.app`) + Neon confirmed
+- [x] Deployment verified live — production Vercel (`harmoniq-two.vercel.app`) + Railway (`harmoniq-production-ac1f.up.railway.app`) + Neon confirmed
       end to end 2026-07-08 (fresh signup → onboarding → live profile). See
       `docs/deployment.md`'s Troubleshooting section for the real gotchas
       hit getting here — none were code bugs, all were environment config.
@@ -280,7 +287,7 @@ Phase 1 → Phase 2 gate above; these are invite-readiness, not build-phase.
   locally 2026-07-09; see docs/setup.md "Seeding the catalog"). Remaining:
   run it once against the **production** DB before invites
   (`DATABASE_URL=<prod pooled string> poetry run python
-  scripts/seed_catalog.py` from `backend/` — expect ~30-60 min at
+scripts/seed_catalog.py` from `backend/` — expect ~30-60 min at
   MusicBrainz's 1 req/s limit).
 - **Spotify integration — stays in scope.** Founder decision: friends use
   different streaming services and may write their own provider

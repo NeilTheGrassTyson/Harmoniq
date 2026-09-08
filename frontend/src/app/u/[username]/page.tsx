@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import ServiceUnavailable from "@/components/ServiceUnavailable";
 import ListeningSection from "@/components/ListeningSection";
 import ProfileHeader from "@/components/ProfileHeader";
+import HarmonySection from "@/components/HarmonySection";
 import { getProfile } from "@/lib/users";
 import { getUserRatings } from "@/lib/ratings";
 import { getListening } from "@/lib/spotify";
@@ -59,6 +60,7 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
     <AppShell>
       <div style={{ padding: "26px 22px 30px", maxWidth: 720 }}>
         <ProfileHeader profile={profile} />
+        <HarmonySection key={profile.username} username={profile.username} />
 
         {/* ── Listening activity (Spotify, display-only) ─────────────────── */}
         {listening !== null && (

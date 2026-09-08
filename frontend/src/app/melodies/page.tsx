@@ -40,6 +40,7 @@ export default async function MelodiesPage() {
             inboxCursor={inbox.next_cursor}
             sentItems={sent.items}
             sentCursor={sent.next_cursor}
+            reactionsEnabled={inbox.reactions_enabled ?? false}
           />
         )}
       </main>

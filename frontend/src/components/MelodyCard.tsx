@@ -22,6 +22,7 @@ interface MelodyCardProps {
   statusLabel?: string;
   /** Quick actions rendered on the right edge (inbox rows). */
   actions?: React.ReactNode;
+  feedback?: React.ReactNode;
 }
 
 /**
@@ -37,12 +38,13 @@ export default function MelodyCard({
   compact = false,
   statusLabel,
   actions,
+  feedback,
 }: MelodyCardProps) {
   const size = compact ? 40 : 56;
 
   return (
     <div
-      className="bg-tile border-hairline flex items-center border"
+      className="bg-tile border-hairline flex flex-wrap items-center border"
       style={{
         borderRadius: 14,
         padding: compact ? "10px 12px" : "14px 16px",
@@ -84,10 +86,11 @@ export default function MelodyCard({
       </div>
 
       {actions && (
-        <div className="flex shrink-0 items-center" style={{ gap: 8 }}>
+        <div className="flex shrink-0 flex-wrap items-center" style={{ gap: 8 }}>
           {actions}
         </div>
       )}
+      {feedback && <div className="w-full min-w-0">{feedback}</div>}
     </div>
   );
 }

@@ -28,6 +28,13 @@ class MelodyRespondRequest(BaseModel):
     action: Literal["accept", "open", "reject"]
 
 
+MelodyReaction = Literal["not_for_me", "liked", "loved"]
+
+
+class MelodyReactRequest(BaseModel):
+    reaction: MelodyReaction
+
+
 # ── Response schemas ──────────────────────────────────────────────────────────
 # Two distinct item schemas so a sender-only field can never leak into the
 # recipient view or vice versa. The sent view's status is the sender-visible
@@ -43,6 +50,7 @@ class MelodyInboxItem(BaseModel):
     status: MelodyStatus
     created_at: datetime
     responded_at: datetime | None
+    reaction: MelodyReaction | None = None
 
 
 class MelodySentItem(BaseModel):
@@ -54,11 +62,13 @@ class MelodySentItem(BaseModel):
     status: MelodyStatus
     created_at: datetime
     responded_at: datetime | None
+    reaction: MelodyReaction | None = None
 
 
 class MelodyInboxResponse(BaseModel):
     items: list[MelodyInboxItem]
     next_cursor: str | None
+    reactions_enabled: bool = False
 
 
 class MelodySentResponse(BaseModel):

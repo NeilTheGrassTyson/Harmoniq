@@ -1,10 +1,10 @@
 # Harmony v1 — Personal Reception Signal
 
-> **Status: DRAFT — awaiting Founder approval.** Prepared 2026-09-08.
-> The Founder requested Phase 2 implementation, “harmony messaging,” and
-> third-party song access. This proposal makes the missing Harmony product
-> decisions reviewable; it does not claim those decisions are ratified.
-> Tier 1 under WORKFLOW.md §1. No feature code has been written.
+> **Status: APPROVED — Founder, 2026-09-08.** The Founder approved the
+> owner statistics and positive-only shared summary (decision 2), and directed
+> inclusion of historical responses alongside new ones (decision 3). Structured
+> recipient reactions are specified in `phase-2-melody-reactions.md`. XP rules
+> and future leaderboards are separate, unratified proposals.
 
 ## Purpose
 
@@ -16,26 +16,26 @@ never in rankings, Home, notifications, or comparison surfaces
 
 ## Scope
 
-### In scope — proposed
+### In scope
 
 - A Harmony section on the owner's profile, calculated from their sent
   Melodies, with acceptance and sustained-reception information.
 - Explicit private / friends / public visibility for a separate, positive-only
   summary. Default private for existing and new accounts.
-- Continued message-less Melody sharing, including the existing send,
-  receive, accept, open, reject, and recovery paths.
+- Message-less Melody sharing with structured recipient reactions, preserving
+  existing send, receive, accept, open, reject, and recovery API paths.
 - Streaming access described in `phase-2-streaming-access.md`.
 
 ### Out of scope
 
-- Text conversations or text attached to a Melody, pending clarification of
-  “harmony messaging.” ADR 0009 currently excludes message text.
+- Text conversations or text attached to a Melody. The Founder requested
+  three structured reactions; ADR 0009 continues to exclude message text.
 - Leaderboards, score sorting, badges, notifications about score changes,
   ranking input, automated Melodies, and cosmetic Harmony v2 features.
 - The other draft Phase 2 features, and integration of `beta-ui`.
 - Provider listening data as input to Harmony.
 
-## User experience — proposed
+## User experience
 
 The owner sees Harmony below their profile identity, in a quiet section using
 the current design system. An explanation describes precisely which Melody
@@ -52,14 +52,17 @@ The existing Melody inbox continues to use music cards and recipient actions.
 inside another service. Streaming, saving, or following an external link never
 sends a Melody automatically or changes its outcome implicitly.
 
-## Functional requirements — proposed decisions for ratification
+## Functional requirements
 
 1. **Owner acceptance rate:** `100 * positive / resolved`, rounded to the
    nearest whole percent, where positive is accepted + opened and resolved is
    accepted + opened + rejected. Sent/received are excluded. No resolved
    Melodies yields no rate. Count a Melody once; an accepted-to-opened upgrade
    does not add another positive. Recovery from rejection changes the current
-   result, rather than creating another event.
+   result, rather than creating another event. An explicit recipient reaction
+   takes precedence: liked/loved are positive, not-for-me is negative. Without
+   one, use the existing status for both historical and new Melodies. Opening
+   a track after reacting must never overwrite the recipient's opinion.
 2. **Owner sustained reception:** show the number of calendar months, among
    the current UTC month and previous five months, in which the owner sent a
    Melody that currently has a positive outcome. Use `created_at` explicitly:
@@ -72,7 +75,7 @@ sends a Melody automatically or changes its outcome implicitly.
    listeners” after a positive outcome, and “Finding resonance over time” when
    positive outcomes span at least three sending months in the six-month
    window and at least three distinct recipients in that window. These exact
-   thresholds and copy are proposed product choices, not existing rules.
+   thresholds and copy were approved in Founder decision 2.
 4. **Rejection protection:** changing a pending Melody to rejected must have
    no effect on any non-owner response. Sharing an acceptance percentage can
    expose rejection through subtraction, particularly with a small sample;
@@ -83,14 +86,18 @@ sends a Melody automatically or changes its outcome implicitly.
    expose the chosen visibility setting to other viewers.
 6. **Disclosure:** explain to a Melody recipient that positive responses can
    contribute to the sender's aggregate Harmony summary, while “Not for me”
-   remains private. Whether pre-existing positive responses may contribute to
-   a newly shared summary requires explicit Founder ratification below.
+   remains private between sender and recipient. Include all existing and new
+   responses uniformly, without a legacy partition or mandatory warning.
+   Founder decision 3 explicitly authorizes historical inclusion given the
+   small prelaunch audience. Sharing still requires the sender to opt in.
+   Withdrawing a previously positive reaction may remove its contribution to
+   the summary, but never exposes the new reaction or emits a notification.
 7. No third-party content, engagement analytics, profile customization,
    follower counts, or unrelated activity changes the calculation.
 
 ## Acceptance criteria
 
-- [ ] Founder resolves the naming/scope question and ratifies the calculation,
+- [x] Founder resolves the naming/scope question and ratifies the calculation,
       public-summary policy, thresholds, and historical-data decision.
 - [ ] Empty, pending-only, mixed outcomes, recovery, and accepted-to-opened
       upgrades produce the documented owner results.
@@ -114,8 +121,8 @@ comparisons. Preserve current typography and spacing; `beta-ui` stays separate.
 
 - Isolate aggregation in a domain service, with thin API handlers and a
   profile component. The frontend never computes a score.
-- Add only a private-default visibility column if the shared summary is
-  ratified. No backfill of inferred listening events or response timestamps.
+- Add a private-default visibility column. No backfill of inferred listening
+  events, explicit reactions, or response timestamps.
 - Use indexed sender-scoped database aggregation; do not load an unbounded
   inbox into application memory. Do not persist a second score that can drift.
 - No shared HTTP caching of responses containing Harmony or visibility data.
@@ -128,16 +135,15 @@ behavior without changing Melody rows. Preserve any additive setting column
 on rollback; do not drop production data to roll application code back.
 Test old-client/new-backend and new-client/old-backend behavior before release.
 
-## Open questions requiring Founder decision
+## Founder decisions, 2026-09-08
 
-1. Does “harmony messaging” mean the Harmony signal plus existing Melody
-   song cards, or new text conversations? This proposal recommends the former.
-2. Approve the proposed owner rate and positive-only shareable summary, or
-   specify another model? Exact acceptance/rejection-sensitive details cannot
-   be shared without revisiting the existing rejection-privacy contract.
-3. May already-recorded positive responses contribute to an explicitly shared
-   summary, or should only responses after the new disclosure be eligible?
-   No historical-data use is authorized by this draft.
+1. Recipient feedback should be not-for-me, liked, or loved / wants more.
+   Implement this as structured reactions, without introducing conversations.
+2. Owner-only numerical statistics and the optional positive summary approved.
+3. Historical responses must contribute alongside new responses. No legacy
+   Harmoniq segment; no additional historical-use warning required.
+4. Reaction XP and future Harmony DNA / regional or global leaderboards are
+   discussed in `phase-2-melody-reactions.md`; no leaderboard is authorized.
 
 ## Verification record
 
