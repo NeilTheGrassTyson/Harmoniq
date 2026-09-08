@@ -184,10 +184,30 @@ absent dependency.
 Two ways to make it automatic — they are independent, and doing both is
 reasonable since they cover different pushes:
 
+For any push you make yourself, from any tool, write a two-line wrapper at
+`.git/hooks/pre-push` (no file extension). Git runs it with its own bundled
+bash, so this is identical on Windows, macOS and Linux:
+
 ```bash
-# Any push you make yourself, from any tool
-ln -sf ../../scripts/pre_push_verify.sh .git/hooks/pre-push
+printf '#!/usr/bin/env bash\nexec "$(dirname "$0")/../../scripts/pre_push_verify.sh"\n' \
+  > .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
 ```
+
+In PowerShell:
+
+```powershell
+@'
+#!/usr/bin/env bash
+exec "$(dirname "$0")/../../scripts/pre_push_verify.sh"
+'@ | Set-Content -NoNewline -Encoding ascii .git\hooks\pre-push
+```
+
+A wrapper and not a symlink on purpose: `ln -s` on Windows needs Developer Mode
+or an elevated shell, and silently degrades to a copy under MSYS otherwise —
+which would freeze the hook at whatever the script said the day you linked it.
+The wrapper always runs the current file. `.git/hooks/` is not tracked, so this
+is per-clone either way.
 
 For pushes Claude Code makes, add a `PreToolUse` hook in `.claude/settings.json`
 (untracked, so it is per-machine):

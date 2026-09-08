@@ -76,7 +76,32 @@ referencing the file by name in your prompt:
 
 ### Backend tooling
 
-- **Dependency management:** Poetry (`pyproject.toml`). Poetry not on PATH on Windows — invoke via `py -m poetry` or the full `.venv` path.
+- **Dependency management:** Poetry (`backend/pyproject.toml` — the only one in
+  the repo; the root `package.json` is unrelated, so every `poetry` command
+  runs from `backend/`). Poetry **is** on PATH
+  on Windows as its own executable — call it as plain `poetry`. Do *not* use
+  `py -m poetry`: `py` here is the legacy launcher and resolves to a Python with
+  no Poetry installed, which reports a misleading "No module named poetry".
+- **Virtualenv:** in-project at `backend/.venv` — `backend/poetry.toml` sets
+  `virtualenvs.in-project = true`, and `scripts/start-dev.ps1` hardcodes
+  `backend\.venv\Scripts\uvicorn.exe`, so the env must stay there. Note Poetry 2.x
+  prefers an existing in-project `.venv` even without that setting.
+  Create it with `poetry env use 3.12`: `^3.12` also admits 3.13/3.14, but CI and
+  the mypy `python_version` target 3.12, so let neither drift. If 3.12 is not
+  installed, `poetry python install 3.12` provisions one without touching the
+  system Pythons. Never activate a venv before `poetry run` — an active
+  `VIRTUAL_ENV` takes priority over Poetry's own env, and a declared dependency
+  then looks missing.
+- **Two ways that env goes stale, both of which look like a missing package.**
+  `deactivate` alone is not enough: because Poetry prefers the in-project
+  `.venv`, a stale one at that path is used even with nothing activated, so it
+  has to be *deleted* rather than just left unactivated. And a venv does not
+  survive the project folder being moved or renamed — the interpreter path is
+  baked into `pyvenv.cfg` and into the PE header of every `Scripts\*.exe`
+  launcher, so `python.exe` keeps working while `pip.exe` dies with
+  `Fatal error in launcher` naming the old path. Either way: delete
+  `backend/.venv` and re-run `poetry install`. `docs/setup.md` §2 has the full
+  sequence and §10 the error messages.
 - **Lint/format:** Ruff (`ruff check`, `ruff format`). Config in `pyproject.toml`.
 - **Security scan:** Bandit (`bandit -r app -c pyproject.toml`), runs in CI alongside
   lint/type checks. The `-c` is required — Bandit does not auto-discover

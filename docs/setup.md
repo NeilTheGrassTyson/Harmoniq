@@ -65,29 +65,52 @@ cd Harmoniq
 
 ## 2. Backend setup
 
-```bash
-cd backend
+**Do not create or activate a virtualenv yourself.** Poetry makes one, and
+these steps used to say otherwise — see the note below for why that mattered.
 
-# Create and activate virtual environment
-python -m venv .venv
-# macOS/Linux:
-source .venv/bin/activate
-# Windows:
-.venv\Scripts\activate
+```bash
+cd backend           # backend/pyproject.toml is the only Poetry project here
+
+# Pin the interpreter. CI runs 3.12 and mypy targets 3.12; `python = "^3.12"`
+# also admits 3.13/3.14, which would resolve a different dependency set than
+# the one that gets tested. If 3.12 is not installed:  poetry python install 3.12
+poetry env use 3.12
 
 # Install dependencies (includes boto3 for R2 uploads)
-pip install poetry
 poetry install
 
 # Configure environment — see "Environment variables" section below
-cp .env.example .env   # if .env.example exists; otherwise edit .env directly
+cp .env.example .env
 
 # Run database migrations
-alembic upgrade head
+poetry run alembic upgrade head
 
 # Start the development server
-uvicorn app.main:app --reload --port 8000
+poetry run uvicorn app.main:app --reload --port 8000
 ```
+
+> **Why no manual venv.** These steps previously said to run `python -m venv
+> .venv`, activate it, `pip install poetry` into it, and then call `poetry` —
+> which cost a session on 2026-09-07. Two reasons it goes wrong:
+>
+> - Poetry defers to an activated `VIRTUAL_ENV`, so `poetry run` uses the venv
+>   you made rather than the one it manages, and every declared dependency
+>   looks missing (`ModuleNotFoundError: No module named 'httpx'` for a package
+>   that is right there in `pyproject.toml`).
+> - Poetry 2.x creates and prefers an **in-project `backend/.venv`** anyway,
+>   with or without a `virtualenvs.in-project` setting — so a hand-made one at
+>   that path is picked up even with nothing activated. Deactivating is not
+>   enough; the stale directory has to go.
+>
+> `backend/.venv` is the right location and `scripts/start-dev.ps1` depends on
+> it (it looks for `backend\.venv\Scripts\uvicorn.exe`). Let Poetry create it.
+>
+> **Virtualenvs do not survive being moved.** The interpreter path is baked
+> into `pyvenv.cfg` and into the PE header of every `Scripts\*.exe` launcher on
+> Windows. If you move or rename the project folder, delete `backend/.venv` and
+> run `poetry install` again. The symptom is
+> `Fatal error in launcher: Unable to create process using '...python.exe'`
+> naming the *old* path.
 
 The API is now running at `http://localhost:8000`.  
 Interactive docs: `http://localhost:8000/docs`
@@ -448,3 +471,22 @@ local development.
 **`ValidationError` on backend startup with missing R2/Clerk variables**  
 These variables now have `None` defaults — this should not happen. If it does,
 check that your `.env` file doesn't have syntax errors (no spaces around `=`).
+
+**`ValidationError` naming `DEBUG` or `RATE_LIMIT_DEFAULT` — "extra inputs are
+not permitted"**  
+Your `backend/.env` predates a refactor. `DEBUG` became a derived
+`@property` on `Settings` (it follows `APP_ENV`) and `RATE_LIMIT_DEFAULT` was
+deleted; `pydantic-settings` defaults to `extra="forbid"`, so a key with no
+matching field refuses to boot. Comment both out.
+
+`.env.example` was corrected when those fields changed, and
+`tests/unit/test_env_example.py` keeps it correct in both directions — but
+your own `.env` is gitignored, so nothing in CI can see it or fix it. Anyone
+who copied the example *before* the cleanup still carries the stale keys, and
+this error is the first they hear of it.
+
+The general asymmetry, worth knowing because it is the reverse of what you
+would guess: an undeclared **OS environment variable** is silently ignored,
+while an undeclared key in a **`.env` file** raises. So a misnamed variable in
+Railway does nothing and says nothing, while a stale one in a local `.env`
+stops the server outright.
