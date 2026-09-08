@@ -27,7 +27,13 @@ per domain — don't let it creep into `api/v1/`.
 - Dependency management: Poetry, run from `backend/` (`backend/pyproject.toml`
   is the only one in the repo).
 - Run dev server: `cd backend && uvicorn app.main:app --reload`
-- Run tests: `cd backend && python -m pytest`
+- Run tests: `cd backend && python -m pytest -m "not integration"` for the
+  unit tier (no external dependencies, runs anywhere). The integration
+  tier (`-m "integration"`, or no `-m` filter for the full suite) needs a
+  Docker daemon — Testcontainers spins up real Postgres. If Docker isn't
+  available in your environment, stick to the unit-tier command; don't
+  read a Docker-dependent failure as a broken test. `docs/setup.md` §8 has
+  the full breakdown.
 - Migrations: `cd backend && alembic upgrade head`
 - Full CI-equivalent gate before pushing: see root `AGENTS.md`'s backend
   command block.
