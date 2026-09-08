@@ -9,7 +9,11 @@ vi.mock("@/lib/streaming", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/streaming")>()),
   getStreamingLinks: get,
 }));
-beforeEach(() => get.mockReset());
+beforeEach(() => {
+  // Returning the mock makes Vitest register it as a teardown callback.
+  // A rejected mock would then throw after an otherwise successful test.
+  get.mockReset();
+});
 
 describe("StreamingAccess", () => {
   it("distinguishes exact songs from search and isolates new tabs", async () => {
@@ -58,6 +62,18 @@ describe("StreamingAccess", () => {
     get.mockRejectedValue(Object.assign(new Error("unavailable"), { status: 404 }));
     renderWithQuery(<StreamingAccess mbid="track" />);
     await waitFor(() => expect(screen.queryByRole("region", { name: "Listen on" })).toBeNull());
+  });
+
+  it("omits a successful older response that does not include links", async () => {
+    get.mockResolvedValue({});
+    renderWithQuery(
+      <>
+        <h1>A track</h1>
+        <StreamingAccess mbid="track" />
+      </>
+    );
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Listen on" })).toBeNull());
+    expect(screen.getByRole("heading", { name: "A track" })).toBeDefined();
   });
 });
 
