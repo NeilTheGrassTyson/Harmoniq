@@ -34,9 +34,9 @@ the latest explicit reaction across repeat sends. Changing a reaction replaces
 its contribution. Earlier status-only responses remain included in Harmony's
 reception statistics but must not be relabeled as explicit love/like.
 
-The Founder has been asked to approve these exact rules or ship reactions
-first. Do not implement points or invent a historical XP conversion before
-that answer. XP must not use provider listening data, audio, or metadata as
+The Founder has not approved these exact rules. PR #74 ships reactions
+first, with no points or historical XP conversion. Any XP implementation
+still needs a separately approved spec. XP must not use provider listening data, audio, or metadata as
 scoring input. It is feedback on recommendations, not proof of musical taste
 or a measure of a person's worth.
 
@@ -56,3 +56,7 @@ and concurrent reaction/open requests against real PostgreSQL. Browser tests
 must cover sender feedback, keyboard/mobile interaction, errors, and unchanged
 track navigation. Disable reactions independently; preserve additive columns
 on application rollback. Old API absence must leave song cards usable.
+
+Completed verification is recorded in `docs/reviews/phase-2-v1-verification.md`,
+including all three reactions across five statuses, idempotence, recipient
+isolation, concurrent open/reaction transactions and desktop/mobile feedback.

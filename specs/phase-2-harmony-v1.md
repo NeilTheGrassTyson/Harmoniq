@@ -99,16 +99,16 @@ sends a Melody automatically or changes its outcome implicitly.
 
 - [x] Founder resolves the naming/scope question and ratifies the calculation,
       public-summary policy, thresholds, and historical-data decision.
-- [ ] Empty, pending-only, mixed outcomes, recovery, and accepted-to-opened
+- [x] Empty, pending-only, mixed outcomes, recovery, and accepted-to-opened
       upgrades produce the documented owner results.
-- [ ] Month boundaries, repeated recipients, and UTC boundaries are covered.
-- [ ] Changing pending to rejected never changes a non-owner payload.
-- [ ] Owner / anonymous / unrelated / mutual-follow / suspended-user cases
+- [x] Month boundaries, repeated recipients, and UTC boundaries are covered.
+- [x] Changing pending to rejected never changes a non-owner payload.
+- [x] Owner / anonymous / unrelated / mutual-follow / suspended-user cases
       respect visibility, including immediate revocation.
-- [ ] No aggregate response contains recipient identities or Melody details.
-- [ ] Profile and existing Melody flows work through the real frontend,
+- [x] No aggregate response contains recipient identities or Melody details.
+- [x] Profile and existing Melody flows work through the real frontend,
       backend, and disposable PostgreSQL database.
-- [ ] Existing account, catalog, rating, follow, and notification regressions
+- [x] Existing account, catalog, rating, follow, and notification regressions
       pass, along with the required static checks and build.
 
 ## Design requirements
@@ -151,7 +151,11 @@ Baseline on `dev` commit `f584650`, before implementation:
 `cd backend && poetry run python -m pytest -q` completed with **705 passed,
 1 expected failure**, using Testcontainers and real PostgreSQL. The expected
 failure is the existing follow rate-limit test's ASGITransport limitation.
-These results validate the starting point, not this unimplemented feature.
-
-The implementation test plan is in
-`docs/reviews/phase-2-v1-test-plan.md`.
+Implementation verification on 2026-09-08: full backend gate **778 passed,
+1 expected failure**; full frontend gate **365 passed**, production build
+successful; desktop/mobile Playwright scenarios and real HTTP rate limiting
+passed. The migration audit preserved 100,000 historical rows and confirmed
+sender-index query plans. See `docs/reviews/phase-2-v1-verification.md` for
+the tested revision, evidence, external-service limits, and release procedure.
+These checks use isolated auth/provider fixtures; hosted Clerk sign-in and
+native streaming-app handoff are not claimed as verified.

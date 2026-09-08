@@ -1,11 +1,15 @@
 # Phase 2 v1 — Verification and Release Plan
 
-**Date:** 2026-09-08. **State:** preparation, not an implementation report.
+**Date:** 2026-09-08. **State:** executed for the approved link/reaction scope;
+results and limits are in [the verification record](phase-2-v1-verification.md).
 **Lane:** `feat/astra-harmoniq-v1`, based on `dev` at `f584650` after PR #73.
 
-The feature proposals are `specs/phase-2-harmony-v1.md` and
-`specs/phase-2-streaming-access.md`. Their open product decisions must be
-ratified before dependent code is written (WORKFLOW.md §1).
+The approved specs are `specs/phase-2-harmony-v1.md`,
+`specs/phase-2-melody-reactions.md` (reactions only), and
+`specs/phase-2-streaming-access.md`. The Founder approved these on 2026-09-08;
+the decision record is in the verification report and PR #74. Optional Spotify
+writes were not implemented, so the consent-upgrade/write cases in the matrix
+below are deferred with that optional feature. XP and leaderboards are not approved.
 
 ## Baseline evidence
 
@@ -22,7 +26,7 @@ ratified before dependent code is written (WORKFLOW.md §1).
   be tested when adding network-level coverage; an xfail is not proof of it.
 - Frontend verification for the unchanged baseline was completed in PR #73:
   337 tests, types, lint, formatting, production build, CI, and Vercel preview.
-  Rerun the complete gate after feature implementation.
+  The complete gates were rerun after feature implementation; see the report.
 
 ## Coverage matrix
 
@@ -42,6 +46,7 @@ ratified before dependent code is written (WORKFLOW.md §1).
 
 ## End-to-end environment
 
+The runner is `e2e/run.py`; usage and fixture boundaries are in `e2e/README.md`.
 Use a disposable PostgreSQL database with synthetic accounts, catalog rows,
 and Melody histories. Run the real FastAPI server and built Next.js app on
 local ports. Keep authentication fixtures confined to test infrastructure;
@@ -53,7 +58,9 @@ read-only live link checks for representative recordings. Report these as
 different kinds of evidence: mocked saves do not demonstrate a live provider
 grant, and opening a desktop HTTPS link does not demonstrate every mobile
 app's handoff behavior. A Vercel preview connected to production Railway is
-not an isolated backend test environment.
+not an isolated backend test environment. Hosted Clerk sign-in, native service
+handoff, and account writes remain outside the isolated browser verification;
+the report explicitly distinguishes these from completed Harmoniq checks.
 
 ## Commands and release gate
 

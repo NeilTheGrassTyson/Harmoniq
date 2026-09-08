@@ -95,21 +95,21 @@ and explain what can be retried or needs reconnecting.
 
 ## Acceptance criteria
 
-- [ ] Exact links and labeled search fallbacks render correctly for all six
+- [x] Exact links and labeled search fallbacks render correctly for all six
       proposed providers, including punctuation and non-Latin titles.
-- [ ] A track lacking relations remains rateable/shareable; resolver failure
+- [x] A track lacking relations remains rateable/shareable; resolver failure
       never breaks its main page or Melody inbox.
-- [ ] Safe-URL tests reject hostile host/path/scheme combinations.
-- [ ] Spotify links on listening rows remain subject to the existing
+- [x] Safe-URL tests reject hostile host/path/scheme combinations.
+- [x] Spotify links on listening rows remain subject to the existing
       server-enforced activity visibility.
-- [ ] Spotify saving, if included, passes account isolation, consent upgrade,
-      revoked-token, ownership, pagination, duplicate-click, and uncertain
-      outcome tests against mocked provider contracts and a disposable DB.
-- [ ] Real-account Spotify write validation uses a designated test account
-      and test playlist; if unavailable, saving is not described as verified.
-- [ ] Browser tests cover desktop/mobile, keyboard use, new-tab behavior,
+- Deferred (optional, not implemented): Spotify saving passes account isolation, consent upgrade,
+  revoked-token, ownership, pagination, duplicate-click, and uncertain
+  outcome tests against mocked provider contracts and a disposable DB.
+- Deferred with saving: real-account Spotify write validation uses a designated test account
+  and test playlist; if unavailable, saving is not described as verified.
+- [x] Browser tests cover desktop/mobile, keyboard use, new-tab behavior,
       exact vs search labeling, loading/failure, and navigation from Melody.
-- [ ] Full backend and frontend gates pass and existing social flows remain
+- [x] Full backend and frontend gates pass and existing social flows remain
       covered. Provider read-only smoke checks are recorded separately.
 
 ## Design requirements
@@ -162,3 +162,8 @@ rolling back Harmoniq code does not undo that user's explicit save.
    account credentials or user playlists have been accessed or modified.
 
 The end-to-end and rollout plan is in `docs/reviews/phase-2-v1-test-plan.md`.
+Results and external-service limits are recorded in
+`docs/reviews/phase-2-v1-verification.md`. PR #74 implements the approved link
+baseline. Optional Spotify saves, the playlist picker, write scopes and a
+save feature switch are not present; their conditional requirements above
+remain the requirements for a later implementation, not completed checks.

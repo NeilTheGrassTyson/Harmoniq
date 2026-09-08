@@ -180,8 +180,8 @@ Acceptance rate + reception signal, profile-level display only.
 _Security: computed from a user's own Melody history — no cross-user
 data gets exposed in the calculation itself._
 
-Spec approved 2026-09-08: `specs/phase-2-harmony-v1.md`. Implementation pending
-final verification and a pull request into `dev`. Includes private reception
+Spec approved 2026-09-08: `specs/phase-2-harmony-v1.md`. Implementation in
+PR #74 for Founder review and merge into `dev`. Includes private reception
 statistics, an opt-in positive summary, and three editable Melody reactions
 (`specs/phase-2-melody-reactions.md`). All historical responses participate.
 Third-party song links are covered by `specs/phase-2-streaming-access.md`.
