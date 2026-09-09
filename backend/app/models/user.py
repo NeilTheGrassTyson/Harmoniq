@@ -29,6 +29,9 @@ class User(Base):
     visibility_activity: Mapped[str] = mapped_column(
         String, nullable=False, default=VisibilityScope.PRIVATE.value
     )
+    visibility_harmony: Mapped[str] = mapped_column(
+        String, nullable=False, default="private", server_default="private"
+    )
     # Public defaults below are documented constitutional exceptions — see
     # specs/phase-1-user-accounts-profiles.md and phase-1-ratings-reviews.md,
     # Amendments 2026-07-04. visibility_ratings is a master switch over every

@@ -16,11 +16,13 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
+from typing import cast
 
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.enums import MelodyAcceptScope, MelodyStatus
 from app.models.catalog import Album, Artist, Track
 from app.models.follow import Follow
@@ -31,6 +33,7 @@ from app.schemas.melody import (
     MelodyCursor,
     MelodyInboxItem,
     MelodyInboxResponse,
+    MelodyReaction,
     MelodySentItem,
     MelodySentResponse,
 )
@@ -292,6 +295,7 @@ async def list_inbox(
             Melody.status,
             Melody.created_at,
             Melody.responded_at,
+            Melody.reaction,
             User.id.label("user_id"),
             User.username,
             User.display_name,
@@ -333,6 +337,7 @@ async def list_inbox(
             status=MelodyStatus(row.status),
             created_at=row.created_at,
             responded_at=row.responded_at,
+            reaction=row.reaction,
         )
         for row in page
     ]
@@ -344,7 +349,11 @@ async def list_inbox(
             created_at=last.created_at, melody_id=last.id
         ).encode()
 
-    return MelodyInboxResponse(items=items, next_cursor=next_cursor)
+    return MelodyInboxResponse(
+        items=items,
+        next_cursor=next_cursor,
+        reactions_enabled=settings.melody_reactions_enabled,
+    )
 
 
 async def list_sent(
@@ -360,6 +369,7 @@ async def list_sent(
             Melody.status,
             Melody.created_at,
             Melody.responded_at,
+            Melody.reaction,
             User.id.label("user_id"),
             User.username,
             User.display_name,
@@ -401,6 +411,7 @@ async def list_sent(
             status=_sender_visible_status(row.status),
             created_at=row.created_at,
             responded_at=row.responded_at,
+            reaction=row.reaction,
         )
         for row in page
     ]
@@ -428,9 +439,9 @@ async def respond(
     included: ENGINEERING_BIBLE §3, zero exceptions).
     """
     result = await session.execute(
-        select(Melody).where(
-            Melody.id == melody_id, Melody.recipient_id == recipient_id
-        )
+        select(Melody)
+        .where(Melody.id == melody_id, Melody.recipient_id == recipient_id)
+        .with_for_update()
     )
     melody = result.scalar_one_or_none()
     if melody is None:
@@ -470,6 +481,53 @@ async def respond(
             status=MelodyStatus(melody.status),
             created_at=melody.created_at,
             responded_at=melody.responded_at,
+            reaction=cast(MelodyReaction | None, melody.reaction),
         ),
         "",
     )
+
+
+async def react(
+    session: AsyncSession,
+    melody_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    reaction: MelodyReaction,
+) -> tuple[MelodyInboxItem | None, str]:
+    """Editable recipient opinion; no notifications, counters, or inferred love."""
+    melody = (
+        await session.execute(
+            select(Melody)
+            .where(
+                Melody.id == melody_id,
+                Melody.recipient_id == recipient_id,
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if melody is None:
+        return None, _ERR_NOT_FOUND
+    if melody.reaction != reaction:
+        now = _now()
+        melody.reaction = reaction
+        melody.reacted_at = now
+        if melody.status != MelodyStatus.OPENED.value:
+            melody.status = "rejected" if reaction == "not_for_me" else "accepted"
+        melody.responded_at = now
+        if melody.received_at is None:
+            melody.received_at = now
+        await session.flush()
+    sender = (
+        await session.execute(select(User).where(User.id == melody.sender_id))
+    ).scalar_one()
+    track = await _get_track_summary(session, melody.track_id)
+    if track is None:  # pragma: no cover — FK prevents missing tracks
+        return None, _ERR_NOT_FOUND
+    return MelodyInboxItem(
+        id=melody.id,
+        sender=_user_summary(sender),
+        track=track,
+        status=MelodyStatus(melody.status),
+        created_at=melody.created_at,
+        responded_at=melody.responded_at,
+        reaction=cast(MelodyReaction | None, melody.reaction),
+    ), ""

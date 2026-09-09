@@ -24,6 +24,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import * as catalog from "@/lib/catalog";
 import * as follows from "@/lib/follows";
 import * as home from "@/lib/home";
+import * as harmony from "@/lib/harmony";
+import * as streaming from "@/lib/streaming";
 import * as melodies from "@/lib/melodies";
 import * as moderation from "@/lib/moderation";
 import * as notifications from "@/lib/notifications";
@@ -55,11 +57,19 @@ const HELPERS: Record<string, Record<string, Call>> = {
   home: {
     getHome: () => home.getHome("tok"),
   },
+  harmony: {
+    getHarmony: () => harmony.getHarmony("ana", "tok"),
+    setHarmonyVisibility: () => harmony.setHarmonyVisibility("tok", "private"),
+  },
+  streaming: {
+    getStreamingLinks: () => streaming.getStreamingLinks("mbid"),
+  },
   melodies: {
     sendMelody: () => melodies.sendMelody("tok", "ana", "mbid"),
     getInbox: () => melodies.getInbox("tok"),
     getSentMelodies: () => melodies.getSentMelodies("tok"),
     respondToMelody: () => melodies.respondToMelody("tok", "id", "accept"),
+    reactToMelody: () => melodies.reactToMelody("tok", "id", "loved"),
   },
   moderation: {
     getReports: () => moderation.getReports("tok"),
@@ -110,6 +120,8 @@ const MODULES: Record<string, Record<string, unknown>> = {
   catalog,
   follows,
   home,
+  harmony,
+  streaming,
   melodies,
   moderation,
   notifications,
@@ -178,7 +190,10 @@ describe.each(entries)("%s", (_name, call) => {
 describe("coverage", () => {
   it.each(Object.keys(MODULES))("every exported helper in lib/%s is swept", (module) => {
     const exported = Object.entries(MODULES[module])
-      .filter(([, value]) => typeof value === "function")
+      .filter(
+        ([name, value]) =>
+          typeof value === "function" && !(module === "streaming" && name === "safeSpotifyUrl")
+      )
       .map(([name]) => name);
     const covered = Object.keys(HELPERS[module]);
 

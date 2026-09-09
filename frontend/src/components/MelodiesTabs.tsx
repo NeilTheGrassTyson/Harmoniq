@@ -10,6 +10,7 @@ interface MelodiesTabsProps {
   inboxCursor: string | null;
   sentItems: MelodySentItem[];
   sentCursor: string | null;
+  reactionsEnabled?: boolean;
 }
 
 export default function MelodiesTabs({
@@ -17,6 +18,7 @@ export default function MelodiesTabs({
   inboxCursor,
   sentItems,
   sentCursor,
+  reactionsEnabled,
 }: MelodiesTabsProps) {
   const [tab, setTab] = useState<"inbox" | "sent">("inbox");
 
@@ -44,7 +46,11 @@ export default function MelodiesTabs({
         {tabButton("sent", "Sent")}
       </div>
       {tab === "inbox" ? (
-        <MelodyInbox initialItems={inboxItems} initialCursor={inboxCursor} />
+        <MelodyInbox
+          initialItems={inboxItems}
+          initialCursor={inboxCursor}
+          reactionsEnabled={reactionsEnabled}
+        />
       ) : (
         <MelodySentList initialItems={sentItems} initialCursor={sentCursor} />
       )}

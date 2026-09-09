@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import EqualizerGlyph from "@/components/EqualizerGlyph";
 import { usePolledListening } from "@/hooks/usePolledListening";
+import { safeSpotifyUrl } from "@/lib/streaming";
 import type { ListeningResponse, ListeningTrack, VisibilityScope } from "@/types";
 
 /** "3m ago" / "2h ago" / "Jun 30" — quiet relative time for recent listens. */
@@ -60,6 +61,7 @@ function TrackRow({
   meta: string;
   isNowPlaying?: boolean;
 }) {
+  const spotifyUrl = safeSpotifyUrl(track.spotify_url);
   return (
     <li
       className={isNowPlaying ? "listening-now-row" : undefined}
@@ -78,7 +80,20 @@ function TrackRow({
             whiteSpace: "nowrap",
           }}
         >
-          {track.track_name}
+          {spotifyUrl ? (
+            <a
+              href={spotifyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              referrerPolicy="no-referrer"
+              className="hover:text-accent underline underline-offset-2"
+            >
+              {track.track_name}
+              <span className="sr-only"> — open in Spotify (new tab)</span>
+            </a>
+          ) : (
+            track.track_name
+          )}
         </span>
         <span
           className="text-tertiary"
