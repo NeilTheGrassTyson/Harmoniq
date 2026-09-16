@@ -2,15 +2,17 @@ import type {
   MelodyInboxItem,
   MelodyInboxResponse,
   MelodyRespondAction,
+  MelodyReaction,
   MelodySentItem,
   MelodySentResponse,
 } from "@/types";
-import { API_BASE } from "@/lib/apiBase";
+import { API_BASE, REQUEST_TIMEOUT_MS } from "@/lib/apiBase";
 
 async function melodiesGet<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API_BASE}/api/v1/melodies${path}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
@@ -29,6 +31,8 @@ async function melodiesMutation<T>(path: string, token: string, body: unknown): 
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
@@ -71,3 +75,17 @@ export function respondToMelody(
 ): Promise<MelodyInboxItem> {
   return melodiesMutation<MelodyInboxItem>(`/${melodyId}/respond`, token, { action });
 }
+
+export function reactToMelody(
+  token: string,
+  melodyId: string,
+  reaction: MelodyReaction
+): Promise<MelodyInboxItem> {
+  return melodiesMutation<MelodyInboxItem>(`/${melodyId}/react`, token, { reaction });
+}
+
+export const REACTION_LABELS: Record<MelodyReaction, string> = {
+  not_for_me: "Not for me",
+  liked: "Liked it",
+  loved: "Loved it — send more like this",
+};

@@ -36,6 +36,10 @@ class Melody(Base):
             "status IN ('sent','received','accepted','opened','rejected')",
             name="ck_melodies_status",
         ),
+        CheckConstraint(
+            "reaction IS NULL OR reaction IN ('not_for_me','liked','loved')",
+            name="ck_melodies_reaction",
+        ),
         # Race-proof backstop for the duplicate-pending guard: one unresponded
         # Melody per (sender, recipient, track). Re-sending after a response
         # is allowed, so the index is partial over unresponded statuses.
@@ -74,5 +78,9 @@ class Melody(Base):
         DateTime(timezone=True), nullable=True
     )
     responded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    reaction: Mapped[str | None] = mapped_column(String, nullable=True)
+    reacted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

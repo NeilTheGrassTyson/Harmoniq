@@ -5,13 +5,14 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import MelodyCard from "@/components/MelodyCard";
-import { getInbox, respondToMelody } from "@/lib/melodies";
-import type { MelodyInboxItem, MelodyRespondAction } from "@/types";
+import { getInbox, respondToMelody, reactToMelody, REACTION_LABELS } from "@/lib/melodies";
+import type { MelodyInboxItem, MelodyRespondAction, MelodyReaction } from "@/types";
 import { friendlyError } from "@/lib/apiBase";
 
 interface MelodyInboxProps {
   initialItems: MelodyInboxItem[];
   initialCursor: string | null;
+  reactionsEnabled?: boolean;
 }
 
 function ActionButton({
@@ -43,11 +44,12 @@ function ActionButton({
 
 /** Socially neutral outcome copy — never "declined", never "ignored". */
 function statusLabel(item: MelodyInboxItem): string | undefined {
+  if (item.reaction) return `Your reaction: ${REACTION_LABELS[item.reaction]}`;
   switch (item.status) {
     case "accepted":
       return "You took this one.";
     case "opened":
-      return "You listened.";
+      return "You opened this track.";
     case "rejected":
       return "You passed on this.";
     default:
@@ -55,7 +57,11 @@ function statusLabel(item: MelodyInboxItem): string | undefined {
   }
 }
 
-export default function MelodyInbox({ initialItems, initialCursor }: MelodyInboxProps) {
+export default function MelodyInbox({
+  initialItems,
+  initialCursor,
+  reactionsEnabled = false,
+}: MelodyInboxProps) {
   const { getToken } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
@@ -77,6 +83,7 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
     },
     onSuccess: ({ updated, action }) => {
       setItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      router.refresh();
       if (action === "open") {
         router.push(`/track/${updated.track.mbid}`);
       }
@@ -89,10 +96,29 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
 
   const respond = (item: MelodyInboxItem, action: MelodyRespondAction) => {
     if (busyId) return;
+    if (action === "open" && item.status === "opened") {
+      router.push(`/track/${item.track.mbid}`);
+      return;
+    }
     setBusyId(item.id);
     setError(null);
     respondMutation.mutate({ item, action });
   };
+
+  const reactionMutation = useMutation({
+    mutationFn: async ({ item, reaction }: { item: MelodyInboxItem; reaction: MelodyReaction }) => {
+      const token = await getToken();
+      if (!token) throw new Error("Not signed in.");
+      return reactToMelody(token, item.id, reaction);
+    },
+    onSuccess: (updated) => {
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      router.refresh();
+    },
+    onError: () => setError("Couldn't confirm your reaction. Try again."),
+    onSettled: () => setBusyId(null),
+    retry: false,
+  });
 
   const loadMoreMutation = useMutation({
     mutationFn: async (afterCursor: string) => {
@@ -124,6 +150,12 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
 
   return (
     <div className="flex flex-col" style={{ gap: 10, paddingTop: 16 }}>
+      {reactionsEnabled && (
+        <p className="text-tertiary text-xs">
+          Tell the sender how the song landed. Positive responses can contribute to their Harmony
+          summary. Your individual reaction stays between you and the sender.
+        </p>
+      )}
       {error && (
         <p className="text-destructive text-[13px]" role="alert">
           {error}
@@ -131,7 +163,7 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
       )}
       {items.map((item) => {
         const responded = item.status === "accepted" || item.status === "opened";
-        const busy = busyId === item.id;
+        const busy = busyId !== null;
         return (
           <MelodyCard
             key={item.id}
@@ -139,8 +171,43 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
             person={item.sender}
             direction="from"
             statusLabel={statusLabel(item)}
+            feedback={
+              reactionsEnabled ? (
+                <fieldset disabled={busy} className="min-w-0">
+                  <legend className="text-tertiary mb-2 text-xs">
+                    Your reaction to {item.track.title}
+                  </legend>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(REACTION_LABELS) as MelodyReaction[]).map((reaction) => (
+                      <button
+                        key={reaction}
+                        type="button"
+                        aria-pressed={item.reaction === reaction}
+                        disabled={busy || item.reaction === reaction}
+                        className={`rounded-control border px-3 py-2 text-xs disabled:opacity-60 ${item.reaction === reaction ? "border-accent text-primary" : "border-hairline text-secondary hover:text-primary"}`}
+                        onClick={() => {
+                          if (busyId) return;
+                          setBusyId(item.id);
+                          setError(null);
+                          reactionMutation.mutate({ item, reaction });
+                        }}
+                      >
+                        {REACTION_LABELS[reaction]}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : undefined
+            }
             actions={
-              !responded ? (
+              reactionsEnabled ? (
+                <ActionButton
+                  label="Listen"
+                  emphasis
+                  disabled={busy}
+                  onClick={() => respond(item, "open")}
+                />
+              ) : !responded ? (
                 <>
                   <ActionButton
                     label="Listen"

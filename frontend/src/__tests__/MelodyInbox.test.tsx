@@ -6,8 +6,9 @@ import type { MelodyInboxItem } from "@/types";
 // â”€â”€ Module mocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const mockPush = vi.fn();
+const mockRefresh = vi.fn();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, refresh: mockRefresh }),
 }));
 
 vi.mock("next/link", () => ({
@@ -21,8 +22,11 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 
 const mockRespond = vi.fn();
-vi.mock("@/lib/melodies", () => ({
+const mockReact = vi.fn();
+vi.mock("@/lib/melodies", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/melodies")>()),
   respondToMelody: (...args: unknown[]) => mockRespond(...args),
+  reactToMelody: (...args: unknown[]) => mockReact(...args),
   getInbox: vi.fn(),
 }));
 
@@ -57,6 +61,8 @@ function makeItem(overrides: Partial<MelodyInboxItem> & { id: string }): MelodyI
 beforeEach(() => {
   mockRespond.mockReset();
   mockPush.mockReset();
+  mockReact.mockReset();
+  mockRefresh.mockReset();
 });
 
 // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -117,11 +123,55 @@ describe("MelodyInbox â€” quick actions", () => {
     );
     expect(screen.queryByText("Listen")).toBeNull();
     expect(screen.queryByText("Take it")).toBeNull();
-    expect(screen.getByText("You listened.")).toBeDefined();
+    expect(screen.getByText("You opened this track.")).toBeDefined();
   });
 
   it("shows the empty state when there are no Melodies", () => {
     renderWithQuery(<MelodyInbox initialItems={[]} initialCursor={null} />);
     expect(screen.getByText(/No Melodies yet/)).toBeDefined();
+  });
+});
+
+describe("recipient reactions", () => {
+  it("allows feedback after opening without claiming or repeating playback", async () => {
+    const item = makeItem({ id: "m1", status: "opened" });
+    mockReact.mockResolvedValue({ ...item, reaction: "loved" });
+    renderWithQuery(<MelodyInbox initialItems={[item]} initialCursor={null} reactionsEnabled />);
+    fireEvent.click(screen.getByRole("button", { name: "Loved it — send more like this" }));
+    await waitFor(() => expect(mockReact).toHaveBeenCalledWith("test-token", "m1", "loved"));
+    await screen.findByText("Your reaction: Loved it — send more like this");
+    expect(
+      screen
+        .getByRole("button", { name: "Loved it — send more like this" })
+        .getAttribute("aria-pressed")
+    ).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Listen" }));
+    expect(mockPush).toHaveBeenCalledWith("/track/mbid-1");
+    expect(mockRespond).not.toHaveBeenCalled();
+  });
+
+  it("lets someone change their mind and preserves the selected reaction on failure", async () => {
+    const item = makeItem({ id: "m1", status: "opened", reaction: "loved" });
+    mockReact.mockRejectedValue(new Error("unavailable"));
+    renderWithQuery(<MelodyInbox initialItems={[item]} initialCursor={null} reactionsEnabled />);
+    fireEvent.click(screen.getByRole("button", { name: "Not for me" }));
+    await screen.findByRole("alert");
+    expect(screen.getByText("Your reaction: Loved it — send more like this")).toBeDefined();
+    mockReact.mockResolvedValue({ ...item, reaction: "not_for_me" });
+    fireEvent.click(screen.getByRole("button", { name: "Not for me" }));
+    await screen.findByText("Your reaction: Not for me");
+  });
+
+  it("disables repeated actions while saving", async () => {
+    mockReact.mockReturnValue(new Promise(() => {}));
+    renderWithQuery(
+      <MelodyInbox initialItems={[makeItem({ id: "m1" })]} initialCursor={null} reactionsEnabled />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Liked it" }));
+    fireEvent.click(screen.getByRole("button", { name: "Liked it" }));
+    await waitFor(() => expect(mockReact).toHaveBeenCalledTimes(1));
+    expect((screen.getByRole("button", { name: "Listen" }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 });

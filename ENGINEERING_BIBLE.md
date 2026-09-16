@@ -138,6 +138,15 @@ recipient's Melody inbox (a user-only surface) with its sender and
 outcome; the inbox is part of the domain model, not a presentation
 convenience.
 
+**Amendment 2026-09-08 (Founder-approved):** Recipients can also give an
+editable structured reaction: not-for-me, liked, or loved / wants more.
+The reaction stays between recipient and sender and creates no notification.
+Opening a track records navigation, not proof of playback, and never changes
+an explicit reaction. For Harmony, an explicit reaction takes precedence over
+status-derived sentiment. Historical responses participate alongside new
+ones, without fabricated reaction backfills. See
+`specs/phase-2-melody-reactions.md` and `specs/phase-2-harmony-v1.md`.
+
 **Harmony** is a profile-level signal, not a raw entity in the same sense
 as the others. It has two parts that should be kept architecturally
 separate: a _computed_ component (derived from Melody acceptance rate and
@@ -145,6 +154,13 @@ sustained positive reception over time, owned by the recommendation
 service) and a _cosmetic_ component (theme, theme song — owned by the
 profile/presentation layer, not the scoring engine). Conflating these would
 make the score easy to game through unrelated profile customization.
+
+Harmony v1 keeps numerical reception details owner-only. The optional
+positive-only summary has its own private-default visibility setting; its
+data-access service checks authorization before aggregation. Historical and
+new Melodies use the same rules (Founder decision 3, 2026-09-08). Reaction
+XP rules remain a proposal awaiting ratification. Future Harmony DNA and
+leaderboard ideas do not change the comparison-surface prohibition in §6.
 
 The social graph is not binary. Relationships exist as explicit
 friendships, one-directional follows, and trust relationships representing

@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     catalog,
     follows,
+    harmony,
     health,
     home,
     melodies,
@@ -10,6 +11,7 @@ from app.api.v1 import (
     notifications,
     ratings,
     spotify,
+    streaming,
     users,
     webhooks,
 )
@@ -26,3 +28,5 @@ api_router.include_router(spotify.router)
 api_router.include_router(melodies.router)
 api_router.include_router(notifications.router)
 api_router.include_router(moderation.router)
+api_router.include_router(harmony.router)
+api_router.include_router(streaming.router)

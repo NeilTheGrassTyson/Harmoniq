@@ -4,10 +4,12 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 
 from app.api.v1.deps import CurrentActiveUser, CurrentUser, DbSession
+from app.config import settings
 from app.core.rate_limit import limiter
 from app.schemas.melody import (
     MelodyInboxItem,
     MelodyInboxResponse,
+    MelodyReactRequest,
     MelodyRespondRequest,
     MelodySendRequest,
     MelodySentItem,
@@ -72,11 +74,13 @@ async def send_melody(
 
 @router.get("/inbox", response_model=MelodyInboxResponse)
 async def get_inbox(
+    response: Response,
     session: DbSession,
     current_user: CurrentUser,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=melody_svc.DEFAULT_PAGE_SIZE, ge=1, le=50),
 ) -> MelodyInboxResponse:
+    response.headers["Cache-Control"] = "private, no-store"
     result = await melody_svc.list_inbox(
         session, recipient_id=current_user.id, cursor=cursor, limit=limit
     )
@@ -87,11 +91,13 @@ async def get_inbox(
 
 @router.get("/sent", response_model=MelodySentResponse)
 async def get_sent(
+    response: Response,
     session: DbSession,
     current_user: CurrentUser,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=melody_svc.DEFAULT_PAGE_SIZE, ge=1, le=50),
 ) -> MelodySentResponse:
+    response.headers["Cache-Control"] = "private, no-store"
     return await melody_svc.list_sent(
         session, sender_id=current_user.id, cursor=cursor, limit=limit
     )
@@ -132,4 +138,31 @@ async def respond_to_melody(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_RESPOND_ERROR
         ) from exc
+    return item
+
+
+@router.post("/{melody_id}/react", response_model=MelodyInboxItem)
+@limiter.limit("30/minute")
+async def react_to_melody(
+    request: Request,
+    response: Response,
+    melody_id: uuid.UUID,
+    req: MelodyReactRequest,
+    session: DbSession,
+    current_user: CurrentActiveUser,
+) -> MelodyInboxItem:
+    if not settings.melody_reactions_enabled:
+        raise HTTPException(404, "Reactions are unavailable.")
+    response.headers["Cache-Control"] = "private, no-store"
+    item, error = await melody_svc.react(
+        session, melody_id, current_user.id, req.reaction
+    )
+    if item is None:
+        raise HTTPException(status_code=_error_status(error), detail=error)
+    try:
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        logger.exception("Melody reaction commit failed: melody_id=%s", melody_id)
+        raise HTTPException(500, _RESPOND_ERROR) from exc
     return item

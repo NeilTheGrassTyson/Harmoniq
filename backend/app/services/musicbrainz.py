@@ -50,7 +50,9 @@ def _cache_key(path: str, params: dict[str, str]) -> str:
     return f"{path}?{sorted_params}"
 
 
-async def _get(path: str, params: dict[str, str]) -> dict[str, Any]:
+async def _get(
+    path: str, params: dict[str, str], *, cache_response: bool = True
+) -> dict[str, Any]:
     params = {**params, "fmt": "json"}
     key = _cache_key(path, params)
 
@@ -78,8 +80,15 @@ async def _get(path: str, params: dict[str, str]) -> dict[str, Any]:
     logger.debug("MB %s → %dms", path, elapsed_ms)
 
     result: dict[str, Any] = response.json()
-    _cache[key] = (time.monotonic(), result)
+    if cache_response:
+        _cache[key] = (time.monotonic(), result)
     return result
+
+
+async def lookup_recording_links(mbid: str) -> dict[str, Any]:
+    # The streaming resolver owns a bounded cache and timeout. Share the
+    # catalog adapter/rate limiter without retaining a second unbounded copy.
+    return await _get(f"recording/{mbid}", {"inc": "url-rels"}, cache_response=False)
 
 
 # ── Search endpoints ───────────────────────────────────────────────────────────

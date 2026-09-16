@@ -7,6 +7,8 @@
 > Railway + Neon confirmed live end to end 2026-07-08) — see `ROADMAP.md`
 > for the checklist and dates. Phase 2 (NEXT) work is gated on Founder
 > approval of each feature's spec per `WORKFLOW.md`.
+> Harmony, Melody reactions, and streaming links were approved 2026-09-08;
+> their implementation is under review in PR #74 and described below.
 > This document describes what the system _is_ today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---
@@ -192,8 +194,25 @@ modules, only from shared `models/` and `schemas/`.
 | `melody`             | ✅ Phase 1 | Melody lifecycle state machine (sent → received → accepted/opened/rejected)                     |
 | `notifications`      | ✅ Phase 1 | In-app notification center (Melody received, new follower)                                      |
 | `moderation`         | ✅ Phase 1 | Report review/action: dismiss, hide rating, suspend user                                        |
-| `harmony`            | Planned    | Harmony score computation                                                                       |
+| `harmony`            | Phase 2, PR #74 | Profile-only reception aggregation; owner statistics and opt-in positive summary             |
+| `streaming`          | Phase 2, PR #74 | Public recording links and labeled provider searches via MusicBrainz                         |
 | `discovery`          | Planned    | Discovery surface (Harmonic Feed) composition                                                   |
+
+Phase 2 in PR #74 adds editable recipient reactions to `melody`, independently
+of opening a track. Historical status-only responses and explicit reactions
+contribute to `harmony`; reactions take precedence. Authorization precedes
+aggregation, which uses the existing sender index and never persists a score.
+Numerical results stay owner-only; other viewers receive only a positive
+summary when permitted by `visibility_harmony` (private by default).
+
+`streaming` resolves recording URL relationships through the existing
+MusicBrainz adapter and limiter. It validates provider song routes, caches
+public mappings for six hours (at most 1,000 entries and 32 in-flight lookups),
+and returns encoded search links when mappings are absent, ambiguous, or
+unavailable. Its separate endpoint cannot block catalog detail. It requires
+no provider account and introduces no playlist/library writes or OAuth scopes.
+The approved specs and verification/rollback record are linked from
+`docs/reviews/phase-2-v1-verification.md`. XP and leaderboards remain excluded.
 
 ---
 
@@ -231,6 +250,7 @@ users
   bio               VARCHAR(280)
   visibility_bio    VARCHAR NOT NULL DEFAULT 'private'
   visibility_activity VARCHAR NOT NULL DEFAULT 'private'
+  visibility_harmony  VARCHAR NOT NULL DEFAULT 'private'  ← gates positive summary; numbers always owner-only
   visibility_ratings  VARCHAR NOT NULL DEFAULT 'public'   ← master switch; public default is a documented exception
   visibility_follows  VARCHAR NOT NULL DEFAULT 'public'   ← gates follow lists; public default is a documented exception
   melody_accept_scope VARCHAR NOT NULL DEFAULT 'everyone' ← who may send this user a Melody
@@ -323,8 +343,11 @@ melodies
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
   received_at   TIMESTAMPTZ
   responded_at  TIMESTAMPTZ
+  reaction      VARCHAR                       ← NULL | 'not_for_me' | 'liked' | 'loved'; recipient's current opinion
+  reacted_at    TIMESTAMPTZ                    ← changes only when the explicit opinion changes
   CHECK ck_melodies_no_self_send (sender_id != recipient_id)
   CHECK ck_melodies_status (status IN the 5 values above)
+  CHECK ck_melodies_reaction (reaction IS NULL OR reaction IN the 3 values above)
   UNIQUE uq_melodies_pending_dedup (sender_id, recipient_id, track_id) WHERE status IN ('sent','received')
   INDEX ix_melodies_recipient_inbox (recipient_id, created_at, id)
   INDEX ix_melodies_sender_sent (sender_id, created_at, id)

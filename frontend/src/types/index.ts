@@ -275,6 +275,7 @@ export type MelodyRespondAction = "accept" | "open" | "reject";
 
 /** Recipient's view: true status, sender identity. */
 export interface MelodyInboxItem {
+  reaction?: MelodyReaction | null;
   id: string;
   sender: UserSummary;
   track: TrackSummary;
@@ -285,6 +286,7 @@ export interface MelodyInboxItem {
 
 /** Sender's view: recipient identity, sender-visible status ('received' shown as 'sent'). */
 export interface MelodySentItem {
+  reaction?: MelodyReaction | null;
   id: string;
   recipient: UserSummary;
   track: TrackSummary;
@@ -294,8 +296,33 @@ export interface MelodySentItem {
 }
 
 export interface MelodyInboxResponse {
+  reactions_enabled?: boolean;
   items: MelodyInboxItem[];
   next_cursor: string | null;
+}
+
+export type MelodyReaction = "not_for_me" | "liked" | "loved";
+
+export type HarmonyResponse =
+  | { kind: "hidden" }
+  | { kind: "shared"; summary: "listeners" | "sustained" | null }
+  | {
+      kind: "owner";
+      visibility: VisibilityScope;
+      positive_count: number;
+      resolved_count: number;
+      acceptance_percent: number | null;
+      active_sending_months: number;
+    };
+
+export interface StreamingResponse {
+  links: {
+    provider: "spotify" | "apple" | "youtube" | "tidal" | "deezer" | "amazon";
+    name: string;
+    url: string;
+    kind: "exact" | "search";
+  }[];
+  mapping_status: "available" | "unavailable";
 }
 
 export interface MelodySentResponse {
