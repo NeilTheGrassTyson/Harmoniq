@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import type { Viewer } from "@/lib/viewer";
 
 /**
@@ -15,6 +17,23 @@ import type { Viewer } from "@/lib/viewer";
 const ViewerContext = createContext<Viewer>({ signedIn: false, username: null });
 
 export function ViewerProvider({ value, children }: { value: Viewer; children: React.ReactNode }) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
+
+  // `value` is fixed for the lifetime of this render — it's the result of
+  // getViewer() in the root layout, resolved once per navigation. Signing in
+  // through the <SignInButton> modal changes Clerk's client-side session
+  // without triggering a Next.js navigation, so `value.signedIn` stays false
+  // and every consumer (Profile link, avatar, notification bell) keeps
+  // rendering its signed-out shape until something forces a re-render of the
+  // server tree. router.refresh() is that trigger; without it, the fix was
+  // "reload the page", which is exactly the bug being reported.
+  useEffect(() => {
+    if (isLoaded && isSignedIn && !value.signedIn) {
+      router.refresh();
+    }
+  }, [isLoaded, isSignedIn, value.signedIn, router]);
+
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;
 }
 
