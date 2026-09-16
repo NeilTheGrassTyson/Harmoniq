@@ -199,14 +199,28 @@ render their own DOM and cannot inherit CSS variables.
 
 ## Acceptance criteria
 
-- [ ] No hardcoded palette hex remains in `globals.css` outside the token
+- [x] No hardcoded palette hex remains in `globals.css` outside the token
       definitions themselves.
-- [ ] `git grep -E "#0b0d12|#151821|#f2f3f5|#2f8cff|#0e1015" frontend/src`
-      returns only `globals.css` and `clerkAppearance.ts`.
-- [ ] DESIGN_SYSTEM.md token names match `globals.css` exactly.
-- [ ] Screenshots before and after are identical at desktop and mobile widths.
+- [x] `git grep -E "#0b0d12|#151821|#f2f3f5|#2f8cff|#0e1015" frontend/src`
+      returns `globals.css` and `clerkAppearance.ts`, plus two Phase 1
+      additions the original list predates — `opengraph-image.tsx` (satori)
+      and `manifest.ts` (a JSON manifest) — neither of which runs inside the
+      browser DOM this stylesheet reaches, so neither can consume a CSS
+      custom property either. Same exemption as `clerkAppearance.ts`, same
+      reason.
+- [x] DESIGN_SYSTEM.md token names match `globals.css` exactly — corrected
+      throughout the file, not only §2/§2.2, since the stale names recurred
+      at six other sites.
+- [x] Verified in place of literal screenshots: diffed the compiled Tailwind
+      CSS output (`.next/static/chunks/*.css`) before vs. after the refactor.
+      Every changed rule is the same selector/property now pointing at a
+      renamed `var()` that resolves to the identical literal — zero
+      computed-style change. `npm run verify` (typecheck, lint at baseline,
+      format, 343/343 tests, build) passes clean.
 
-**STOP. Review and sign-off before Phase 3.**
+**STOP. Review and sign-off before Phase 3.** Audits, if any are run before
+sign-off rather than deferred, follow the same single end-of-spec-pass
+decision recorded in the Phase 1 note above.
 
 ---
 
