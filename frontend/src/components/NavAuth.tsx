@@ -12,9 +12,11 @@ import { useViewer } from "@/components/ViewerProvider";
 export default function NavAuth() {
   const { signedIn } = useViewer();
 
+  // Signing up from inside this modal is the third way to reach a new account,
+  // and it lands on onboarding like the other two — see the sign-up page.
   if (!signedIn) {
     return (
-      <SignInButton mode="modal">
+      <SignInButton mode="modal" signUpForceRedirectUrl="/onboarding">
         <button className="text-secondary hover:text-primary text-sm font-medium">Sign in</button>
       </SignInButton>
     );
