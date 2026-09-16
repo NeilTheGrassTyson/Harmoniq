@@ -12,29 +12,27 @@ export const contentType = "image/png";
 
 export default function AppleIcon() {
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#05070a",
-        }}
-      >
-        {/* Compact mark: fundamental only. The overtone is under a pixel at
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#05070a",
+      }}
+    >
+      {/* Compact mark: fundamental only. The overtone is under a pixel at
             this size and reads as noise — see OctaveMark's `compact`. */}
-        <svg width="140" height="140" viewBox="0 0 120 120" fill="none">
-          <path
-            d="M 12 60 Q 36 16 60 60 T 108 60"
-            stroke="#19d8ff"
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-        </svg>
-      </div>
-    ),
-    size,
+      <svg width="140" height="140" viewBox="0 0 120 120" fill="none">
+        <path
+          d="M 12 60 Q 36 16 60 60 T 108 60"
+          stroke="#19d8ff"
+          strokeWidth="14"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>,
+    size
   );
 }
