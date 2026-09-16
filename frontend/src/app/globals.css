@@ -4,49 +4,111 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ── Design system tokens (DESIGN_SYSTEM.md §2-5) ───────────────────────── */
-
-@theme {
+/* ── Design system tokens (DESIGN_SYSTEM.md §2-5) ───────────────────────────
+   Raw values live exactly once, here in :root. Everything below —
+   @theme inline's Tailwind utility tokens, the shadcn primitives, and the
+   handful of rules that need a color outside a utility class (body,
+   :focus-visible, .listening-now-row) — reads from this set via var()
+   rather than repeating a literal. That is what lets Website Appearance
+   (ADR 0014, not yet built) swap the palette later by overriding this block
+   under a data-theme attribute, without touching anything downstream of it.
+   `clerkAppearance.ts` is the one place a literal copy is unavoidable: Clerk
+   renders its own DOM and cannot inherit a CSS custom property. */
+:root {
   /* Color palette */
-  --color-canvas: #0b0d12;
-  --color-sidebar: #0e1015;
-  --color-tile: #151821;
-  --color-tile-friend: #121a2a;
-  --color-hairline: rgba(255, 255, 255, 0.07);
-  --color-primary: #f2f3f5;
-  --color-secondary: #8b93a3;
-  --color-tertiary: #757c8c;
-  --color-accent: #2f8cff;
+  --canvas: #0b0d12;
+  --surface-sidebar: #0e1015;
+  --surface-tile: #151821;
+  --surface-tile-friend: #121a2a;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --text-primary: #f2f3f5;
+  --text-secondary: #8b93a3;
+  --text-tertiary: #757c8c;
+  --accent-ui: #2f8cff;
+  --accent-ui-ring: rgba(47, 140, 255, 0.6);
+  --accent-ui-wash: rgba(47, 140, 255, 0.06);
   /* Logo only — the Octave mark and wordmark. Deliberately NOT the same value
-     as --color-accent: that one is load-bearing for the focus ring and was
+     as --accent-ui: that one is load-bearing for the focus ring and was
      contrast-verified at #2f8cff. See DESIGN_SYSTEM.md §2 and ADR 0013. */
-  --color-brand: #19d8ff;
-  --color-icon-trend: #343b4d;
-  --color-icon-friend: #34507c;
-  --color-friend-dot: #5a8fd6;
-  --color-nav-active: rgba(255, 255, 255, 0.06);
-  --color-nav-hover: rgba(255, 255, 255, 0.04);
-  --color-control: rgba(255, 255, 255, 0.05);
+  --brand: #19d8ff;
+  --icon-trend: #343b4d;
+  --icon-friend: #34507c;
+  --friend-dot: #5a8fd6;
+  --nav-active: rgba(255, 255, 255, 0.06);
+  --nav-hover: rgba(255, 255, 255, 0.04);
+  --control: rgba(255, 255, 255, 0.05);
+  --danger: #f87171;
 
-  /* Radius scale */
+  /* shadcn primitive variables (DESIGN_SYSTEM.md §13) — sourced from the
+     palette above wherever they mean the same color, so each value is
+     declared once. Single dark theme: no parallel light/.dark palette, no
+     chart/sidebar/card variables — the Card pattern is banned and the app
+     sidebar has its own tokens above. */
+  --background: var(--canvas);
+  --foreground: var(--text-primary);
+  --popover: var(--surface-sidebar);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--text-primary);
+  --primary-foreground: var(--canvas);
+  --secondary: var(--control);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-tile);
+  --muted-foreground: var(--text-tertiary);
+  --accent: var(--nav-active);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--danger);
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--accent-ui);
+  --radius: 8px;
+  /* Sidebar width — read by .sidebar-panel and by the nav's min-width, so the
+     panel and its contents can never disagree (DESIGN_SYSTEM.md §10). */
+  --sidebar-width: 220px;
+}
+
+/* Radius scale — kept in a plain (non-inline) @theme block, untouched by the
+   Phase 2 refactor: it's not part of the palette-duplication problem this
+   phase fixes, and @theme inline would collapse these to literal pixel
+   values in every rounded-* utility instead of a real, independently
+   inspectable custom property. Out of scope here, so left exactly as it was. */
+@theme {
   --radius-frame: 14px;
   --radius-control: 8px;
   --radius-nav: 6px;
 }
 
-/* Display and label fonts reference the CSS vars injected by next/font */
 @theme inline {
+  /* Color palette */
+  --color-canvas: var(--canvas);
+  --color-sidebar: var(--surface-sidebar);
+  --color-tile: var(--surface-tile);
+  --color-tile-friend: var(--surface-tile-friend);
+  --color-hairline: var(--hairline);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-tertiary: var(--text-tertiary);
+  --color-accent: var(--accent-ui);
+  --color-brand: var(--brand);
+  --color-icon-trend: var(--icon-trend);
+  --color-icon-friend: var(--icon-friend);
+  --color-friend-dot: var(--friend-dot);
+  --color-nav-active: var(--nav-active);
+  --color-nav-hover: var(--nav-hover);
+  --color-control: var(--control);
+
+  /* Display and label fonts reference the CSS vars injected by next/font */
   --font-display: var(--font-space-grotesk), system-ui, sans-serif;
   /* Label face (DESIGN_SYSTEM.md §3). The fallback is the platform mono stack
      rather than system-ui: if Space Mono fails to load, a label set at 1.1px
      tracking should still land as monospace channel labelling, not as a
      stretched proportional face. */
   --font-label: var(--font-space-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
-  /* shadcn utility names → :root primitives below. The names that would
+
+  /* shadcn utility names → :root primitives above. The names that would
      collide with Harmoniq's own tokens (--color-primary, --color-secondary,
      --color-accent) are deliberately NOT mapped — those stay defined by the
-     design-system @theme block above, and generated components are restyled
-     to Harmoniq classes instead (DESIGN_SYSTEM.md §13). */
+     design-system tokens above, and generated components are restyled to
+     Harmoniq classes instead (DESIGN_SYSTEM.md §13). */
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -69,8 +131,8 @@
 /* ── Base ────────────────────────────────────────────────────────────────── */
 
 body {
-  background-color: #0b0d12;
-  color: #f2f3f5;
+  background-color: var(--canvas);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -110,7 +172,7 @@ body {
    interactive element, not just the search field. Mouse clicks suppress it. */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 1.5px rgba(47, 140, 255, 0.6);
+  box-shadow: 0 0 0 1.5px var(--accent-ui-ring);
 }
 
 /* Search field uses :focus (not :focus-visible) to suppress the browser's
@@ -215,36 +277,8 @@ body {
 }
 
 .listening-now-row {
-  background-color: rgba(47, 140, 255, 0.06);
-  border-left: 2px solid #2f8cff;
+  background-color: var(--accent-ui-wash);
+  border-left: 2px solid var(--accent-ui);
   padding-left: 10px;
   margin-left: -12px;
-}
-
-/* ── shadcn primitive variables (DESIGN_SYSTEM.md §13) ──────────────────────
-   Single dark theme, values sourced from the token palette above — shadcn's
-   generated components read these names, but every color is Harmoniq's own.
-   No parallel light/.dark palette, no chart/sidebar/card variables: the Card
-   pattern is banned and the app sidebar has its own tokens. */
-:root {
-  --background: #0b0d12;
-  --foreground: #f2f3f5;
-  --popover: #0e1015;
-  --popover-foreground: #f2f3f5;
-  --primary: #f2f3f5;
-  --primary-foreground: #0b0d12;
-  --secondary: rgba(255, 255, 255, 0.05);
-  --secondary-foreground: #f2f3f5;
-  --muted: #151821;
-  --muted-foreground: #757c8c;
-  --accent: rgba(255, 255, 255, 0.06);
-  --accent-foreground: #f2f3f5;
-  --destructive: #f87171;
-  --border: rgba(255, 255, 255, 0.07);
-  --input: rgba(255, 255, 255, 0.07);
-  --ring: #2f8cff;
-  --radius: 8px;
-  /* Sidebar width — read by .sidebar-panel and by the nav's min-width, so the
-     panel and its contents can never disagree (DESIGN_SYSTEM.md §10). */
-  --sidebar-width: 220px;
 }

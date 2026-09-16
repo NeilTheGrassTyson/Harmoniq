@@ -26,30 +26,30 @@ Derived from mockup iteration (chat, June 2026), checked against BRAND_BIBLE.md 
 
 ## 2. Color tokens
 
-| Token                          | Value                    | Usage                                                   |
-| ------------------------------ | ------------------------ | ------------------------------------------------------- |
-| `--color-bg`                   | `#0b0d12`                | App frame / page background                             |
-| `--color-surface-sidebar`      | `#0e1015`                | Sidebar panel                                           |
-| `--color-surface-tile`         | `#151821`                | Neutral (trending) artwork tile fill                    |
-| `--color-surface-tile-friend`  | `#121a2a`                | Friend-sourced artwork tile fill (blue-tinted)          |
-| `--color-border-hairline`      | `rgba(255,255,255,0.07)` | All dividers, frame border                              |
-| `--color-text-primary`         | `#f2f3f5`                | Titles, primary labels                                  |
-| `--color-text-secondary`       | `#8b93a3`                | Artist names, nav labels, body chrome                   |
-| `--color-text-tertiary`        | `#757c8c`                | Section labels, captions, placeholders                  |
-| `--color-accent`               | `#2f8cff`                | The one **UI** accent — active nav, focus ring, primary button |
-| `--color-brand`                | `#19d8ff`                | **Logo only** — the Octave mark and wordmark. Never UI chrome |
-| `--color-accent-icon-trending` | `#343b4d`                | Equalizer glyph on neutral tiles                        |
-| `--color-accent-icon-friend`   | `#34507c`                | Equalizer glyph on friend tiles                         |
-| `--color-friend-dot`           | `#5a8fd6`                | Small "from a friend" indicator dot                     |
-| `--surface-nav-active`         | `rgba(255,255,255,0.06)` | Active sidebar row                                      |
-| `--surface-nav-hover`          | `rgba(255,255,255,0.04)` | Hover sidebar row                                       |
-| `--surface-control`            | `rgba(255,255,255,0.05)` | Search field, profile button background                 |
+| Token                  | Value                    | Usage                                                           |
+| ---------------------- | ------------------------ | ---------------------------------------------------------------- |
+| `--color-canvas`       | `#0b0d12`                | App frame / page background                                    |
+| `--color-sidebar`      | `#0e1015`                | Sidebar panel                                                   |
+| `--color-tile`         | `#151821`                | Neutral (trending) artwork tile fill                            |
+| `--color-tile-friend`  | `#121a2a`                | Friend-sourced artwork tile fill (blue-tinted)                  |
+| `--color-hairline`     | `rgba(255,255,255,0.07)` | All dividers, frame border                                      |
+| `--color-primary`      | `#f2f3f5`                | Titles, primary labels                                          |
+| `--color-secondary`    | `#8b93a3`                | Artist names, nav labels, body chrome                           |
+| `--color-tertiary`     | `#757c8c`                | Section labels, captions, placeholders                          |
+| `--color-accent`       | `#2f8cff`                | The one **UI** accent — active nav, focus ring, primary button |
+| `--color-brand`        | `#19d8ff`                | **Logo only** — the Octave mark and wordmark. Never UI chrome  |
+| `--color-icon-trend`   | `#343b4d`                | Equalizer glyph on neutral tiles                                |
+| `--color-icon-friend`  | `#34507c`                | Equalizer glyph on friend tiles                                 |
+| `--color-friend-dot`   | `#5a8fd6`                | Small "from a friend" indicator dot                             |
+| `--color-nav-active`   | `rgba(255,255,255,0.06)` | Active sidebar row                                              |
+| `--color-nav-hover`    | `rgba(255,255,255,0.04)` | Hover sidebar row                                               |
+| `--color-control`      | `rgba(255,255,255,0.05)` | Search field, profile button background                        |
 
 **Contrast ratios (WCAG AA, verified June 2026):**
 
-- `--color-text-primary` (`#f2f3f5`) on `--color-bg` (`#0b0d12`): ~18:1 ✓
-- `--color-text-secondary` (`#8b93a3`) on `--color-bg` (`#0b0d12`): ~6.3:1 ✓
-- `--color-text-tertiary` (`#757c8c`) on `--color-bg` (`#0b0d12`): ~4.65:1 ✓ (minimum 4.5:1 for normal text)
+- `--color-primary` (`#f2f3f5`) on `--color-canvas` (`#0b0d12`): ~18:1 ✓
+- `--color-secondary` (`#8b93a3`) on `--color-canvas` (`#0b0d12`): ~6.3:1 ✓
+- `--color-tertiary` (`#757c8c`) on `--color-canvas` (`#0b0d12`): ~4.65:1 ✓ (minimum 4.5:1 for normal text)
   - Previous value `#6b7385` measured 4.08:1 and failed; adjusted to `#757c8c`.
 
 **Two blues, deliberately (ADR 0013).** `--color-brand` is the logo colour and
@@ -84,7 +84,7 @@ becomes learnable rather than decorative:
 | Circle  | cyan      | `#19d8ff` |
 
 The DNA wave takes the hue of whichever strand sits furthest from centre. All
-six clear 4.5:1 against `--color-bg`. None is purple, indigo, or violet — that
+six clear 4.5:1 against `--color-canvas`. None is purple, indigo, or violet — that
 prohibition is untouched.
 
 **Glow.** One spec at one intensity, on the wave and on every strand row
@@ -151,15 +151,15 @@ a profile's owner and seen by visitors. One is a preference, the other is
 self-expression. They must not share a control, a token layer, or a stored
 field — see ADR 0014.
 
-| Token                     | Light (unverified) | Dark (default) | Midnight  |
-| ------------------------- | ------------------ | -------------- | --------- |
-| `--color-bg`              | `#f7f8fa`          | `#0b0d12`      | `#000000` |
-| `--color-surface-sidebar` | `#ffffff`          | `#0e1015`      | `#050609` |
-| `--color-surface-tile`    | `#eef0f4`          | `#151821`      | `#0d1016` |
-| `--color-border-hairline` | `rgba(0,0,0,.10)`  | `rgba(255,255,255,.07)` | `rgba(255,255,255,.09)` |
-| `--color-text-primary`    | `#14161c`          | `#f2f3f5`      | `#f2f3f5` |
-| `--color-text-secondary`  | `#565d6b`          | `#8b93a3`      | `#8b93a3` |
-| `--color-text-tertiary`   | `#6b7280`          | `#757c8c`      | `#757c8c` |
+| Token                | Light (unverified) | Dark (default)           | Midnight                 |
+| -------------------- | ------------------- | ------------------------ | ------------------------ |
+| `--color-canvas`     | `#f7f8fa`           | `#0b0d12`                | `#000000`                |
+| `--color-sidebar`    | `#ffffff`           | `#0e1015`                | `#050609`                |
+| `--color-tile`       | `#eef0f4`           | `#151821`                | `#0d1016`                |
+| `--color-hairline`   | `rgba(0,0,0,.10)`   | `rgba(255,255,255,.07)`  | `rgba(255,255,255,.09)`  |
+| `--color-primary`    | `#14161c`           | `#f2f3f5`                | `#f2f3f5`                |
+| `--color-secondary`  | `#565d6b`           | `#8b93a3`                | `#8b93a3`                |
+| `--color-tertiary`   | `#6b7280`           | `#757c8c`                | `#757c8c`                |
 
 **Midnight is the default** (Founder decision 2026-09-06). It inherits Dark's
 text and accent values unchanged — only the surfaces drop — so it needs no
@@ -265,7 +265,7 @@ No pill-shaped elements. No single uniform radius applied to everything — this
 ## 6. Iconography
 
 - **UI chrome** (menu, search, profile, sidebar nav): Tabler Icons, outline style. Generic is fine here — navigation icons aren't a branding opportunity, and forcing originality onto them adds noise without adding meaning.
-- **Music glyph**: a custom three-bar equalizer mark (flat SVG fill, no gradient), in two tonal variants — neutral gray (`--color-accent-icon-trending`) and blue-tinted (`--color-accent-icon-friend`). Use it as the album-art placeholder before real artwork loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself. **It is not the logo** (ADR 0013). It appears hundreds of times per session, which is exactly what disqualifies it from also being the mark that means "Harmoniq"; a placeholder that frequent reads as chrome, not identity.
+- **Music glyph**: a custom three-bar equalizer mark (flat SVG fill, no gradient), in two tonal variants — neutral gray (`--color-icon-trend`) and blue-tinted (`--color-icon-friend`). Use it as the album-art placeholder before real artwork loads, and anywhere else "this is music" needs representing without a real image — loading states, empty states, and eventually the Melody object itself. **It is not the logo** (ADR 0013). It appears hundreds of times per session, which is exactly what disqualifies it from also being the mark that means "Harmoniq"; a placeholder that frequent reads as chrome, not identity.
 
 ### 6.1 Brand mark (the logo)
 
@@ -315,7 +315,7 @@ once — see `docs/BRAND_ASSETS.md`.
 
 **TrackTile** — artwork + title + artist. No border, no card background, no shadow around the tile itself. Separation between tiles comes entirely from grid gap and whitespace. This is the single highest-leverage rule in this document: the bordered mini-card grid was the main thing reading as generic/AI-templated in earlier passes, independent of any color choice.
 
-**Friend-sourced tiles** — distinguished from neutral tiles by artwork tint (`--color-surface-tile-friend`) and a small dot + name caption beneath the artist line. Not by a colored border, and not by an avatar-initial bubble overlapping the artwork — both were tried and rejected as too decorative for what's a small piece of metadata.
+**Friend-sourced tiles** — distinguished from neutral tiles by artwork tint (`--color-tile-friend`) and a small dot + name caption beneath the artist line. Not by a colored border, and not by an avatar-initial bubble overlapping the artwork — both were tried and rejected as too decorative for what's a small piece of metadata.
 
 **Primary action button** — `bg-accent text-canvas` background (`#2f8cff` / `#0b0d12`), `rounded-control` radius (8px), 14px / weight 500, no border, no shadow (the focus ring in §8 is the only permitted shadow). The accent color is used here because the action is the point — this is not a nav element, not a secondary affordance. Secondary actions use a surface control background (`bg-control`) with `text-primary`.
 
@@ -442,7 +442,7 @@ without suppressing the other.
 
 | Section | Contents            | Item layout                                                                                              |
 | ------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
-| People  | User search results | AvatarImage (28px, circular) · display_name (primary, 500wt) · @username (11px, `--color-text-tertiary`) |
+| People  | User search results | AvatarImage (28px, circular) · display_name (primary, 500wt) · @username (11px, `--color-tertiary`) |
 | Artists | Catalog artists     | ArtworkThumb (32px, circular) · name · disambiguation (11px, tertiary)                                   |
 | Albums  | Catalog albums      | ArtworkThumb (32px, 6px radius) · title · artist · year (tertiary)                                       |
 | Tracks  | Catalog tracks      | Music-note icon box (32px) · title · artist · album · duration (right, tabular)                          |
@@ -450,7 +450,7 @@ without suppressing the other.
 Section dividers: `1px solid rgba(255,255,255,0.07)` between sections when more than
 one is visible. No divider above the first section.
 
-Section labels: 11px, uppercase, 0.6px tracking, `--color-text-tertiary`, Space Grotesk.
+Section labels: 11px, uppercase, 0.6px tracking, `--color-tertiary`, Space Grotesk.
 
 ### URL sync
 
@@ -462,9 +462,9 @@ On all other routes, the SearchBar dropdown operates in-place without touching t
 
 Shown when `?q` is absent or shorter than 2 characters:
 
-- `EqualizerGlyph` at 36px, fill `#8b93a3` (`--color-text-secondary`), horizontally
+- `EqualizerGlyph` at 36px, fill `#8b93a3` (`--color-secondary`), horizontally
   and vertically centered (80px top padding, flex column).
-- Label: `"Search for music or people"` — 14px, Space Grotesk, `--color-text-secondary`.
+- Label: `"Search for music or people"` — 14px, Space Grotesk, `--color-secondary`.
 
 ### /search page results
 
@@ -567,7 +567,7 @@ sibling `loading.tsx`. Implemented for `/album/[mbid]`, `/artist/[mbid]`, and
 **Shape.** Skeletons live in `components/skeletons/` and mirror the real
 page's geometry — same `max-w-2xl`, same padding, same cover size, same row
 rhythm — so content doesn't jump when it lands. Placeholder fill is
-`--color-surface-tile`, the same value `CoverArt` uses for a missing image, so
+`--color-tile`, the same value `CoverArt` uses for a missing image, so
 a skeleton and an artwork fallback read as one material rather than two
 different greys.
 
