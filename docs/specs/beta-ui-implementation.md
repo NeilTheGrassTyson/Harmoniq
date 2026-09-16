@@ -162,6 +162,17 @@ state, `TrackTile`, `MelodyCard` and `ListeningSection` all keep
 
 **STOP. Review and sign-off before Phase 2.**
 
+**Signed off 2026-09-16 (Founder).** Static analysis confirmed green
+(`npm run verify`: typecheck, lint at the documented 0-error/3-warning
+baseline, format, 343/343 tests, build with the four required static-asset
+routes all present) after one fix — `apple-icon.tsx` needed a Prettier pass.
+The remaining Review Workflow items for Phase 1 (Optimization, Design, and
+Security Audits per WORKFLOW.md §2.3–§2.5) are **deliberately deferred**:
+Founder decision, 2026-09-16, to run them once as a single pass after the
+full beta-ui spec (through Phase 6) is complete, rather than once per phase.
+Revisit this only if a phase's Founder review surfaces something that can't
+wait.
+
 ---
 
 # Phase 2 — Token-layer refactor (Tier 2, zero visual change)
