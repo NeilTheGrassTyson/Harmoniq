@@ -15,7 +15,7 @@
  * pinned below, because the fix for either one is the other one's regression.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const auth = vi.fn();
 const getOwnProfile = vi.fn();
@@ -38,6 +38,12 @@ beforeEach(() => {
   auth.mockReset();
   getOwnProfile.mockReset();
 });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+const captureErrors = () => vi.spyOn(console, "error").mockImplementation(() => {});
 
 describe("getViewer", () => {
   it("reports a signed-out visitor without calling the backend", async () => {
@@ -98,5 +104,57 @@ describe("getViewer", () => {
     // The nav sits in every page's critical path, so it gets a shorter leash
     // than a request a user explicitly triggered and is waiting on.
     expect(REQUEST_TIMEOUT_MS).toBeGreaterThan(2_500);
+  });
+});
+
+/**
+ * The fallback above is deliberate, but silent — and a missing Profile link
+ * looks identical whether onboarding never finished, the token was rejected,
+ * or the backend was merely cold. ADR 0011: a failure that can break a surface
+ * for every user must name itself somewhere an operator can read it.
+ */
+describe("getViewer diagnostics", () => {
+  it("names an account that never completed onboarding", async () => {
+    const errors = captureErrors();
+    auth.mockResolvedValue(signedIn());
+    getOwnProfile.mockRejectedValue(Object.assign(new Error("User not found."), { status: 404 }));
+
+    await getViewer();
+
+    expect(errors).toHaveBeenCalledOnce();
+    expect(errors.mock.calls[0][0]).toContain("404");
+    expect(errors.mock.calls[0][0]).toContain("onboarding never completed");
+  });
+
+  it("distinguishes a rejected token from a missing record", async () => {
+    const errors = captureErrors();
+    auth.mockResolvedValue(signedIn());
+    getOwnProfile.mockRejectedValue(Object.assign(new Error("Invalid token"), { status: 401 }));
+
+    await getViewer();
+
+    expect(errors.mock.calls[0][0]).toContain("CLERK_JWKS_URL");
+  });
+
+  it("reports an unreachable backend as never answered, not as a rejection", async () => {
+    const errors = captureErrors();
+    auth.mockResolvedValue(signedIn());
+    // No `status`: the ADR 0011 contract for "never reached the server".
+    getOwnProfile.mockRejectedValue(new DOMException("aborted", "TimeoutError"));
+
+    await getViewer();
+
+    expect(errors.mock.calls[0][0]).toContain("never reached the backend");
+  });
+
+  it("says nothing when the username resolves", async () => {
+    const errors = captureErrors();
+    auth.mockResolvedValue(signedIn());
+    getOwnProfile.mockResolvedValue({ username: "ana" });
+
+    await getViewer();
+
+    // A log on the happy path is noise on every server render of every page.
+    expect(errors).not.toHaveBeenCalled();
   });
 });
