@@ -1,9 +1,9 @@
 # Listen History — Durable Recent Listening
 
-> **Status: DRAFT rev 4 — all open questions resolved (2026-09-06);
-> awaiting approval to implement.** Tier 1 per WORKFLOW.md §1 ("any change to
-> how user data is collected, stored, or shared — including anything touching
-> the recommendation engine's data pipeline"). Nothing here is implemented.
+> **Status: APPROVED — Founder, 2026-09-19 (rev 4).** Tier 1 per WORKFLOW.md §1
+> ("any change to how user data is collected, stored, or shared — including
+> anything touching the recommendation engine's data pipeline"). Approved as
+> written, with no modifications. Not yet implemented.
 >
 > Rev 4 drops the opt-in seed and specifies the latency requirement instead. The curated half is now specified
 > separately in `specs/phase-2-highlights.md`.

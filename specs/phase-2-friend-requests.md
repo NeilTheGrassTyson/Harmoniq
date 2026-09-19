@@ -1,8 +1,8 @@
 # Friend Requests — Making Friendship Explicit
 
-> **Status: DRAFT — awaiting Founder approval.** Tier 1 per WORKFLOW.md §1
-> (net-new, user-facing feature; changes how user data is shared). Nothing
-> here is implemented.
+> **Status: APPROVED — Founder, 2026-09-19.** Tier 1 per WORKFLOW.md §1
+> (net-new, user-facing feature; changes how user data is shared). Approved as
+> written, with no modifications. Not yet implemented.
 >
 > Prerequisite for `specs/phase-2-rating-visibility-split.md`, whose
 > friends-only commentary is only meaningful if a viewer can actually become a
