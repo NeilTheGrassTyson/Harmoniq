@@ -188,6 +188,45 @@ Third-party song links are covered by `specs/phase-2-streaming-access.md`.
 XP rules remain draft; Harmony DNA and regional/global recommender rankings
 are future Founder ideas requiring their own spec and governance decisions.
 
+### Friend Requests
+
+Explicit, mutual friendship on top of the existing follow graph — modelled on
+Steam (Founder decision, 2026-09-06).
+_Security: friendship is the admittance mechanism the friends-only visibility
+scope already assumes; it grants nothing by itself beyond what a user has
+already pointed at that scope._
+
+Spec approved 2026-09-19: `specs/phase-2-friend-requests.md`. Not implemented.
+Ships before `specs/phase-2-rating-visibility-split.md`, whose friends-only
+commentary is meaningless until a viewer can actually become a friend.
+
+### Listen History
+
+Persist observed listening so a profile keeps its Listening section between
+visits, instead of emptying whenever the provider's rolling window moves past.
+_Security: a separate, revocable opt-in from provider linking; stored rows are
+deleted when it is withdrawn or the provider is disconnected. Provider-sourced
+rows are structurally unreachable from recommendation code._
+
+Spec approved 2026-09-19 (rev 4): `specs/phase-2-listen-history.md`. Not
+implemented. Introduces the `source` discriminator that Highlights' playlist
+half also depends on.
+
+### Highlights
+
+Up to 15 tracks, albums, artists or playlists a user picks to represent their
+taste — the curated half of the profile, paired with Listen History's observed
+half.
+_Security: public by default as a recorded constitutional exception, bounded by
+every highlight being added explicitly. An attached review stays gated by the
+owner's separate rating visibility._
+
+Spec approved with modification 2026-09-19: `specs/phase-2-highlights.md`. Not
+implemented. The Founder's modification adds **playlist highlights from a
+connected provider, Spotify only in v1** — which widens the Spotify OAuth scope
+and requires every already-connected user to re-authorize. The first-party half
+(track/album/artist) carries no provider dependency and can ship first.
+
 ### Demo + Open (Melody enhancement)
 
 Preview a song before accepting the recommendation.
@@ -218,6 +257,10 @@ _Security/compliance: nothing from this integration may be used to train
 or inform the recommendation layer — a Spotify ToS constraint, not just a
 privacy one. Also capped at 5 dev-mode users until extended access is
 granted._
+
+**Scope overlap, noted 2026-09-19.** Highlights' playlist half also widens the
+Spotify OAuth scope. Whichever of the two ships first owns the re-consent
+flow; the second reuses it rather than making users re-authorize twice.
 
 ---
 

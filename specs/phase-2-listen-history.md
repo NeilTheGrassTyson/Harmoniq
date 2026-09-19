@@ -41,10 +41,17 @@ because activity *is* transient; what a person chooses to stand behind is not.
 
 **Scope note.** The curated half is Highlights, a first-class domain entity in
 ENGINEERING_BIBLE §3, now specified in `specs/phase-2-highlights.md`: it has its own write path,
-its own consent story, and — unlike this feature — touches no provider data and
-no pipeline boundary. This spec fixes the *shape* of the combined surface so
-both halves are designed against one agreement; the Highlights mechanism is
-specced separately and can ship first, since nothing here blocks it.
+its own consent story, and its own write path. This spec fixes the *shape* of
+the combined surface so both halves are designed against one agreement; the
+Highlights mechanism is specced separately and its first-party half can ship
+first, since nothing here blocks it.
+
+**Updated 2026-09-19.** Rev 4 said Highlights "touches no provider data and no
+pipeline boundary." The Founder's 2026-09-19 modification adds provider
+playlists as a highlight type, so that is no longer true of the whole feature.
+Playlist highlights reuse this spec's `source` discriminator and its rule that
+recommendation-facing accessors cannot return provider-sourced rows, rather
+than defining a second boundary. The first-party half is still independent.
 
 ---
 
