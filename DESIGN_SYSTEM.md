@@ -35,7 +35,7 @@ Derived from mockup iteration (chat, June 2026), checked against BRAND_BIBLE.md 
 | `--color-hairline`     | `rgba(255,255,255,0.07)` | All dividers, frame border                                      |
 | `--color-primary`      | `#f2f3f5`                | Titles, primary labels                                          |
 | `--color-secondary`    | `#8b93a3`                | Artist names, nav labels, body chrome                           |
-| `--color-tertiary`     | `#757c8c`                | Section labels, captions, placeholders                          |
+| `--color-tertiary`     | `#7d8494`                | Section labels, captions, placeholders                          |
 | `--color-accent`       | `#2f8cff`                | The one **UI** accent — active nav, focus ring, primary button |
 | `--color-brand`        | `#19d8ff`                | **Logo only** — the Octave mark and wordmark. Never UI chrome  |
 | `--color-icon-trend`   | `#343b4d`                | Equalizer glyph on neutral tiles                                |
@@ -52,8 +52,11 @@ override them — see §2.2 for all three columns and every measured ratio.
 
 - `--color-primary` (`#f2f3f5`) on `--color-canvas` (`#0b0d12`): ~18:1 ✓
 - `--color-secondary` (`#8b93a3`) on `--color-canvas` (`#0b0d12`): ~6.3:1 ✓
-- `--color-tertiary` (`#757c8c`) on `--color-canvas` (`#0b0d12`): ~4.65:1 ✓ (minimum 4.5:1 for normal text)
+- `--color-tertiary` (`#7d8494`) on `--color-canvas` (`#0b0d12`): ~5.18:1 ✓ (minimum 4.5:1 for normal text)
   - Previous value `#6b7385` measured 4.08:1 and failed; adjusted to `#757c8c`.
+  - `#757c8c` passed on the canvas but measured 4.24:1 on a tile fill, where
+    `MelodyCard`, the moderation queue and Melody timestamps set tertiary text.
+    Lightened to `#7d8494` (Founder decision 2026-09-27): 4.73:1 on a tile.
 
 **Two blues, deliberately (ADR 0014).** `--color-brand` is the logo colour and
 `--color-accent` is the interface colour, and they are not the same value. The
@@ -166,7 +169,7 @@ palette blocks; `clerkAppearance.ts` carries the one necessary literal copy.
 | `--color-hairline`       | `rgba(0,0,0,.10)`      | `rgba(255,255,255,.07)` | `rgba(255,255,255,.09)` |
 | `--color-primary`        | `#14161c`              | `#f2f3f5`               | `#f2f3f5`               |
 | `--color-secondary`      | `#565d6b`              | `#8b93a3`               | `#8b93a3`               |
-| `--color-tertiary`       | `#666c7a`              | `#757c8c`               | `#757c8c`               |
+| `--color-tertiary`       | `#666c7a`              | `#7d8494`               | `#7d8494`               |
 | `--color-accent`         | `#1a64d6`              | `#2f8cff`               | `#2f8cff`               |
 | focus ring (`--accent-ui-ring`) | accent at 80%   | accent at 80%           | accent at 80%           |
 | `--color-brand`          | `#14161c` (ink — §6.1) | `#19d8ff`               | `#19d8ff`               |
@@ -187,9 +190,9 @@ moderation queue set tertiary text on a tile fill.
 | --------------------------------- | ----- | -------- | -------- |
 | primary on canvas                 | 17.0  | 17.5     | 18.9     |
 | secondary on canvas               | 6.2   | 6.3      | 6.8      |
-| tertiary on canvas                | 4.95  | 4.64     | 5.02     |
-| tertiary on sidebar               | 5.26  | 4.55     | 4.84     |
-| tertiary on tile                  | 4.61  | **4.24** | 4.55     |
+| tertiary on canvas                | 4.95  | 5.18     | 5.60     |
+| tertiary on sidebar               | 5.26  | 5.07     | 5.40     |
+| tertiary on tile                  | 4.61  | 4.73     | 5.08     |
 | accent on canvas (text)           | 5.15  | 5.85     | 6.32     |
 | accent on tile                    | 4.80  | 5.33     | 5.73     |
 | canvas text on accent button      | 5.15  | 5.85     | 6.32     |
@@ -197,11 +200,9 @@ moderation queue set tertiary text on a tile fill.
 | friend dot on canvas (UI, 3:1)    | 4.51  | 5.86     | 6.33     |
 | focus ring at 80% (UI, 3:1)       | 3.59  | 4.12     | 4.27     |
 
-**Known failure, Dark only: tertiary text on a tile fill is 4.24:1.** It
-predates Website Appearance (the Dark palette is the original one) and is
-flagged for a Founder decision rather than changed in passing — Dark is the
-column the §2 ratios were verified against. Lightening Dark's tertiary to
-`#7d8494` would give 4.73:1.
+Every pair passes in every theme. Dark and Midnight tertiary was lightened
+from `#757c8c` to `#7d8494` on 2026-09-27 — see §2 — after tertiary text on a
+tile fill measured 4.24:1 on Dark.
 
 **Midnight is the default** (Founder decision 2026-09-06). It inherits Dark's
 text and accent values unchanged — only the surfaces drop — and every ratio

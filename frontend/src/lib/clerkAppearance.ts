@@ -28,7 +28,7 @@ interface ClerkPalette {
   danger: string;
 }
 
-const DARK_TEXT = { text: "#f2f3f5", secondary: "#8b93a3", tertiary: "#757c8c" };
+const DARK_TEXT = { text: "#f2f3f5", secondary: "#8b93a3", tertiary: "#7d8494" };
 const DARK_UI = {
   control: "rgba(255, 255, 255, 0.05)",
   accent: "#2f8cff",

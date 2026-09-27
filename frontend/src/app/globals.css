@@ -34,7 +34,7 @@
   --hairline: rgba(255, 255, 255, 0.09);
   --text-primary: #f2f3f5;
   --text-secondary: #8b93a3;
-  --text-tertiary: #757c8c;
+  --text-tertiary: #7d8494;
   --accent-ui: #2f8cff;
   /* 80%, not the solid accent: at the previous 60% the ring measured 2.78:1
      on Dark, under WCAG 1.4.11's 3:1 for UI state (DESIGN_SYSTEM.md §8). */

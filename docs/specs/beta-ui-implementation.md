@@ -302,8 +302,8 @@ placeholder Clerk key since the sandbox cannot reach Clerk:
       palette it is handed, not visually.
 - [x] Every Light token passes WCAG AA, focus ring included — DESIGN_SYSTEM.md
       §2.2. Light tertiary moved `#6b7280` → `#666c7a` to clear 4.5:1 on tile
-      fills as well. **Dark** tertiary-on-tile is 4.24:1 — pre-existing,
-      flagged for the Founder.
+      fills as well. **Dark** tertiary-on-tile measured 4.24:1 — pre-existing;
+      fixed 2026-09-27 by Founder decision (`#757c8c` → `#7d8494`, 4.73:1).
 - [x] The preference appears in **no** profile API payload — no backend change;
       the only write is the cookie from `app/settings/actions.ts`.
 
