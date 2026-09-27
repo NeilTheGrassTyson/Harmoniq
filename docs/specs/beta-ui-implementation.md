@@ -375,6 +375,11 @@ See `.design/logo/MelodiesBeta.dc.html`.
 **This phase exposes who is listening to what. Treat it as a privacy feature
 that happens to have a UI.**
 
+**Addendum (2026-09-27):** the Founder chose real Online presence, which is new
+data collection. Its mechanics — who counts as a friend, how "Online" is
+measured and forgotten, the new setting and its default — are specified in
+`docs/specs/beta-ui-phase-5-presence.md` and need approval before any code.
+
 - Presence is an ephemeral real-time state, which ENGINEERING_BIBLE §9
   explicitly permits — but §8.1 requires enforcement at the **data-access
   layer**, not the presentation layer. The query itself must respect
