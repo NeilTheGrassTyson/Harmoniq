@@ -162,6 +162,42 @@ async def test_empty_and_pending_are_not_zero(db_session: AsyncSession) -> None:
         assert own.visibility == "private"
 
 
+async def test_shared_without_positive_reception_is_indistinguishable_from_hidden(
+    db_session: AsyncSession,
+) -> None:
+    sender, recipient, track = await seed(db_session)
+    sender.visibility_harmony = "public"
+    private_owner = User(clerk_id="quiet", username="quiet", display_name="Quiet")
+    db_session.add(private_owner)
+    await db_session.flush()
+    hidden = await harmony.get_harmony(db_session, private_owner.username, None)
+    assert hidden and hidden.model_dump() == {"kind": "hidden"}
+    for status in (None, "sent", "rejected"):
+        if status:
+            await sent(db_session, sender, recipient, track, status)
+        shared = await harmony.get_harmony(db_session, sender.username, None, now=NOW)
+        assert shared and shared.model_dump() == hidden.model_dump()
+
+
+async def test_reaction_edit_keeps_the_status_response_time(
+    db_session: AsyncSession,
+) -> None:
+    sender, recipient, track = await seed(db_session)
+    responded = datetime(2026, 9, 1, tzinfo=UTC)
+    for status in ("opened", "accepted"):
+        row = await sent(db_session, sender, recipient, track, status)
+        row.responded_at = responded
+        await db_session.flush()
+        await melody.react(db_session, row.id, recipient.id, "liked")
+        await db_session.refresh(row)
+        assert row.status == status and row.responded_at == responded
+        assert row.reacted_at is not None and row.reacted_at > responded
+    pending = await sent(db_session, sender, recipient, track)
+    await melody.react(db_session, pending.id, recipient.id, "not_for_me")
+    await db_session.refresh(pending)
+    assert pending.status == "rejected" and pending.responded_at is not None
+
+
 async def test_private_denial_precedes_aggregation(db_session: AsyncSession) -> None:
     sender, _, _ = await seed(db_session)
     statements: list[str] = []

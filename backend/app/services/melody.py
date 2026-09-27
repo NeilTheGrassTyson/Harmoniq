@@ -511,11 +511,21 @@ async def react(
         melody.reaction = reaction
         melody.reacted_at = now
         if melody.status != MelodyStatus.OPENED.value:
-            melody.status = "rejected" if reaction == "not_for_me" else "accepted"
-        melody.responded_at = now
+            status = "rejected" if reaction == "not_for_me" else "accepted"
+            # responded_at dates the status; an edit that leaves it unchanged
+            # is already dated by reacted_at.
+            if melody.status != status:
+                melody.status = status
+                melody.responded_at = now
         if melody.received_at is None:
             melody.received_at = now
         await session.flush()
+        logger.info(
+            "Melody react: id=%s recipient_id=%s reaction=%s",
+            melody.id,
+            recipient_id,
+            reaction,
+        )
     sender = (
         await session.execute(select(User).where(User.id == melody.sender_id))
     ).scalar_one()

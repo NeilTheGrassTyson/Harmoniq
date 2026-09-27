@@ -46,12 +46,61 @@ export const getViewer = cache(async (): Promise<Viewer> => {
   if (!userId) return SIGNED_OUT;
 
   const token = await getToken().catch(() => null);
-  if (!token) return { signedIn: true, username: null };
+  if (!token) {
+    reportNamelessViewer("Clerk minted no session token for a signed-in user.");
+    return { signedIn: true, username: null };
+  }
 
   try {
     const profile = await getOwnProfile(token, AbortSignal.timeout(VIEWER_TIMEOUT_MS));
     return { signedIn: true, username: profile.username };
-  } catch {
+  } catch (err) {
+    reportNamelessViewer(describeViewerFailure(err));
     return { signedIn: true, username: null };
   }
 });
+
+/**
+ * A signed-in viewer with no username renders as a nav that is signed-in in
+ * every respect except the Profile link, which is simply absent. That is the
+ * intended fallback — chrome must never hold up a page — but on screen it is
+ * indistinguishable from the link having been forgotten, and it is the failure
+ * three separate signup investigations have started from.
+ *
+ * So it is logged, per ADR 0011: a failure that can break a surface for every
+ * user must name itself somewhere. This runs in the root layout on the server,
+ * so the line lands in the hosting platform's runtime logs. The Clerk user id
+ * is deliberately not included — the backend redacts it in the same situation.
+ */
+function reportNamelessViewer(reason: string): void {
+  console.error(`[viewer] No Profile link will render: ${reason}`);
+}
+
+function describeViewerFailure(err: unknown): string {
+  // `status` present means the server answered; absent means it was never
+  // reached. That contract is ADR 0011's, and the API helpers maintain it.
+  const status = (err as { status?: number } | null)?.status;
+
+  if (status === 404) {
+    return (
+      "GET /users/me returned 404 — this Clerk account has no Harmoniq user " +
+      "record, so onboarding never completed for it. The account can still " +
+      "browse every public route, with no Profile link and nothing prompting " +
+      "it to finish."
+    );
+  }
+  if (status === 401) {
+    return (
+      "GET /users/me returned 401 — the backend rejected the Clerk token. " +
+      "Check CLERK_JWKS_URL points at the same Clerk instance issuing tokens."
+    );
+  }
+  if (status !== undefined) {
+    return `GET /users/me returned ${status}.`;
+  }
+  return (
+    `GET /users/me never reached the backend — it timed out after ` +
+    `${VIEWER_TIMEOUT_MS}ms or the host is unreachable. A cold backend can ` +
+    `exceed that on the first request after an idle period.`
+  );
+}

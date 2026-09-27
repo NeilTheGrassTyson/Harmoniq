@@ -83,9 +83,11 @@ export default function MelodyInbox({
     },
     onSuccess: ({ updated, action }) => {
       setItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-      router.refresh();
+      // Refreshing a page the user is about to leave only wastes its fetches.
       if (action === "open") {
         router.push(`/track/${updated.track.mbid}`);
+      } else {
+        router.refresh();
       }
     },
     onError: (err) => {

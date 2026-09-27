@@ -155,6 +155,32 @@ async def test_transient_failure_is_not_cached_and_saturated_queue_does_not_grow
     assert lookup.await_count == 2
 
 
+async def test_missing_recording_is_cached_as_no_links(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = httpx.Request("GET", "https://musicbrainz.org/ws/2/recording/gone")
+    missing = httpx.HTTPStatusError(
+        "not found", request=request, response=httpx.Response(404, request=request)
+    )
+    lookup = AsyncMock(side_effect=missing)
+    monkeypatch.setattr(streaming.musicbrainz, "lookup_recording_links", lookup)
+    assert await streaming.mappings("gone") == {}
+    assert await streaming.mappings("gone") == {}
+    lookup.assert_awaited_once()
+
+
+async def test_server_error_is_not_cached(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = httpx.Request("GET", "https://musicbrainz.org/ws/2/recording/busy")
+    outage = httpx.HTTPStatusError(
+        "unavailable", request=request, response=httpx.Response(503, request=request)
+    )
+    lookup = AsyncMock(side_effect=[outage, {"relations": []}])
+    monkeypatch.setattr(streaming.musicbrainz, "lookup_recording_links", lookup)
+    assert await streaming.mappings("busy") is None
+    assert await streaming.mappings("busy") == {}
+    assert lookup.await_count == 2
+
+
 async def test_expired_mapping_is_refetched(monkeypatch: pytest.MonkeyPatch) -> None:
     streaming._cache["old"] = (-100000, {"spotify": SPOTIFY})
     lookup = AsyncMock(return_value={"relations": []})

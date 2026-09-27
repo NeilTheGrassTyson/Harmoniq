@@ -139,7 +139,14 @@ def search_links(title: str, artist: str | None) -> dict[Provider, str]:
 async def _lookup(mbid: str) -> dict[Provider, str] | None:
     try:
         async with asyncio.timeout(4):
-            data = await musicbrainz.lookup_recording_links(mbid)
+            try:
+                data = await musicbrainz.lookup_recording_links(mbid)
+            except httpx.HTTPStatusError as exc:
+                # A recording MusicBrainz no longer has will not gain links on
+                # retry; unlike an outage, remember that it has none.
+                if exc.response.status_code != 404:
+                    raise
+                data = {"relations": []}
         if not isinstance(data, dict):
             return None
         relations = data.get("relations", [])
