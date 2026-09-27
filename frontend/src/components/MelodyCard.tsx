@@ -47,11 +47,12 @@ export default function MelodyCard({
 
   return (
     <div
-      className="bg-tile border-hairline flex items-center border"
+      className="bg-tile border-hairline flex flex-wrap items-center border"
       style={{
         borderRadius: 14,
         padding: compact ? "10px 12px" : "14px 16px",
-        gap: compact ? 12 : 16,
+        columnGap: compact ? 12 : 16,
+        rowGap: 12,
       }}
       data-testid="melody-card"
     >
@@ -96,7 +97,7 @@ export default function MelodyCard({
                 <dt className="text-[9.5px] leading-[16px] font-bold tracking-[1px] uppercase">
                   {stamp.label}
                 </dt>
-                <dd className="text-[11px] leading-[16px]">
+                <dd className="text-[11px] leading-[16px] whitespace-nowrap">
                   <LocalTime iso={stamp.at} />
                 </dd>
               </div>
@@ -105,8 +106,14 @@ export default function MelodyCard({
         )}
       </div>
 
+      {/* Below sm the actions take their own row, under the text: beside it
+          they squeezed a 390px card until the time stamps wrapped a word per
+          line. From sm up there is room, and they sit on the right. */}
       {actions && (
-        <div className="flex shrink-0 items-center" style={{ gap: 8 }}>
+        <div
+          className="flex shrink-0 basis-full items-center pl-[72px] sm:basis-auto sm:pl-0"
+          style={{ gap: 8 }}
+        >
           {actions}
         </div>
       )}
