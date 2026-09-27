@@ -54,15 +54,15 @@ function TrendingGrid({ entries, error }: { entries: TrendingEntry[]; error: boo
 function FriendsGrid({
   entries,
   error,
-  hasMutualFollows,
+  hasFriends,
 }: {
   entries: FriendEntry[];
   error: boolean;
-  hasMutualFollows: boolean;
+  hasFriends: boolean;
 }) {
-  const emptyMsg = hasMutualFollows
+  const emptyMsg = hasFriends
     ? "Your friends haven't rated anything recently."
-    : "Follow some people to see what they're into.";
+    : "Add friends to see what they're into.";
 
   return (
     <section>
@@ -108,6 +108,7 @@ const EMPTY_HOME: HomeResponse = {
   trending_error: false,
   friends: [],
   friends_error: false,
+  has_friends: false,
   has_mutual_follows: false,
 };
 
@@ -144,7 +145,7 @@ export default async function Home() {
         <FriendsGrid
           entries={home.friends}
           error={home.friends_error}
-          hasMutualFollows={home.has_mutual_follows}
+          hasFriends={home.has_friends ?? home.has_mutual_follows}
         />
       </div>
     </AppShell>

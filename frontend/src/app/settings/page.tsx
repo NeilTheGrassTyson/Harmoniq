@@ -1,5 +1,6 @@
 import AppShell from "@/components/AppShell";
 import ConnectedAccounts from "@/components/ConnectedAccounts";
+import FriendRequestSettings from "@/components/FriendRequestSettings";
 import MelodySettings from "@/components/MelodySettings";
 
 // Profile editing (name, username, bio, visibility, avatar) lives inline on
@@ -14,6 +15,7 @@ export default async function SettingsPage(props: { searchParams: Promise<{ spot
         <h1 className="text-primary text-2xl font-light tracking-tight">Settings</h1>
         <ConnectedAccounts justConnected={spotify === "connected"} />
         <MelodySettings />
+        <FriendRequestSettings />
       </main>
     </AppShell>
   );

@@ -47,7 +47,7 @@ describe("Home", () => {
 
     expect(screen.getAllByText(/Couldn’t load this right now/)).toHaveLength(2);
     expect(screen.queryByText(/No songs are trending yet/)).toBeNull();
-    expect(screen.queryByText(/Follow some people/)).toBeNull();
+    expect(screen.queryByText(/Add friends to see/)).toBeNull();
   });
 
   it("still shows the empty states when the server genuinely returns nothing", async () => {
@@ -61,7 +61,7 @@ describe("Home", () => {
     render(await Home());
 
     expect(screen.getByText(/No songs are trending yet/)).toBeDefined();
-    expect(screen.getByText(/Follow some people/)).toBeDefined();
+    expect(screen.getByText(/Add friends to see/)).toBeDefined();
     expect(screen.queryByText(/Couldn’t load this right now/)).toBeNull();
   });
 });

@@ -308,7 +308,9 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
           </div>
         ))}
 
-        <p className="text-tertiary text-xs">Friends means people you both follow.</p>
+        <p className="text-tertiary text-xs">
+          Friends means people you&apos;ve accepted as friends.
+        </p>
       </div>
 
       {/* Save / Cancel */}

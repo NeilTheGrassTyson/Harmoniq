@@ -104,6 +104,31 @@ export interface FollowListResponse {
   next_cursor: string | null;
 }
 
+// ── Friends ───────────────────────────────────────────────────────────────────
+
+/**
+ * The relationship as the viewer sees it. A sender never sees their own
+ * outstanding request, so "request_sent" is only ever the reply to a send —
+ * a profile shows "none" whether that request is pending or declined.
+ */
+export type FriendshipState = "none" | "friends" | "request_sent" | "request_received";
+
+export type FriendRequestScope = "everyone" | "follows" | "mutuals";
+
+export interface FriendPerson {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  /** False offers a one-tap follow-back; friendship never creates a follow. */
+  you_follow: boolean;
+}
+
+export interface FriendsOverview {
+  friends: FriendPerson[];
+  incoming: FriendPerson[];
+}
+
 /** Public or viewer-scoped profile. Gated fields are absent (not null) when excluded by visibility. */
 export interface ProfileResponse {
   username: string;
@@ -113,6 +138,8 @@ export interface ProfileResponse {
   follower_count: number;
   following_count: number;
   follow?: FollowState;
+  /** Same audience as follow; absent when friend requests are switched off. */
+  friendship?: FriendshipState;
   bio?: string | null;
   activity_placeholder?: boolean;
   /** Owner-only — absent for every other viewer. */
@@ -133,6 +160,7 @@ export interface OwnProfileResponse {
   visibility_ratings: VisibilityScope;
   visibility_follows: VisibilityScope;
   melody_accept_scope: MelodyAcceptScope;
+  friend_request_scope?: FriendRequestScope;
   is_moderator: boolean;
 }
 
@@ -153,6 +181,7 @@ export interface ProfileUpdateRequest {
   visibility_ratings?: VisibilityScope;
   visibility_follows?: VisibilityScope;
   melody_accept_scope?: MelodyAcceptScope;
+  friend_request_scope?: FriendRequestScope;
 }
 
 // ── Spotify (account linking + listening display) ─────────────────────────────
@@ -256,6 +285,8 @@ export interface HomeResponse {
   trending_error: boolean;
   friends: FriendEntry[];
   friends_error: boolean;
+  /** Absent from backends older than friend requests; fall back to has_mutual_follows. */
+  has_friends?: boolean;
   has_mutual_follows: boolean;
 }
 
@@ -332,7 +363,11 @@ export interface MelodySentResponse {
 
 // ── Notifications ────────────────────────────────────────────────────────────
 
-export type NotificationType = "melody_received" | "new_follower";
+export type NotificationType =
+  | "melody_received"
+  | "new_follower"
+  | "friend_request_received"
+  | "friend_request_accepted";
 
 export interface NotificationMelodyRef {
   id: string;

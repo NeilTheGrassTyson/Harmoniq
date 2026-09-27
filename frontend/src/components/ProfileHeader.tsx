@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AvatarImage from "@/components/AvatarImage";
 import FollowButton from "@/components/FollowButton";
+import FriendButton from "@/components/FriendButton";
 import ProfileEditPanel from "@/components/ProfileEditPanel";
 import type { OwnProfileResponse, ProfileResponse } from "@/types";
 
@@ -118,16 +119,21 @@ export default function ProfileHeader({ profile }: ProfileHeaderProps) {
               </button>
             )
           : profile.follow !== undefined && (
-              <FollowButton
-                username={profile.username}
-                initialIsFollowing={profile.follow.is_following}
-                onChange={(isFollowing) => {
-                  // Server count minus the viewer's original edge, plus their
-                  // current one — idempotent under optimistic flips/rollbacks.
-                  const base = profile.follower_count - (profile.follow?.is_following ? 1 : 0);
-                  setFollowerCount(base + (isFollowing ? 1 : 0));
-                }}
-              />
+              <div className="flex flex-wrap items-start gap-2">
+                <FollowButton
+                  username={profile.username}
+                  initialIsFollowing={profile.follow.is_following}
+                  onChange={(isFollowing) => {
+                    // Server count minus the viewer's original edge, plus their
+                    // current one — idempotent under optimistic flips/rollbacks.
+                    const base = profile.follower_count - (profile.follow?.is_following ? 1 : 0);
+                    setFollowerCount(base + (isFollowing ? 1 : 0));
+                  }}
+                />
+                {profile.friendship !== undefined && (
+                  <FriendButton username={profile.username} initialState={profile.friendship} />
+                )}
+              </div>
             )}
 
         {profile.is_own_profile && editOpen && (
