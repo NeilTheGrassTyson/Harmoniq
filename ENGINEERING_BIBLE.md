@@ -17,6 +17,24 @@ Melody carries no message field; it renders as an interactive embed card
 (cover art, track, artist, sender identity). Review record:
 `docs/reviews/engineering-bible-4be872d-to-docs-pass.md`.
 
+**Known stale passages (flagged 2026-09-27, Founder to correct later).**
+These passages no longer match the approved specs or the shipped code. By
+Founder direction they are marked, not rewritten: the wording below is left as
+ratified until the Founder corrects it. Until then, the linked spec or code is
+the more accurate description. Each passage carries a **STALE** marker in place.
+
+1. **§3, "Highlighted songs."** Highlights now covers tracks, albums, artists
+   and provider playlists (`specs/phase-2-highlights.md`, approved with
+   modification 2026-09-19), and is public by default as a recorded
+   constitutional exception.
+2. **§8.1, "defaulting to the most private option."** Documented constitutional
+   exceptions default to public: `visibility_ratings` and `visibility_follows`
+   (shipped; see `backend/app/models/user.py`) and `visibility_highlights`
+   (approved). §8.1 states the rule without them.
+3. **§11 (and §0.1), Harmony as Phase 1.** Both list Harmony in the first
+   working version; `ROADMAP.md` places Harmony v1 in Phase 2 (NEXT), where it
+   was specced and built.
+
 ---
 
 ## 0. Introduction
@@ -35,6 +53,9 @@ ensuring that every layer of the system reinforces trust, identity, and
 human-scale discovery rather than optimizing for passive consumption.
 
 ### 0.1 Scope of this document
+
+> **STALE — Founder to correct later.** Harmony's phase is inconsistent with
+> the roadmap. See "Known stale passages" item 3.
 
 This document defines the architecture needed to build Harmoniq's first
 working version: identity, the trust graph, the Home and Discovery
@@ -110,6 +131,9 @@ continuously evolving representation of musical behavior and intention.
 **Listening signals** capture what a user listened to, when, and through
 which source. On their own they are noisy; they become meaningful only when
 aggregated into identity structures.
+
+> **STALE — Founder to correct later.** Highlights now spans tracks, albums,
+> artists and playlists. See "Known stale passages" item 1.
 
 **Highlighted songs** are the most important expression of identity.
 Unlike passive listening history, a highlight is an intentional act of
@@ -273,6 +297,9 @@ mutations to social or trust data are logged for auditability.
 
 ### 8.1 Consent & visibility
 
+> **STALE — Founder to correct later.** The private default below omits the
+> documented public-default exceptions. See "Known stale passages" item 2.
+
 Every shareable entity — a highlight, listening activity, Melody history,
 Harmony detail — carries an explicit visibility scope set by its owner
 (private / friends / public), defaulting to the most private option.
@@ -309,6 +336,9 @@ machine learning may assist similarity, but it does not define relevance.
 ---
 
 ## 11. Evolution Strategy
+
+> **STALE — Founder to correct later.** Harmony is listed as Phase 1 here and
+> in §0.1; the roadmap places it in Phase 2. See "Known stale passages" item 3.
 
 Phase 1 (this document): a modular monolith backend, MusicBrainz as the
 canonical music source (on-demand ingestion), focused on the trust graph,
