@@ -335,6 +335,33 @@ Every Melody shows a local **Received** stamp, plus an outcome stamp
 - A rejected Melody's outcome stamp is visible **to the recipient and the
   sender only**, never to anyone else (ENGINEERING_BIBLE §3).
 
+### As built (2026-09-27)
+
+The schema premise above was wrong: `received_at` and `responded_at` already
+existed. No migration. The recipient's `MelodyInboxItem` gains `received_at`;
+the sender's `MelodySentItem` does not and must not — see "Already resolved"
+below. Stamps replace the outcome sentence, which remains only for rows that
+predate `responded_at`. Stamp labels use `--color-tertiary`: the mockup's
+`#5a6072` is not a token and measures about 2.8:1 on a tile.
+
+Verified against the real stack — backend on a local Postgres 16, tokens
+signed by a throwaway key served as the JWKS, and the frontend through a
+scratch build whose only change passed that key to `clerkMiddleware` (never
+committed):
+
+- [x] API: `received_at` present for the recipient, **absent** from every
+      sender payload, including the send response itself; unchanged by a
+      second inbox fetch; `responded_at` moves on accept → open while
+      `received_at` stays put.
+- [x] Probes: a sender responding to their own Melody gets 404; an uninvolved
+      user sees nothing in either list; no token gets 403; a forged token gets 401.
+- [x] UI: stamps render in each viewer's own zone from the same instant
+      (London 11:46 PM, Los Angeles 3:46 PM, Tokyo the next day 7:46 AM), in
+      Space Mono, with zero hydration errors; the Sent tab shows Sent + outcome
+      and never Received.
+- [x] Mobile: at 390px the actions originally squeezed each stamp into four
+      lines; fixed (actions wrap below `sm`), re-measured at 390/639/640/1280.
+
 **STOP. Review and sign-off before Phase 5.**
 
 ---
