@@ -45,7 +45,10 @@ Derived from mockup iteration (chat, June 2026), checked against BRAND_BIBLE.md 
 | `--color-nav-hover`    | `rgba(255,255,255,0.04)` | Hover sidebar row                                               |
 | `--color-control`      | `rgba(255,255,255,0.05)` | Search field, profile button background                        |
 
-**Contrast ratios (WCAG AA, verified June 2026):**
+The values above are the **Dark** theme's. Midnight (the default) and Light
+override them — see §2.2 for all three columns and every measured ratio.
+
+**Contrast ratios (WCAG AA, verified June 2026, Dark):**
 
 - `--color-primary` (`#f2f3f5`) on `--color-canvas` (`#0b0d12`): ~18:1 ✓
 - `--color-secondary` (`#8b93a3`) on `--color-canvas` (`#0b0d12`): ~6.3:1 ✓
@@ -151,26 +154,59 @@ a profile's owner and seen by visitors. One is a preference, the other is
 self-expression. They must not share a control, a token layer, or a stored
 field — see ADR 0015.
 
-| Token                | Light (unverified) | Dark (default)           | Midnight                 |
-| -------------------- | ------------------- | ------------------------ | ------------------------ |
-| `--color-canvas`     | `#f7f8fa`           | `#0b0d12`                | `#000000`                |
-| `--color-sidebar`    | `#ffffff`           | `#0e1015`                | `#050609`                |
-| `--color-tile`       | `#eef0f4`           | `#151821`                | `#0d1016`                |
-| `--color-hairline`   | `rgba(0,0,0,.10)`   | `rgba(255,255,255,.07)`  | `rgba(255,255,255,.09)`  |
-| `--color-primary`    | `#14161c`           | `#f2f3f5`                | `#f2f3f5`                |
-| `--color-secondary`  | `#565d6b`           | `#8b93a3`                | `#8b93a3`                |
-| `--color-tertiary`   | `#6b7280`           | `#757c8c`                | `#757c8c`                |
+All three are built (beta-ui Phase 3). The values live in `globals.css`'s three
+palette blocks; `clerkAppearance.ts` carries the one necessary literal copy.
+
+| Token                    | Light                  | Dark                    | Midnight (default)      |
+| ------------------------ | ---------------------- | ----------------------- | ----------------------- |
+| `--color-canvas`         | `#f7f8fa`              | `#0b0d12`               | `#000000`               |
+| `--color-sidebar`        | `#ffffff`              | `#0e1015`               | `#050609`               |
+| `--color-tile`           | `#eef0f4`              | `#151821`               | `#0d1016`               |
+| `--color-tile-friend`    | `#e4ebf7`              | `#121a2a`               | `#0c1422`               |
+| `--color-hairline`       | `rgba(0,0,0,.10)`      | `rgba(255,255,255,.07)` | `rgba(255,255,255,.09)` |
+| `--color-primary`        | `#14161c`              | `#f2f3f5`               | `#f2f3f5`               |
+| `--color-secondary`      | `#565d6b`              | `#8b93a3`               | `#8b93a3`               |
+| `--color-tertiary`       | `#666c7a`              | `#757c8c`               | `#757c8c`               |
+| `--color-accent`         | `#1a64d6`              | `#2f8cff`               | `#2f8cff`               |
+| focus ring (`--accent-ui-ring`) | accent at 80%   | accent at 80%           | accent at 80%           |
+| `--color-brand`          | `#14161c` (ink — §6.1) | `#19d8ff`               | `#19d8ff`               |
+| `--color-icon-trend`     | `#c5cad4`              | `#343b4d`               | `#343b4d`               |
+| `--color-icon-friend`    | `#a3b8da`              | `#34507c`               | `#34507c`               |
+| `--color-friend-dot`     | `#3a72c4`              | `#5a8fd6`               | `#5a8fd6`               |
+| `--color-nav-active`     | `rgba(0,0,0,.06)`      | `rgba(255,255,255,.06)` | `rgba(255,255,255,.06)` |
+| `--color-nav-hover`      | `rgba(0,0,0,.04)`      | `rgba(255,255,255,.04)` | `rgba(255,255,255,.04)` |
+| `--color-control`        | `rgba(0,0,0,.05)`      | `rgba(255,255,255,.05)` | `rgba(255,255,255,.05)` |
+| danger (`--destructive`) | `#c62828`              | `#f87171`               | `#f87171`               |
+
+**Measured contrast (WCAG 2.x, 2026-09-27).** Text needs 4.5:1; the focus ring
+and other UI-state indicators need 3:1 (WCAG 1.4.11). Every pair a theme
+actually draws is listed; "on tile" matters because `MelodyCard` and the
+moderation queue set tertiary text on a tile fill.
+
+| Pair                              | Light | Dark     | Midnight |
+| --------------------------------- | ----- | -------- | -------- |
+| primary on canvas                 | 17.0  | 17.5     | 18.9     |
+| secondary on canvas               | 6.2   | 6.3      | 6.8      |
+| tertiary on canvas                | 4.95  | 4.64     | 5.02     |
+| tertiary on sidebar               | 5.26  | 4.55     | 4.84     |
+| tertiary on tile                  | 4.61  | **4.24** | 4.55     |
+| accent on canvas (text)           | 5.15  | 5.85     | 6.32     |
+| accent on tile                    | 4.80  | 5.33     | 5.73     |
+| canvas text on accent button      | 5.15  | 5.85     | 6.32     |
+| danger on canvas                  | 5.29  | 7.03     | 7.59     |
+| friend dot on canvas (UI, 3:1)    | 4.51  | 5.86     | 6.33     |
+| focus ring at 80% (UI, 3:1)       | 3.59  | 4.12     | 4.27     |
+
+**Known failure, Dark only: tertiary text on a tile fill is 4.24:1.** It
+predates Website Appearance (the Dark palette is the original one) and is
+flagged for a Founder decision rather than changed in passing — Dark is the
+column the §2 ratios were verified against. Lightening Dark's tertiary to
+`#7d8494` would give 4.73:1.
 
 **Midnight is the default** (Founder decision 2026-09-06). It inherits Dark's
-text and accent values unchanged — only the surfaces drop — so it needs no
-contrast work of its own: every ratio in §2 improves against `#000000`. Dark
-remains a selectable theme and is still the column those §2 ratios were
-verified against.
-
-Because Midnight is the default, **it is the base token set, and Dark is an
-explicit `[data-theme="dark"]` override** — the inverse of how `globals.css` is
-written today, where the Dark values sit in the base `@theme` block. Flipping
-that is a Phase 3 change, not a Phase 2 one; Phase 2 must stay visually inert.
+text and accent values unchanged — only the surfaces drop — and every ratio
+improves against `#000000`. It is the **base token set** in `globals.css` and
+carries no attribute; Dark and Light are `data-theme` overrides on `<html>`.
 
 The preference is stored in a **cookie**, read server-side in the root layout.
 There is no server-side field and no cross-device sync (Founder decision
@@ -190,9 +226,15 @@ break rather than degrade:
   against.
 
 That makes Light a second *treatment*, not a second palette — real ongoing
-cost. Dark + Midnight alone is a coherent product; the aesthetic is
-dark-native. Every Light value above is a starting point that has **not** had
-a contrast pass.
+cost. The Light accent is darkened (`#1a64d6`), danger is darkened
+(`#c62828`, since `#f87171` fails on white), and the logo takes the one-colour
+ink treatment (BRAND_ASSETS.md §5) rather than the neon. The darkened
+Signature hue set drawn in `.design/logo/ThemesBeta.dc.html` is recorded
+there, not here, because the Signature itself is not built (§2.1).
+
+There is **no "Auto" option** following `prefers-color-scheme` (Founder
+decision 2026-09-27): the server cannot know the device setting on first
+paint, so Auto would bring back the flash the cookie prevents.
 
 Note for whoever builds it: §9 warns against the cream/serif/sage "tasteful
 default." The Light column deliberately avoids it — cool neutral greys, the
@@ -330,7 +372,7 @@ once — see `docs/BRAND_ASSETS.md`.
 
 - Tile hover: `transform: translateY(-2px)`, ~150ms ease. That's it.
 - Sidebar open/close: width transition, ~200ms ease.
-- The _only_ permitted shadow anywhere: a 1.5px solid focus ring (`box-shadow: 0 0 0 1.5px rgba(47,140,255,.6)`).
+- The _only_ permitted shadow anywhere: a 1.5px solid focus ring (`box-shadow: 0 0 0 1.5px var(--accent-ui-ring)` — the theme's accent at 80%). It was 60% until 2026-09-27, which measured 2.78:1 on Dark, under WCAG 1.4.11's 3:1 for UI state; 80% clears 3:1 in every theme (§2.2).
 - Loading placeholders pulse: `.skeleton-pulse`, opacity 1 → 0.55, 1.6s ease-in-out,
   defined in `globals.css`. **Stated exception** to "no decorative motion" — this
   motion is functional (it distinguishes "still loading" from "finished and

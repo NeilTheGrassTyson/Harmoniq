@@ -415,14 +415,12 @@ review with an excerpt, then two compact ones. See
 
 _Do not answer these while implementing. Bring them to the Founder._
 
-1. **Is there an "Auto" option** following `prefers-color-scheme`? Recommend
-   deferring — it reintroduces the flash problem the cookie approach solves.
-2. **Friends rail visibility** — which scope governs presence? A new field, or
-   does it reuse `visibility_activity`?
-3. **Are reviews public by default?** Determines whether Phase 6 is Tier 1 or
-   Tier 2.
-4. **`beta-ui` does not match `GITHUB_WORKFLOW.md`'s `type/short-kebab`
-   branch convention.** Leave it, or rename before the PR to `dev`?
+1. **`beta-ui` does not match `GITHUB_WORKFLOW.md`'s `type/short-kebab`
+   branch convention.** Leave it, or rename before the PR to `dev`? (The work
+   now lives on `claude/beta-ui-phase-2-readiness-fk12zz`.)
+2. **Friends rail presence** — how "Online" is computed, retained and scoped.
+   Direction is set (below); the mechanics go in a Phase 5 addendum for
+   approval before any code.
 
 ## Already resolved — do not reopen
 
@@ -431,6 +429,31 @@ _Do not answer these while implementing. Bring them to the Founder._
   backend.
 - **Light ships**, as one of the three (2026-08-30) — with the contrast pass
   Phase 3 requires, not the drafted values.
+- **No "Auto" option** (2026-09-27). Three choices only; Auto would bring back
+  the first-paint flash the cookie exists to prevent.
+- **Light palette approved as measured** (2026-09-27). The values and ratios
+  are recorded in DESIGN_SYSTEM.md §2.2. On Light the logo takes the
+  one-colour ink treatment, per BRAND_ASSETS.md §5.
+- **Focus ring raised to 80% opacity in all three themes** (2026-09-27). At the
+  previous 60% it measured 2.78:1 on Dark — below WCAG 1.4.11's 3:1 for UI
+  state — so this also fixes a failure that was already in production.
+- **Friends rail builds real Online presence** (2026-09-27) rather than
+  Listening-now only. Ephemeral, never persisted, and behind a new opt-in
+  visibility setting that defaults to private. This is new data collection, so
+  a Phase 5 addendum is approved before implementation.
+- **Phase 6 is deferred** (2026-09-27). Highlights are being built for the
+  current version separately; Phase 6 waits for that work to land and uses it
+  as its reference. This also answers the old "are reviews public by default"
+  question for now: yes, today — per-rating `visibility` and profile
+  `visibility_ratings` both default to `public` — but the approved
+  `specs/phase-2-rating-visibility-split.md` will make review text
+  mutual-follows-only once it ships.
+- **Phase 4 needs no schema change** (found 2026-09-27). `received_at` and
+  `responded_at` already exist on `melodies`; the premise above predates them.
+  The Received stamp is **recipient-only**: senders deliberately see
+  `received` as `sent` (no read receipts), and showing a sender when you
+  opened your inbox would expose your activity without your choice
+  (HARMONIQ.md §6). Senders see a Sent stamp and the outcome stamp.
 
 ---
 

@@ -5,27 +5,40 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ── Design system tokens (DESIGN_SYSTEM.md §2-5) ───────────────────────────
-   Raw values live exactly once, here in :root. Everything below —
-   @theme inline's Tailwind utility tokens, the shadcn primitives, and the
-   handful of rules that need a color outside a utility class (body,
-   :focus-visible, .listening-now-row) — reads from this set via var()
-   rather than repeating a literal. That is what lets Website Appearance
-   (ADR 0015, not yet built) swap the palette later by overriding this block
-   under a data-theme attribute, without touching anything downstream of it.
+   Raw values live once per theme, in the three palette blocks below.
+   Everything downstream — @theme inline's Tailwind utility tokens, the shadcn
+   primitives, and the few rules that need a colour outside a utility class
+   (body, :focus-visible, .listening-now-row) — reads them via var(), so a
+   theme is nothing more than a different set of values here.
+
+   Website Appearance (ADR 0015, DESIGN_SYSTEM.md §2.2). Midnight is the
+   default, so it is the base and carries no attribute; Dark and Light are
+   `data-theme` on <html>, set server-side from a cookie in the root layout
+   so the first paint is already correct. The `data-appearance-preview`
+   selectors let the Settings picker paint each option in its own theme from
+   these same values rather than a second copy.
+
    `clerkAppearance.ts` is the one place a literal copy is unavoidable: Clerk
-   renders its own DOM and cannot inherit a CSS custom property. */
-:root {
-  /* Color palette */
-  --canvas: #0b0d12;
-  --surface-sidebar: #0e1015;
-  --surface-tile: #151821;
-  --surface-tile-friend: #121a2a;
-  --hairline: rgba(255, 255, 255, 0.07);
+   derives shades from its colour variables in JS and cannot take var(). */
+
+/* Midnight — the base. Dark shares everything but the surfaces, so the Dark
+   preview matches here too and the Dark block below only swaps surfaces. */
+:root,
+[data-appearance-preview="midnight"],
+[data-appearance-preview="dark"] {
+  color-scheme: dark;
+  --canvas: #000000;
+  --surface-sidebar: #050609;
+  --surface-tile: #0d1016;
+  --surface-tile-friend: #0c1422;
+  --hairline: rgba(255, 255, 255, 0.09);
   --text-primary: #f2f3f5;
   --text-secondary: #8b93a3;
   --text-tertiary: #757c8c;
   --accent-ui: #2f8cff;
-  --accent-ui-ring: rgba(47, 140, 255, 0.6);
+  /* 80%, not the solid accent: at the previous 60% the ring measured 2.78:1
+     on Dark, under WCAG 1.4.11's 3:1 for UI state (DESIGN_SYSTEM.md §8). */
+  --accent-ui-ring: rgba(47, 140, 255, 0.8);
   --accent-ui-wash: rgba(47, 140, 255, 0.06);
   /* Logo only — the Octave mark and wordmark. Deliberately NOT the same value
      as --accent-ui: that one is load-bearing for the focus ring and was
@@ -38,12 +51,51 @@
   --nav-hover: rgba(255, 255, 255, 0.04);
   --control: rgba(255, 255, 255, 0.05);
   --danger: #f87171;
+}
 
-  /* shadcn primitive variables (DESIGN_SYSTEM.md §13) — sourced from the
-     palette above wherever they mean the same color, so each value is
-     declared once. Single dark theme: no parallel light/.dark palette, no
-     chart/sidebar/card variables — the Card pattern is banned and the app
-     sidebar has its own tokens above. */
+/* Dark — the original palette. Text, accent and overlays come from the base. */
+:root[data-theme="dark"],
+[data-appearance-preview="dark"] {
+  --canvas: #0b0d12;
+  --surface-sidebar: #0e1015;
+  --surface-tile: #151821;
+  --surface-tile-friend: #121a2a;
+  --hairline: rgba(255, 255, 255, 0.07);
+}
+
+/* Light — a second treatment, not an inverted palette (ADR 0015). Every value
+   is contrast-measured in DESIGN_SYSTEM.md §2.2. The accent is darkened: the
+   Dark accent is 3.1:1 on white. The logo takes the one-colour ink treatment
+   off a dark surface (BRAND_ASSETS.md §5), which is why --brand is ink here. */
+:root[data-theme="light"],
+[data-appearance-preview="light"] {
+  color-scheme: light;
+  --canvas: #f7f8fa;
+  --surface-sidebar: #ffffff;
+  --surface-tile: #eef0f4;
+  --surface-tile-friend: #e4ebf7;
+  --hairline: rgba(0, 0, 0, 0.1);
+  --text-primary: #14161c;
+  --text-secondary: #565d6b;
+  --text-tertiary: #666c7a;
+  --accent-ui: #1a64d6;
+  --accent-ui-ring: rgba(26, 100, 214, 0.8);
+  --accent-ui-wash: rgba(26, 100, 214, 0.06);
+  --brand: #14161c;
+  --icon-trend: #c5cad4;
+  --icon-friend: #a3b8da;
+  --friend-dot: #3a72c4;
+  --nav-active: rgba(0, 0, 0, 0.06);
+  --nav-hover: rgba(0, 0, 0, 0.04);
+  --control: rgba(0, 0, 0, 0.05);
+  --danger: #c62828;
+}
+
+:root {
+  /* shadcn primitive variables (DESIGN_SYSTEM.md §13) — aliases onto the
+     palette above, so they follow whichever theme is active. No parallel
+     .dark palette, no chart/sidebar/card variables — the Card pattern is
+     banned and the app sidebar has its own tokens above. */
   --background: var(--canvas);
   --foreground: var(--text-primary);
   --popover: var(--surface-sidebar);

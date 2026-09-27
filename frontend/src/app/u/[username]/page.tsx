@@ -91,9 +91,7 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
                       paddingBottom: 20,
                       marginBottom: 20,
                       borderBottom:
-                        idx < ratingsData.reviews.length - 1
-                          ? "1px solid rgba(255,255,255,0.07)"
-                          : "none",
+                        idx < ratingsData.reviews.length - 1 ? "1px solid var(--hairline)" : "none",
                     }}
                   >
                     <div

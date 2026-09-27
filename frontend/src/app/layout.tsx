@@ -6,7 +6,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import QueryProvider from "@/components/QueryProvider";
 import { ViewerProvider } from "@/components/ViewerProvider";
 import { getViewer } from "@/lib/viewer";
-import { clerkAppearance } from "@/lib/clerkAppearance";
+import { clerkAppearanceFor } from "@/lib/clerkAppearance";
+import { themeAttribute } from "@/lib/appearance";
+import { getAppearance } from "@/lib/appearanceServer";
 import "./globals.css";
 
 // No Geist/Inter here deliberately: the body face is the system font stack
@@ -56,13 +58,21 @@ export default async function RootLayout({
   // Resolved here, once, so the nav's first paint already knows who is looking
   // and what their profile URL is — see ViewerProvider for what that fixes.
   const viewer = await getViewer();
+  // Read here rather than in a client effect so the first byte is already in
+  // the viewer's theme: a client-side read paints Midnight and then repaints,
+  // the full-viewport version of the sidebar flash globals.css guards against.
+  const appearance = await getAppearance();
 
   // appearance is set once here so every Clerk surface — the hosted
   // sign-in/sign-up pages, the <SignInButton> modal, and <UserButton> —
   // picks up Harmoniq's tokens without per-call-site theming.
   return (
-    <ClerkProvider appearance={clerkAppearance}>
-      <html lang="en" className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}>
+    <ClerkProvider appearance={clerkAppearanceFor(appearance)}>
+      <html
+        lang="en"
+        data-theme={themeAttribute(appearance)}
+        className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}
+      >
         <body className="bg-canvas text-primary h-full antialiased">
           <ViewerProvider value={viewer}>
             <QueryProvider>{children}</QueryProvider>

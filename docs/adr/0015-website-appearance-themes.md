@@ -80,11 +80,16 @@ remains a legitimate option. That choice is not foreclosed by this ADR.
 
 Other consequences:
 
-- Nothing is implemented. `globals.css` still defines a single dark theme, and
-  no Settings surface exists for this. Building it is Tier 1 under
-  WORKFLOW.md — a net-new user-facing feature — and needs a spec.
-- Every Light value in DESIGN_SYSTEM.md §2.2 needs a contrast pass before it
-  is written into code. They are drafted, not verified.
+- **Implemented 2026-09-27** (beta-ui Phase 3, `docs/specs/beta-ui-implementation.md`).
+  Midnight is the base token block in `globals.css`; Dark and Light are
+  `data-theme` overrides on `<html>`, set server-side from the
+  `harmoniq-appearance` cookie in the root layout. A Server Action writes the
+  cookie, and its response re-renders the layout, so switching needs no reload.
+  `clerkAppearance.ts` is now a per-theme function. The preference appears in no
+  API payload and never reaches the backend.
+- Every Light value is contrast-measured in DESIGN_SYSTEM.md §2.2. Two were
+  adjusted in the pass: the accent (`#1a64d6`) and tertiary text (`#666c7a`,
+  which must clear 4.5:1 on a tile fill as well as on the canvas).
 - The Signature itself remains deferred (ROADMAP.md, LATER). Website
   Appearance does **not** depend on it and can ship first.
 
@@ -99,8 +104,9 @@ Other consequences:
   the inverse of how the tokens are written today.
 - ~~Cross-device sync?~~ **Resolved 2026-09-06: not needed.** This confirms the
   cookie-only approach and keeps the backend out of the feature entirely.
-- **Does Light ship at all?** See the cost above. Worth deciding deliberately
-  rather than by assuming three themes is the natural number.
-- **System preference.** Whether "Website Appearance" offers an "Auto" option
-  following `prefers-color-scheme`. Not decided; it interacts with which theme
-  is the default.
+- ~~Does Light ship at all?~~ **Resolved 2026-08-30: yes**, as one of the
+  three, with a real contrast pass rather than the drafted values (recorded in
+  the beta-ui spec; this ADR was not updated at the time).
+- ~~System preference ("Auto")?~~ **Resolved 2026-09-27: no.** The server
+  cannot know the device setting on first paint, so Auto would bring back the
+  flash of the wrong theme that the cookie exists to prevent.

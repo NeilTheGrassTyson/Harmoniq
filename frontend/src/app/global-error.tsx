@@ -1,6 +1,10 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { appearanceFromCookieString, DEFAULT_APPEARANCE, themeAttribute } from "@/lib/appearance";
 import "./globals.css";
+
+const noSubscription = () => () => {};
 
 /**
  * Last-resort boundary for failures in the root layout itself.
@@ -17,8 +21,18 @@ export default function GlobalError({
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
+  // This boundary replaces the root layout, so the server-read theme never
+  // reaches it. The cookie is read client-side instead: at worst one frame of
+  // Midnight on a last-resort error page, rather than none of the viewer's
+  // choice at all.
+  const appearance = useSyncExternalStore(
+    noSubscription,
+    () => appearanceFromCookieString(document.cookie),
+    () => DEFAULT_APPEARANCE
+  );
+
   return (
-    <html lang="en">
+    <html lang="en" data-theme={themeAttribute(appearance)}>
       <body className="bg-canvas text-primary antialiased">
         <title>Harmoniq</title>
         <main

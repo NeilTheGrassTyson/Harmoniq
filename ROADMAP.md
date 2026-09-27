@@ -260,22 +260,21 @@ visibility obligation. An appearance preference is seen only by the person who
 set it. Separate control, separate token layer, separate stored field — ADR
 0015.
 
-### Website Appearance (Light / Dark / Midnight)
+### ✅ Website Appearance (Light / Dark / Midnight)
 
 A Settings surface letting a viewer pick the theme applied everywhere they
 look. Midnight (true black) is the default; Dark remains selectable. Decided
-2026-08-30 and amended 2026-09-06, ADR
-0015; not yet specced or built. Tier 1 — net-new user-facing feature.
+2026-08-30 and amended 2026-09-06, ADR 0015. **Built 2026-09-27** as beta-ui
+Phase 3 (`docs/specs/beta-ui-implementation.md`); no "Auto" option.
 
 Independent of the Listening Signature above: it can ship first.
 
-Two things to settle in the spec rather than in flight:
+Settled in the spec rather than in flight:
 
-- **Whether Light ships at all.** It breaks rather than degrades. The accent
-  fails AA on white and it is the focus-ring colour, and the whole Signature
-  palette is invisible on white — so Light means a darkened accent, a darkened
-  hue set, and dropping the glow, grain and particles. That is two Signature
-  treatments to maintain forever. Dark + Midnight alone is coherent.
+- ~~Whether Light ships at all.~~ Resolved 2026-08-30: yes, with a real
+  contrast pass (DESIGN_SYSTEM.md §2.2). It breaks rather than degrades — a
+  darkened accent, and, once the Signature is built, a darkened hue set with no
+  glow, grain or particles — so it remains two Signature treatments to maintain.
 - ~~Whether Midnight becomes the default.~~ Resolved 2026-09-06: yes. Costs no
   new contrast work — Midnight inherits Dark's text and accent values, so every
   ratio improves. No stored preferences exist yet, so nothing migrates; the app

@@ -16,10 +16,11 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "A social music discovery network built around trust and musical identity.",
     start_url: "/",
     display: "standalone",
-    // The canvas and brand token values. A manifest is read by the OS before
-    // any stylesheet exists, so these are necessarily literals.
-    background_color: "#0b0d12",
-    theme_color: "#0b0d12",
+    // The default (Midnight) canvas. A manifest is read by the OS before any
+    // stylesheet or cookie exists, so it can only ever match the default theme,
+    // and these are necessarily literals.
+    background_color: "#000000",
+    theme_color: "#000000",
     icons: [
       {
         src: "/brand/harmoniq-mark-512.png",
