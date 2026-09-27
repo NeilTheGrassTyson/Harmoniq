@@ -2,7 +2,12 @@ import re
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.core.enums import MelodyAcceptScope, VisibilityScope
+from app.core.enums import (
+    FriendRequestScope,
+    FriendshipState,
+    MelodyAcceptScope,
+    VisibilityScope,
+)
 from app.schemas.follow import FollowState
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9_-]{3,30}$")
@@ -74,6 +79,7 @@ class ProfileUpdateRequest(BaseModel):
     visibility_ratings: VisibilityScope | None = None
     visibility_follows: VisibilityScope | None = None
     melody_accept_scope: MelodyAcceptScope | None = None
+    friend_request_scope: FriendRequestScope | None = None
 
     @field_validator("username")
     @classmethod
@@ -121,6 +127,8 @@ class ProfileResponse(BaseModel):
     following_count: int = 0
     # follow is present only when the viewer is authenticated and not the owner:
     follow: FollowState | None = None
+    # Same audience as follow. Absent when friend requests are switched off.
+    friendship: FriendshipState | None = None
     # The following are present only when visibility allows:
     bio: str | None = None
     activity_placeholder: bool | None = None  # True = show placeholder section
@@ -143,6 +151,7 @@ class OwnProfileResponse(BaseModel):
     visibility_ratings: VisibilityScope
     visibility_follows: VisibilityScope
     melody_accept_scope: MelodyAcceptScope
+    friend_request_scope: FriendRequestScope = FriendRequestScope.EVERYONE
     # Never present on public profile responses — own-profile only.
     is_moderator: bool = False
 

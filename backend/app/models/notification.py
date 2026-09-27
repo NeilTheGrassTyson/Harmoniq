@@ -36,6 +36,18 @@ class Notification(Base):
             unique=True,
             postgresql_where=text("type = 'new_follower'"),
         ),
+        # A pair is told about a request, and about its acceptance, once:
+        # asking again never re-notifies (anti-harassment).
+        Index(
+            "uq_notifications_friend_request",
+            "user_id",
+            "actor_id",
+            "type",
+            unique=True,
+            postgresql_where=text(
+                "type IN ('friend_request_received','friend_request_accepted')"
+            ),
+        ),
         Index(
             "uq_notifications_melody",
             "melody_id",

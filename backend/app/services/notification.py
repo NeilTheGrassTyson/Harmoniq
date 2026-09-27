@@ -91,6 +91,32 @@ async def create_follower_notification(
     await session.execute(stmt)
 
 
+async def create_friend_notification(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    notification_type: NotificationType,
+) -> None:
+    """Request received or accepted. Never called for a decline."""
+    stmt = (
+        pg_insert(Notification)
+        .values(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            type=notification_type.value,
+            actor_id=actor_id,
+            created_at=_now(),
+        )
+        .on_conflict_do_nothing(
+            index_elements=["user_id", "actor_id", "type"],
+            index_where=text(
+                "type IN ('friend_request_received','friend_request_accepted')"
+            ),
+        )
+    )
+    await session.execute(stmt)
+
+
 # ── Reads ─────────────────────────────────────────────────────────────────────
 
 

@@ -32,7 +32,7 @@ from app.schemas.rating import (
     UserRatingListResponse,
     UserRatingRead,
 )
-from app.services import follow as follow_svc
+from app.services import friendship as friendship_svc
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ async def _is_friend(
     viewer_id: uuid.UUID,
     subject_id: uuid.UUID,
 ) -> bool:
-    return await follow_svc.is_mutual_follow(session, viewer_id, subject_id)
+    return await friendship_svc.are_friends(session, viewer_id, subject_id)
 
 
 # ── Visibility gate ───────────────────────────────────────────────────────────
@@ -155,10 +155,10 @@ async def list_for_entity(
     )
     rows = rows_result.all()
 
-    # One mutual-follows fetch for the viewer instead of a per-row query.
+    # One friends fetch for the viewer instead of a per-row query.
     viewer_friend_ids: set[uuid.UUID] = set()
     if viewer_id is not None and rows:
-        viewer_friend_ids = await follow_svc.get_mutual_follow_ids(session, viewer_id)
+        viewer_friend_ids = await friendship_svc.get_friend_ids(session, viewer_id)
 
     visible: list[RatingRead] = []
     for rating, user in rows:

@@ -21,7 +21,7 @@ from app.schemas.harmony import (
     HarmonyResponse,
     HarmonyShared,
 )
-from app.services import follow as follow_svc
+from app.services import friendship as friendship_svc
 from app.services import user as user_svc
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ async def get_harmony(
     scope = VisibilityScope(owner.visibility_harmony)
     is_friend = False
     if not is_owner and viewer is not None and scope == VisibilityScope.FRIENDS:
-        is_friend = await follow_svc.is_mutual_follow(session, viewer.id, owner.id)
+        is_friend = await friendship_svc.are_friends(session, viewer.id, owner.id)
     if not scope_allows(scope, is_owner=is_owner, is_friend=is_friend):
         return HarmonyHidden()
 

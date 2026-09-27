@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     catalog,
     follows,
+    friends,
     harmony,
     health,
     home,
@@ -23,6 +24,7 @@ api_router.include_router(users.router)
 api_router.include_router(webhooks.router)
 api_router.include_router(ratings.router)
 api_router.include_router(follows.router)
+api_router.include_router(friends.router)
 api_router.include_router(home.router)
 api_router.include_router(spotify.router)
 api_router.include_router(melodies.router)

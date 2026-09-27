@@ -1,8 +1,9 @@
 # Friend Requests — Making Friendship Explicit
 
-> **Status: APPROVED — Founder, 2026-09-19.** Tier 1 per WORKFLOW.md §1
-> (net-new, user-facing feature; changes how user data is shared). Approved as
-> written, with no modifications. Not yet implemented.
+> **Status: APPROVED — Founder, 2026-09-19; open questions resolved
+> 2026-09-27.** Tier 1 per WORKFLOW.md §1 (net-new, user-facing feature;
+> changes how user data is shared). Implemented on
+> `claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review.
 >
 > Prerequisite for `specs/phase-2-rating-visibility-split.md`, whose
 > friends-only commentary is only meaningful if a viewer can actually become a
@@ -217,18 +218,48 @@ Friendship rows survive a rollback and are correct again when re-enabled.
 
 ---
 
-# Open Questions
+# Open Questions — resolved
 
-_Founder decides._
+_Founder decisions, 2026-09-27._
 
-1. **Default `FriendRequestScope`** — `everyone`, or `follows` only? Melody
-   defaults are the precedent worth matching for consistency.
-2. **Does accepting a friend request also create follows?** Convenient, but it
-   conflates the two relationship types §3 keeps separate, and it would put
-   content in someone's feed they did not ask for.
-3. **Should a pending outbound request be visible to the sender?** Showing it
-   is honest; hiding it makes a decline completely invisible, which is what §3
-   wants for Melody. These pull in opposite directions.
-4. **Is the friend count public?** It is a follower-count-like number, and
-   ENGINEERING_BIBLE §6 is wary of anything that invites comparison at a
-   glance.
+1. **Default `FriendRequestScope` — `everyone`.** Matches the Melody default.
+   Users can narrow it to people they follow, or to mutual follows, in
+   settings. Every refusal returns the same message, so a sender never learns
+   which setting refused them.
+2. **Accepting does not create follows — but following back is one tap.**
+   Friendship and follows stay independent, as the Model section already says.
+   Wherever a friend or a received request is shown to its owner, a Follow
+   control appears for anyone the owner does not already follow (the Instagram
+   "follow back" pattern), so the convenience exists without conflating the
+   two relationships.
+3. **A sender never sees their own outstanding request.** After sending, the
+   profile control returns to its normal state and no outgoing list exists, so
+   there is also no withdraw action. A pending request and a declined one are
+   therefore indistinguishable to the sender, which is the strongest form of
+   the silent-decline rule. The send itself returns a one-time
+   acknowledgement; asking again is accepted, changes nothing, and never
+   re-notifies.
+4. **No friend count anywhere.** A user's friends list is visible only to
+   them, on their own friends page (ENGINEERING_BIBLE §6).
+
+# Implementation decisions
+
+Recorded here because they affect future work, per WORKFLOW.md §3.
+
+- **One friends check.** `app/services/friendship.py::are_friends` is the only
+  friends decision any visibility code calls. It covers the seven call sites
+  listed above plus Harmony's summary visibility, which shipped after this
+  spec was written. With `FRIENDSHIPS_ENABLED=false` it falls back to mutual
+  follow.
+- **A pair is notified once per notification type.** A partial unique index
+  means asking again never re-notifies, mirroring the existing rule that a
+  re-follow never re-notifies. The incoming list, not the notification, is the
+  source of truth for pending requests.
+- **Rate limit: 5 per minute and 30 per day on sending**, keyed like every
+  other limit in the app (by client address, not account). Accept, decline
+  and remove carry the ordinary 30-per-minute write limit.
+- **Migration attribution.** A converted mutual-follow pair records the
+  earlier follower as the requester and the later follow's time as the
+  acceptance time.
+- **Home's `has_mutual_follows`** is kept as a deprecated alias of the new
+  `has_friends`, so a frontend and backend deployed out of order still agree.

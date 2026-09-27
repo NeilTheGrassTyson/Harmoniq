@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.core.enums import MelodyAcceptScope, VisibilityScope
+from app.core.enums import FriendRequestScope, MelodyAcceptScope, VisibilityScope
 from app.database import Base
 
 
@@ -48,6 +48,14 @@ class User(Base):
     # inbound gesture, not visibility of owned data.
     melody_accept_scope: Mapped[str] = mapped_column(
         String, nullable=False, default=MelodyAcceptScope.EVERYONE.value
+    )
+    # Who may send this user a friend request — the same kind of inbound
+    # consent gate as melody_accept_scope (specs/phase-2-friend-requests.md).
+    friend_request_scope: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=FriendRequestScope.EVERYONE.value,
+        server_default=FriendRequestScope.EVERYONE.value,
     )
     # Moderation fields. is_moderator is granted only via manual SQL — no API
     # path ever writes it (Founder decision 2026-07-07). suspended_at doubles

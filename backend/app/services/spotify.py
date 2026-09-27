@@ -37,7 +37,7 @@ from app.schemas.spotify import (
     RecentlyPlayedItem,
     SpotifyConnectionStatus,
 )
-from app.services import follow as follow_svc
+from app.services import friendship as friendship_svc
 
 logger = logging.getLogger(__name__)
 
@@ -476,7 +476,7 @@ async def get_listening(
     scope = VisibilityScope(profile_user.visibility_activity)
     is_friend = False
     if not is_owner and scope == VisibilityScope.FRIENDS and viewer is not None:
-        is_friend = await follow_svc.is_mutual_follow(
+        is_friend = await friendship_svc.are_friends(
             session, viewer.id, profile_user.id
         )
     if not scope_allows(scope, is_owner=is_owner, is_friend=is_friend):

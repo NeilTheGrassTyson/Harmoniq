@@ -9,7 +9,7 @@ database; the async functions handle DB I/O and delegate to those helpers.
 Trending counts only effectively public ratings — public at both the
 per-rating and profile (visibility_ratings) level — so it is identical for
 every viewer (ratings spec, Amendments 2026-07-04). The friends section
-filters both levels to non-private in SQL; the viewer is a mutual friend of
+filters both levels to non-private in SQL; the viewer is a friend of
 every rater there, so friends-or-public effective scope is exactly right.
 """
 
@@ -143,7 +143,7 @@ def _compute_friends_top_tracks(
     limit: int,
 ) -> list[FriendEntry]:
     """
-    Pure computation: each mutual-follow friend's single highest-rated track in
+    Pure computation: each friend's single highest-rated track in
     the window. PRIVATE ratings must not be passed in (filter in the SQL query).
     Tiebreak within a friend's tracks: score DESC, created_at DESC, track_id ASC.
     Tiebreak across friends' entries: created_at DESC, track_id ASC.
@@ -269,15 +269,15 @@ async def get_friends_top_tracks(
     session: AsyncSession,
     viewer_id: uuid.UUID,
     limit: int,
-    mutual_follow_ids: set[uuid.UUID] | None = None,
+    friend_ids: set[uuid.UUID] | None = None,
 ) -> list[FriendEntry]:
     """Fetch and compute Top songs from friends for the given viewer."""
-    if mutual_follow_ids is None:
-        from app.services import follow as follow_svc
+    if friend_ids is None:
+        from app.services import friendship as friendship_svc
 
-        mutual_follow_ids = await follow_svc.get_mutual_follow_ids(session, viewer_id)
+        friend_ids = await friendship_svc.get_friend_ids(session, viewer_id)
 
-    if not mutual_follow_ids:
+    if not friend_ids:
         return []
 
     now = _now()
@@ -305,9 +305,9 @@ async def get_friends_top_tracks(
         .where(
             Rating.entity_type == "track",
             Rating.created_at >= cutoff,
-            Rating.user_id.in_(mutual_follow_ids),
+            Rating.user_id.in_(friend_ids),
             # Both levels non-private → effective scope is friends or public,
-            # and every rater here is a mutual friend of the viewer.
+            # and every rater here is a friend of the viewer.
             Rating.visibility != VisibilityScope.PRIVATE.value,
             User.visibility_ratings != VisibilityScope.PRIVATE.value,
             # Moderation-hidden ratings never reach any Home surface.

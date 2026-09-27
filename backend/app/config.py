@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     harmony_enabled: bool = True
     melody_reactions_enabled: bool = True
     streaming_links_enabled: bool = True
+    # Off reverts every friends-scoped check to mutual follow and hides the
+    # friend-request endpoints; friendship rows are kept for re-enabling.
+    friendships_enabled: bool = True
 
     # ── Home sections ────────────────────────────────────────────────────────
     # Number of entries returned per section on the Home page.

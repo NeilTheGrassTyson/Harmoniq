@@ -36,4 +36,7 @@ class HomeResponse(BaseModel):
     trending_error: bool = False
     friends: list[FriendEntry]
     friends_error: bool = False
+    has_friends: bool
+    # Deprecated alias of has_friends, kept so a frontend deployed before
+    # friend requests keeps reading a correct value.
     has_mutual_follows: bool

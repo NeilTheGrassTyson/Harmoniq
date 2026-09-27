@@ -14,11 +14,13 @@ from typing import Any
 from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import MelodyAcceptScope, VisibilityScope
+from app.config import settings
+from app.core.enums import FriendRequestScope, MelodyAcceptScope, VisibilityScope
 from app.models.user import User
 from app.schemas.follow import FollowState
 from app.schemas.user import OwnProfileResponse, ProfileResponse, UserSearchResult
 from app.services import follow as follow_svc
+from app.services import friendship as friendship_svc
 from app.services import rating as rating_svc
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ async def _is_friend(
     viewer_id: uuid.UUID,
     profile_id: uuid.UUID,
 ) -> bool:
-    return await follow_svc.is_mutual_follow(session, viewer_id, profile_id)
+    return await friendship_svc.are_friends(session, viewer_id, profile_id)
 
 
 # ── Basic lookups ─────────────────────────────────────────────────────────────
@@ -104,6 +106,7 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         visibility_ratings=VisibilityScope(user.visibility_ratings),
         visibility_follows=VisibilityScope(user.visibility_follows),
         melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
+        friend_request_scope=FriendRequestScope(user.friend_request_scope),
         is_moderator=user.is_moderator,
     )
 
@@ -161,6 +164,10 @@ async def get_profile(
     }
     if follow_state is not None:
         fields["follow"] = follow_state
+        if settings.friendships_enabled and viewer is not None:
+            fields["friendship"] = await friendship_svc.get_state(
+                session, viewer.id, user.id
+            )
 
     # Bio: include for own profile (even if null, for "Add a bio" prompt) or
     # when viewer has permission AND bio has a value.
@@ -201,6 +208,7 @@ async def update_profile(
     visibility_ratings: VisibilityScope | None,
     visibility_follows: VisibilityScope | None = None,
     melody_accept_scope: MelodyAcceptScope | None = None,
+    friend_request_scope: FriendRequestScope | None = None,
 ) -> OwnProfileResponse:
     if display_name is not None:
         user.display_name = display_name
@@ -272,6 +280,17 @@ async def update_profile(
                 user.id,
                 old,
                 melody_accept_scope.value,
+            )
+
+    if friend_request_scope is not None:
+        old = user.friend_request_scope
+        user.friend_request_scope = friend_request_scope.value
+        if old != friend_request_scope.value:
+            logger.info(
+                "Friend request scope changed internal_id=%s %s→%s",
+                user.id,
+                old,
+                friend_request_scope.value,
             )
 
     user.updated_at = _now()

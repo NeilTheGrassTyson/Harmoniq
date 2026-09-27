@@ -93,11 +93,17 @@ async def can_view_follow_lists(
     scope = VisibilityScope(owner.visibility_follows)
     is_friend = False
     if scope == VisibilityScope.FRIENDS and viewer is not None:
-        is_friend = await is_mutual_follow(session, viewer.id, owner.id)
+        # Imported here: the friendship service builds on this module.
+        from app.services import friendship as friendship_svc
+
+        is_friend = await friendship_svc.are_friends(session, viewer.id, owner.id)
     return scope_allows(scope, is_owner=False, is_friend=is_friend)
 
 
 # ── Mutual-follow check ───────────────────────────────────────────────────────
+# The Phase 1 definition of friend. Visibility code must call
+# friendship_svc.are_friends, which falls back to this when
+# FRIENDSHIPS_ENABLED is off.
 
 
 async def is_mutual_follow(
@@ -175,12 +181,12 @@ async def get_follow_state(
         )
     )
     edges = {(r.follower_id, r.followed_id) for r in rows}
-    is_following = (viewer_id, profile_id) in edges
-    follows_you = (profile_id, viewer_id) in edges
+    from app.services import friendship as friendship_svc
+
     return FollowState(
-        is_following=is_following,
-        follows_you=follows_you,
-        is_friend=is_following and follows_you,
+        is_following=(viewer_id, profile_id) in edges,
+        follows_you=(profile_id, viewer_id) in edges,
+        is_friend=await friendship_svc.are_friends(session, viewer_id, profile_id),
     )
 
 
