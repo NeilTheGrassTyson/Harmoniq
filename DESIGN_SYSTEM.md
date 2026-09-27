@@ -369,6 +369,17 @@ once — see `docs/BRAND_ASSETS.md`.
 
 ---
 
+**Friends rail** (Melodies page, `lg` and up) — a 280px `bg-sidebar` column with
+a hairline left border, beside the page content rather than over it. Groups in
+fixed order — Listening now, Online, Offline, Friends — each headed by a
+label-face micro-label with its count (accent only for Listening now). Rows are
+people: 28px avatar, name, and a track subtitle only when listening, with the
+`.eq-bar` pulse. The single row action, **Send**, is an accent chip revealed on
+hover *and* keyboard focus (opacity, so it stays in the tab order). A friend
+whose Online status is Private sits under "Friends" with no status mark of any
+kind — never under Offline. Nothing in the rail is sorted by a measure of a
+person. Spec: `docs/specs/beta-ui-phase-5-presence.md`.
+
 ## 8. Motion
 
 - Tile hover: `transform: translateY(-2px)`, ~150ms ease. That's it.

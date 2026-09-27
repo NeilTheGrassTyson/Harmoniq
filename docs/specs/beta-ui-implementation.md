@@ -391,11 +391,54 @@ measured and forgotten, the new setting and its default — are specified in
   idle timers, "last seen", and any sort by a measure of a person. Rows are
   people; the track is a subtitle, never a headline.
 
+### As built (2026-09-27)
+
+Per the approved addendum, `docs/specs/beta-ui-phase-5-presence.md`, with the
+Founder's changes: friends are mutual follows only; Private is its own
+no-status state (a neutral "Friends" group), not Offline; the setting offers
+Private / Friends / Public; Send carries the friend through search to a
+pre-filled Send panel. ADR 0016 records the single-process constraint.
+
+Verified against the real stack (backend on local Postgres 16, minted tokens,
+signed-in frontend through a harness build whose only change passed the key
+to `clerkMiddleware`, never committed):
+
+- [x] API: Friends- and Public-scoped friends online after a beat; one sharing
+      status but silent is Offline; a Private friend's beat is refused
+      (`recorded: false`) and they carry `null`; one-way follows in either
+      direction never appear; going Private drops them to `null` on the next
+      read; unfollowing removes them on the next read; no time value anywhere;
+      the setting is on the own profile only; 403 without a token, 422 for an
+      invalid value. Migration upgrade / downgrade / upgrade round-trips, and
+      existing accounts come up Private.
+- [x] UI: groups and counts render in order in Midnight and Light; hidden below
+      `lg`; Send hidden at rest, shown on hover and on keyboard focus; Send →
+      `/search?to=…` with the "Choose a track to send @…" line, and the
+      recipient survives typing a query.
+- [x] **Three defects found and fixed in this pass:** the presence routes
+      returned 500 under the rate limiter (missing `response` parameter —
+      route-level tests added, proven to fail without the fix); the limiter
+      keyed presence per IP, so more than a dozen people behind one shared
+      address would flicker offline (now per session); and the rail painted
+      empty then popped in (now server-rendered first, streamed beside the
+      inbox).
+
+**Not exercisable in the sandbox, covered by tests instead:** anything needing
+Clerk's *client-side* session — the browser's own heartbeat, the profile editor,
+and the track page's Send panel (it gates on `useUser`) — plus Listening now
+(needs a Spotify account) and catalog search (needs MusicBrainz). Each has unit
+or integration coverage; the heartbeat's refuse-and-stop and hidden-tab rules,
+the panel pre-fill, and the editor's save payload are all tested directly.
+
 **STOP. Review and sign-off before Phase 6.**
 
 ---
 
 # Phase 6 — Highlighted reviews on the profile
+
+> **Deferred (Founder, 2026-09-27)** until the Highlights work now in progress
+> for the current version lands; build Phase 6 on top of it, using it as the
+> reference. Do not start a separate highlight mechanism here.
 
 A self-curated showcase — the same gesture as highlighting a song. One featured
 review with an excerpt, then two compact ones. See
