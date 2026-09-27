@@ -78,6 +78,13 @@ export default function OnboardingPage() {
       // Force a session reload so the Clerk JWT picks up onboarded=true.
       await user?.reload();
       router.replace(`/u/${profile.username}`);
+      // The account that exists now did not exist when this page was served,
+      // and the nav's identity was resolved back then: getViewer() runs in the
+      // root layout, which a client-side navigation preserves rather than
+      // re-renders. Without this the user lands on their own profile with a
+      // nav still insisting they have none — no Profile link until they
+      // reload by hand. refresh() re-runs the server tree for the new URL.
+      router.refresh();
     } catch (err: unknown) {
       // Never the raw message: a fetch that never reached the backend throws
       // "Load failed" in Safari and "Failed to fetch" in Chrome, and putting

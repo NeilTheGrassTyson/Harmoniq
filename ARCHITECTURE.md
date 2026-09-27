@@ -1,11 +1,12 @@
 # Harmoniq — Architecture Overview
 
-> **Status:** Phase 1 feature-complete — modular monolith. Shipped: Music
+> **Status:** Phase 1 complete — modular monolith. Shipped: Music
 > Catalog, User Accounts, Search, Ratings & Reviews, Follows, Home, Spotify
-> integration, Melody, Notifications, Moderation review/action. Remaining
-> before Phase 1 fully closes: a full visibility audit and deployment
-> verification (no staging/production instance stood up yet) — see
-> `ROADMAP.md` for the sequenced list and gating rule.
+> integration, Melody, Notifications, Moderation review/action, the
+> Visibility Audit, and Deployment Verification (production Vercel +
+> Railway + Neon confirmed live end to end 2026-07-08) — see `ROADMAP.md`
+> for the checklist and dates. Phase 2 (NEXT) work is gated on Founder
+> approval of each feature's spec per `WORKFLOW.md`.
 > This document describes what the system _is_ today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---

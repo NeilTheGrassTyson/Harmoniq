@@ -133,16 +133,29 @@ describe("RatingComposer — new review submit", () => {
 
     render(<RatingComposer entityType="track" entityMbid="mbid-2" onSubmitted={onSubmitted} />);
 
+    const submitBtn = screen.getByRole("button", { name: "Submit review" }) as HTMLButtonElement;
+    expect(submitBtn.disabled).toBe(true);
+
     // Select score 9
     const btn9 = screen.getAllByRole("button").find((b) => b.textContent === "9")!;
     fireEvent.click(btn9);
+    expect(btn9.getAttribute("aria-pressed")).toBe("true");
+    expect(submitBtn.disabled).toBe(true);
 
     // Fill text
     fireEvent.change(screen.getByRole("textbox"), {
       target: { value: LONG_ENOUGH_TEXT },
     });
 
-    const submitBtn = screen.getByRole("button", { name: "Submit review" });
+    expect(submitBtn.disabled).toBe(false);
+    expect(screen.getByText(`${LONG_ENOUGH_TEXT.length} / 2000`)).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Too short" } });
+    expect(submitBtn.disabled).toBe(true);
+    expect(screen.getByText("9 / 2000")).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: LONG_ENOUGH_TEXT } });
+    expect(submitBtn.disabled).toBe(false);
+
     await act(async () => {
       fireEvent.click(submitBtn);
     });

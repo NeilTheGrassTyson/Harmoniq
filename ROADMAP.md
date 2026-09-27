@@ -258,14 +258,14 @@ treatment as the original profile fields._
 chosen by a profile's owner and seen by *visitors*, which is why they carry a
 visibility obligation. An appearance preference is seen only by the person who
 set it. Separate control, separate token layer, separate stored field — ADR
-0014.
+0015.
 
 ### Website Appearance (Light / Dark / Midnight)
 
 A Settings surface letting a viewer pick the theme applied everywhere they
 look. Midnight (true black) is the default; Dark remains selectable. Decided
 2026-08-30 and amended 2026-09-06, ADR
-0014; not yet specced or built. Tier 1 — net-new user-facing feature.
+0015; not yet specced or built. Tier 1 — net-new user-facing feature.
 
 Independent of the Listening Signature above: it can ship first.
 

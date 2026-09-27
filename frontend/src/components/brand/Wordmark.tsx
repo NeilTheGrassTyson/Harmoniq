@@ -17,7 +17,7 @@ interface WordmarkProps {
  * outlined in a vector editor once — see docs/BRAND_ASSETS.md.
  *
  * Wired into the AppShell header (from `sm` up), AuthScreen, and the
- * signed-out landing — the only three logo sites. See ADR 0013 and
+ * signed-out landing — the only three logo sites. See ADR 0014 and
  * DESIGN_SYSTEM.md §6.1.
  */
 export default function Wordmark({ size = 14, className = "" }: WordmarkProps) {

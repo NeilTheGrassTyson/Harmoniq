@@ -108,7 +108,11 @@ referencing the file by name in your prompt:
   `pyproject.toml`, so without it the `[tool.bandit]` block is silently ignored.
 - **Type check:** `mypy` (or pyright — check `pyproject.toml`).
 - **Tests:** `pytest`, `pytest-asyncio`, `pytest-cov`. Integration tests use Testcontainers (real PostgreSQL). `NullPool` required in test fixtures to avoid asyncpg connection conflicts.
-- **Run tests:** `cd backend && python -m pytest`
+- **Run tests:** `cd backend && python -m pytest -m "not integration"` for
+  the unit tier (no external dependencies). The integration tier
+  (`-m "integration"`, or no `-m` filter for the full suite) needs Docker —
+  Testcontainers spins up real Postgres. `docs/setup.md` §8 has the full
+  breakdown.
 - **Run everything CI runs** (`.github/workflows/backend-ci.yml`), before pushing:
   ```
   poetry run ruff check . && poetry run ruff format --check . \

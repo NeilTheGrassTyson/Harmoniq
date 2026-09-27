@@ -10,7 +10,7 @@
    handful of rules that need a color outside a utility class (body,
    :focus-visible, .listening-now-row) — reads from this set via var()
    rather than repeating a literal. That is what lets Website Appearance
-   (ADR 0014, not yet built) swap the palette later by overriding this block
+   (ADR 0015, not yet built) swap the palette later by overriding this block
    under a data-theme attribute, without touching anything downstream of it.
    `clerkAppearance.ts` is the one place a literal copy is unavoidable: Clerk
    renders its own DOM and cannot inherit a CSS custom property. */
@@ -29,7 +29,7 @@
   --accent-ui-wash: rgba(47, 140, 255, 0.06);
   /* Logo only — the Octave mark and wordmark. Deliberately NOT the same value
      as --accent-ui: that one is load-bearing for the focus ring and was
-     contrast-verified at #2f8cff. See DESIGN_SYSTEM.md §2 and ADR 0013. */
+     contrast-verified at #2f8cff. See DESIGN_SYSTEM.md §2 and ADR 0014. */
   --brand: #19d8ff;
   --icon-trend: #343b4d;
   --icon-friend: #34507c;

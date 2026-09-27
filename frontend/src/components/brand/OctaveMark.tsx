@@ -23,7 +23,7 @@ interface OctaveMarkProps {
  * (DESIGN_SYSTEM §2).
  *
  * Wired into the AppShell header below `sm`, where the wordmark would
- * compete with the search field. See ADR 0013 and DESIGN_SYSTEM.md §6.1.
+ * compete with the search field. See ADR 0014 and DESIGN_SYSTEM.md §6.1.
  */
 export default function OctaveMark({
   size = 24,

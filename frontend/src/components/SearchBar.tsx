@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import AvatarImage from "@/components/AvatarImage";
 import { searchCatalog } from "@/lib/catalog";
 import { searchUsers } from "@/lib/users";
@@ -89,6 +89,7 @@ export function SearchBarFallback() {
 export default function SearchBar() {
   const [panel, setPanel] = useState<PanelState>({ kind: "idle" });
   const containerRef = useRef<HTMLDivElement>(null);
+  const resultsId = useId();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -251,15 +252,19 @@ export default function SearchBar() {
         }}
         placeholder="search"
         aria-label="Search artists, albums, tracks, and people"
-        aria-expanded={showPanel}
-        aria-haspopup="listbox"
+        aria-controls={showPanel ? resultsId : undefined}
         className="search-focus bg-control border-hairline rounded-control text-primary w-full border px-3 py-1.5 text-[13px] outline-none"
         autoComplete="off"
         spellCheck={false}
       />
 
       {showPanel && (
-        <div className="bg-sidebar border-hairline rounded-control absolute top-[calc(100%+4px)] left-0 z-50 w-full min-w-[280px] overflow-hidden border">
+        <div
+          id={resultsId}
+          role="region"
+          aria-label="Search results"
+          className="bg-sidebar border-hairline rounded-control absolute top-[calc(100%+4px)] left-0 z-50 w-full min-w-[280px] overflow-hidden border"
+        >
           {derivedPanel.kind === "loading" && <p className={PANEL_MSG}>Searching…</p>}
 
           {derivedPanel.kind === "error" && (

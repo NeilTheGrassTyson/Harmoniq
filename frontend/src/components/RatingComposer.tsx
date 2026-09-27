@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
@@ -58,14 +58,18 @@ export default function RatingComposer({
     defaultValues: valuesFrom(initialRating) as RatingValues,
   });
 
+  const [score, reviewText] = useWatch({
+    control: form.control,
+    name: ["score", "reviewText"],
+  });
+
   // Sync form state when the parent updates initialRating (e.g. after a
   // successful submit) so the composer always reflects the saved review.
   useEffect(() => {
     form.reset(valuesFrom(initialRating) as RatingValues);
   }, [initialRating, form]);
 
-  const score = form.watch("score");
-  const text = form.watch("reviewText") ?? "";
+  const text = reviewText ?? "";
   const trimmed = text.trim();
   const tooShort = trimmed.length < REVIEW_MIN;
   // Synchronous mirror of the schema for the disabled state — formState.isValid

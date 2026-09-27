@@ -33,7 +33,7 @@ Harmoniq/
 
 **Phase 0 complete** — infrastructure and stack decisions are finalized and committed.
 
-**Phase 1 (NOW) has not started.** Feature development begins after reviewing [ROADMAP.md](ROADMAP.md) and writing a spec for each Tier 1 feature per [WORKFLOW.md](WORKFLOW.md).
+**Phase 1 (NOW) is complete.** Music Catalog, User Accounts, Search, Ratings & Reviews, Follows, Home, Spotify integration, Melody, Notifications, Moderation, the Visibility Audit, and Deployment Verification have all shipped — see [ROADMAP.md](ROADMAP.md) for the checklist and dates. Phase 2 (NEXT) work starts from specs in `specs/`, written per [WORKFLOW.md](WORKFLOW.md).
 
 ---
 

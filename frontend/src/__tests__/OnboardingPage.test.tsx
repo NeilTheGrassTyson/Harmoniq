@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockGetToken = vi.fn().mockResolvedValue("mock-token");
 const mockReplace = vi.fn();
+const mockRefresh = vi.fn();
 const mockReload = vi.fn().mockResolvedValue(undefined);
 
 type ClerkUser = { firstName: string | null; lastName: string | null; username?: string | null };
@@ -20,7 +21,9 @@ vi.mock("@clerk/nextjs", () => ({
   }),
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: mockReplace }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mockReplace, refresh: mockRefresh }),
+}));
 
 const mockCheckUsernameAvailable = vi.fn();
 const mockCreateUser = vi.fn();
@@ -188,6 +191,38 @@ describe("OnboardingPage", () => {
       expect(mockCreateUser).toHaveBeenCalledWith("mock-token", "dadrocks", "Dad Jordan")
     );
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/u/dadrocks"));
+  });
+
+  // The nav's identity is resolved in the root layout, which a client-side
+  // navigation preserves rather than re-runs — so without an explicit refresh
+  // the new account lands on its own profile behind a nav that still says it
+  // has none, and the Profile link appears only after a manual reload.
+  it("re-runs the server tree so the nav learns the new account exists", async () => {
+    renderPage();
+    await typeUsername("dadrocks");
+    await resolveClerk({ firstName: "Dad", lastName: "Jordan" });
+
+    await act(async () => {
+      fireEvent.click(continueButton());
+    });
+
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
+  });
+
+  it("does not refresh when the account was not created", async () => {
+    mockCreateUser.mockRejectedValue(
+      Object.assign(new Error("That username is taken."), { status: 409 })
+    );
+    renderPage();
+    await typeUsername("dadrocks");
+    await resolveClerk({ firstName: "Dad", lastName: "Jordan" });
+
+    await act(async () => {
+      fireEvent.click(continueButton());
+    });
+
+    await waitFor(() => expect(screen.getAllByText("That username is taken.").length).toBeTruthy());
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 
   it("surfaces a backend rejection instead of failing silently", async () => {

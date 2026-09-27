@@ -48,12 +48,12 @@
   ROADMAP.md LATER. Do not build it, and do not build "just the wave" as a
   decorative element on the profile.
 - **Harmony v2 profile themes** — a different feature from Website Appearance
-  (ADR 0014). Do not let the two share a control, a token layer, or a stored
+  (ADR 0015). Do not let the two share a control, a token layer, or a stored
   field.
 - **Cross-device sync of the appearance preference.** Decided 2026-09-06:
   not needed. The preference is a cookie; this feature is frontend-only.
 - **Any change to the Octave mark itself.** The geometry, colour, and raster
-  assets are settled (ADR 0013). Do not redraw, recolour, or re-export them.
+  assets are settled (ADR 0014). Do not redraw, recolour, or re-export them.
 - **Renaming `EqualizerGlyph` or removing it.** It keeps its placeholder role.
 
 ---
@@ -69,10 +69,12 @@ git fetch origin && git rebase origin/dev
 `beta-ui` is 6 commits behind. Verified: zero file overlap, so this is clean.
 The branch has never been pushed — no force-push needed.
 
-**2. ADR numbering is already fixed — do not redo it.** `dev` carries
-`0012-nav-identity-and-public-search.md`; this branch's two ADRs were renumbered
-to **0013** (logomark) and **0014** (Website Appearance) ahead of the rebase, so
-the merged history is contiguous with no duplicates.
+**2. ADR numbering.** `dev` carries `0012-nav-identity-and-public-search.md`
+and, since 2026-09-07, `0013-astra-second-engineer.md`. This branch's two ADRs
+were renumbered twice to stay contiguous with no duplicates — most recently on
+2026-09-27, when `dev` was merged in: they are now **0014** (logomark) and
+**0015** (Website Appearance). If `dev` gains another ADR before this branch
+lands, renumber these again rather than duplicating a number.
 
 **3. Read these after rebasing, before touching `AppShell` or `layout.tsx`.**
 dev's `eb44a07` introduced `frontend/src/components/ViewerProvider.tsx` and
@@ -85,7 +87,7 @@ and `page.tsx` — all files Phases 1 and 3 edit.
 
 ## The rule that decides which glyphs change
 
-`EqualizerGlyph` appears at 11 sites. ADR 0013 says it keeps its
+`EqualizerGlyph` appears at 11 sites. ADR 0014 says it keeps its
 placeholder/music-glyph role and loses **only** its logo role. The codebase
 already draws that line cleanly:
 
@@ -218,9 +220,15 @@ render their own DOM and cannot inherit CSS variables.
       computed-style change. `npm run verify` (typecheck, lint at baseline,
       format, 343/343 tests, build) passes clean.
 
-**STOP. Review and sign-off before Phase 3.** Audits, if any are run before
-sign-off rather than deferred, follow the same single end-of-spec-pass
-decision recorded in the Phase 1 note above.
+**STOP. Review and sign-off before Phase 3.**
+
+**Signed off 2026-09-27 (Founder),** after a runtime verification pass: base
+and Phase 2 builds served side by side, 12/12 page screenshots (6 routes ×
+desktop/mobile) byte-identical, 28/28 palette utility classes computing
+identically, focus ring and `.listening-now-row` matching exactly. Audits
+deferred to the end-of-spec pass per the Phase 1 note. Founder also directed
+2026-09-27 that Phases 3–6 proceed in sequence with a runtime verification
+pass between each, stopping for any design decision not already documented.
 
 ---
 
@@ -228,7 +236,7 @@ decision recorded in the Phase 1 note above.
 
 Light / Dark / Midnight, in Settings under the heading **"Website
 Appearance"**. That name is load-bearing: it is the *viewer's* preference,
-distinct from Harmony v2 profile themes (ADR 0014).
+distinct from Harmony v2 profile themes (ADR 0015).
 
 ## The deciding constraint: no flash
 
