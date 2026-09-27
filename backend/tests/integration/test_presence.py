@@ -209,3 +209,49 @@ class TestFriendsRail:
     async def test_new_accounts_start_private(self, db_session: AsyncSession) -> None:
         user = await user_svc.create_user(db_session, "pres_09", "pres_09", "New")
         assert user.visibility_presence == VisibilityScope.PRIVATE.value
+
+
+@pytest.mark.integration
+class TestPresenceRoutes:
+    """Through the real routes, rate limiter included. The service tests above
+    call presence_svc directly, which is how a route that 500'd on every
+    request once passed the whole suite."""
+
+    async def test_heartbeat_route(
+        self, db_session: AsyncSession, authed_client: tuple[Any, str]
+    ) -> None:
+        client, clerk_id = authed_client
+        user = await user_svc.create_user(db_session, clerk_id, "pres_rt_01", "Route")
+        user.visibility_presence = "friends"
+        await db_session.flush()
+
+        resp = await client.post("/api/v1/presence/heartbeat")
+
+        assert resp.status_code == 200
+        assert resp.json() == {"recorded": True}
+        assert "x-ratelimit-limit" in {k.lower() for k in resp.headers}
+        assert presence_svc.is_online(user.id)
+
+    async def test_friends_route(
+        self, db_session: AsyncSession, authed_client: tuple[Any, str]
+    ) -> None:
+        client, clerk_id = authed_client
+        me = await user_svc.create_user(db_session, clerk_id, "pres_rt_02", "Me")
+        friend = await _user(db_session, "rt02f", "Friend", "friends")
+        await _mutual(db_session, me, friend)
+        presence_svc.heartbeat(friend)
+
+        resp = await client.get("/api/v1/presence/friends")
+
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "friends": [
+                {
+                    "username": "pres_rt02f",
+                    "display_name": "Friend",
+                    "avatar_url": None,
+                    "state": "online",
+                    "track": None,
+                }
+            ]
+        }
