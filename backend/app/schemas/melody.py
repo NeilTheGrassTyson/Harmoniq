@@ -42,6 +42,14 @@ class MelodyInboxItem(BaseModel):
     track: TrackSummary
     status: MelodyStatus
     created_at: datetime
+    # When the recipient's inbox first delivered it. Recipient-only by design:
+    # on the sender's item it would be a read receipt — the recipient's
+    # activity shown without their choice (HARMONIQ.md §6). Nullable only for
+    # rows delivered before the column existed.
+    received_at: datetime | None
+    # When the current outcome was reached. A later change (accepted → opened,
+    # or a reversed rejection) overwrites it, so it always dates the status
+    # shown alongside it.
     responded_at: datetime | None
 
 

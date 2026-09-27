@@ -49,6 +49,7 @@ function makeItem(overrides: Partial<MelodyInboxItem> & { id: string }): MelodyI
     },
     status: "received",
     created_at: new Date().toISOString(),
+    received_at: null,
     responded_at: null,
     ...overrides,
   };
@@ -118,6 +119,30 @@ describe("MelodyInbox â€” quick actions", () => {
     expect(screen.queryByText("Listen")).toBeNull();
     expect(screen.queryByText("Take it")).toBeNull();
     expect(screen.getByText("You listened.")).toBeDefined();
+  });
+
+  it("stamps when it arrived and when it was acted on, in place of the sentence", async () => {
+    renderWithQuery(
+      <MelodyInbox
+        initialItems={[
+          makeItem({
+            id: "m1",
+            status: "accepted",
+            received_at: "2026-08-29T21:14:00Z",
+            responded_at: "2026-08-29T21:20:00Z",
+          }),
+        ]}
+        initialCursor={null}
+      />
+    );
+
+    const stamps = screen.getByTestId("melody-stamps");
+    expect(stamps.textContent).toMatch(/Received.*Accepted/);
+    expect(stamps.querySelector('time[datetime="2026-08-29T21:14:00Z"]')).not.toBeNull();
+    expect(stamps.querySelector('time[datetime="2026-08-29T21:20:00Z"]')).not.toBeNull();
+    // After mount the time is real text, not the placeholder.
+    await waitFor(() => expect(stamps.querySelector("time")!.textContent).toMatch(/\d/));
+    expect(screen.queryByText("You took this one.")).toBeNull();
   });
 
   it("shows the empty state when there are no Melodies", () => {

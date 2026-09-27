@@ -84,7 +84,10 @@ generating one on a user's behalf (ENGINEERING_BIBLE §6).
   can still move to `accepted` or `opened` (rejection is recoverable).
   `accepted` and `opened` are terminal.
 - The sender's own view of a Melody they sent never shows `received` as a
-  distinct state — it collapses to `sent` (no read receipts).
+  distinct state — it collapses to `sent` (no read receipts). The same rule
+  covers **time**: since beta-ui Phase 4 (2026-09-27) the recipient's inbox
+  item carries `received_at` for its "Received" stamp, and the sender's item
+  never does. Both carry `responded_at`, which dates the current outcome.
 - Reject must be visible only to the sender; it must never notify anyone
   or appear on any surface the recipient or a third party can see it
   changed.

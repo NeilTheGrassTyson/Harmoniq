@@ -280,6 +280,9 @@ export interface MelodyInboxItem {
   track: TrackSummary;
   status: MelodyStatus;
   created_at: string;
+  /** First delivery to the recipient. Recipient-only — never on MelodySentItem. */
+  received_at: string | null;
+  /** When the current outcome was reached. */
   responded_at: string | null;
 }
 

@@ -274,6 +274,37 @@ class TestMelodyLists:
         others = [i for i in sent.items if i.id != m2.id]
         assert others[0].status is MelodyStatus.SENT
 
+    async def test_inbox_item_carries_its_delivery_time(
+        self, db_session: AsyncSession
+    ) -> None:
+        a = await _make_user(db_session, clerk_id="mel_l_05a", username="mel_l_05a")
+        b = await _make_user(db_session, clerk_id="mel_l_05b", username="mel_l_05b")
+        track = await _make_track(db_session, mbid="mbid-mel-l-05")
+        melody = await _send(db_session, a, b, track)
+
+        first = await melody_svc.list_inbox(db_session, recipient_id=b.id)
+        await db_session.refresh(melody)
+        assert first.items[0].received_at == melody.received_at
+        assert first.items[0].received_at is not None
+
+        # A second fetch must not move it: "Received" dates first delivery.
+        second = await melody_svc.list_inbox(db_session, recipient_id=b.id)
+        assert second.items[0].received_at == first.items[0].received_at
+
+    async def test_sent_view_never_carries_a_read_receipt(
+        self, db_session: AsyncSession
+    ) -> None:
+        a = await _make_user(db_session, clerk_id="mel_l_06a", username="mel_l_06a")
+        b = await _make_user(db_session, clerk_id="mel_l_06b", username="mel_l_06b")
+        track = await _make_track(db_session, mbid="mbid-mel-l-06")
+        await _send(db_session, a, b, track)
+        await melody_svc.list_inbox(db_session, recipient_id=b.id)
+
+        sent = await melody_svc.list_sent(db_session, sender_id=a.id)
+        payload = sent.model_dump(mode="json")
+        assert "received_at" not in payload["items"][0]
+        assert payload["items"][0]["status"] == MelodyStatus.SENT.value
+
     async def test_inbox_is_recipient_only(self, db_session: AsyncSession) -> None:
         a = await _make_user(db_session, clerk_id="mel_l_03a", username="mel_l_03a")
         b = await _make_user(db_session, clerk_id="mel_l_03b", username="mel_l_03b")
@@ -339,6 +370,41 @@ class TestMelodyRespond:
         )
         assert error == "" and item is not None
         assert item.status is MelodyStatus.OPENED
+
+    async def test_respond_dates_both_delivery_and_the_current_outcome(
+        self, db_session: AsyncSession
+    ) -> None:
+        _, b, melody = await self._setup(db_session, "07")
+        await melody_svc.list_inbox(db_session, recipient_id=b.id)
+
+        accepted, error = await melody_svc.respond(
+            db_session, melody_id=melody.id, recipient_id=b.id, action="accept"
+        )
+        assert error == "" and accepted is not None
+        assert accepted.received_at is not None and accepted.responded_at is not None
+        assert accepted.received_at <= accepted.responded_at
+
+        opened, error = await melody_svc.respond(
+            db_session, melody_id=melody.id, recipient_id=b.id, action="open"
+        )
+        assert error == "" and opened is not None
+        # The outcome stamp dates the status shown beside it, so upgrading to
+        # Opened moves it; the delivery time never moves.
+        assert opened.responded_at is not None
+        assert opened.responded_at >= accepted.responded_at
+        assert opened.received_at == accepted.received_at
+
+    async def test_responding_before_any_inbox_fetch_still_dates_delivery(
+        self, db_session: AsyncSession
+    ) -> None:
+        _, b, melody = await self._setup(db_session, "08")
+
+        item, error = await melody_svc.respond(
+            db_session, melody_id=melody.id, recipient_id=b.id, action="reject"
+        )
+        assert error == "" and item is not None
+        assert item.received_at is not None
+        assert item.received_at == item.responded_at
 
     async def test_rejected_is_recoverable(self, db_session: AsyncSession) -> None:
         _, b, melody = await self._setup(db_session, "02")

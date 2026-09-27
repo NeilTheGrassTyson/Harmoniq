@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import MelodyCard from "@/components/MelodyCard";
+import { sentStamps } from "@/lib/melodyStamps";
 import { getSentMelodies } from "@/lib/melodies";
 import type { MelodySentItem } from "@/types";
 
@@ -11,11 +12,13 @@ interface MelodySentListProps {
   initialCursor: string | null;
 }
 
-/** Sender-visible outcomes. "Passed" is visible to the sender only. */
+/**
+ * Sender-visible outcomes, for rows that predate responded_at and so have no
+ * outcome stamp. "Passed" is visible to the sender only.
+ */
 const SENT_LABELS: Record<string, string> = {
-  sent: "Sent",
-  accepted: "Taken",
-  opened: "Listened",
+  accepted: "Accepted",
+  opened: "Opened",
   rejected: "Passed",
 };
 
@@ -63,7 +66,8 @@ export default function MelodySentList({ initialItems, initialCursor }: MelodySe
           track={item.track}
           person={item.recipient}
           direction="to"
-          statusLabel={SENT_LABELS[item.status] ?? item.status}
+          stamps={sentStamps(item)}
+          statusLabel={item.responded_at ? undefined : SENT_LABELS[item.status]}
         />
       ))}
       {cursor && (

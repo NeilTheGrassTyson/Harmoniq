@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import MelodyCard from "@/components/MelodyCard";
+import { inboxStamps } from "@/lib/melodyStamps";
 import { getInbox, respondToMelody } from "@/lib/melodies";
 import type { MelodyInboxItem, MelodyRespondAction } from "@/types";
 import { friendlyError } from "@/lib/apiBase";
@@ -138,7 +139,10 @@ export default function MelodyInbox({ initialItems, initialCursor }: MelodyInbox
             track={item.track}
             person={item.sender}
             direction="from"
-            statusLabel={statusLabel(item)}
+            stamps={inboxStamps(item)}
+            // The outcome stamp says it; the sentence is only for rows that
+            // predate responded_at and so have nothing to stamp.
+            statusLabel={item.responded_at ? undefined : statusLabel(item)}
             actions={
               !responded ? (
                 <>

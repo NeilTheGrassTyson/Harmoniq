@@ -291,6 +291,7 @@ async def list_inbox(
             Melody.id,
             Melody.status,
             Melody.created_at,
+            Melody.received_at,
             Melody.responded_at,
             User.id.label("user_id"),
             User.username,
@@ -332,6 +333,7 @@ async def list_inbox(
             track=_track_summary_from_row(row),
             status=MelodyStatus(row.status),
             created_at=row.created_at,
+            received_at=row.received_at,
             responded_at=row.responded_at,
         )
         for row in page
@@ -469,6 +471,7 @@ async def respond(
             track=track,
             status=MelodyStatus(melody.status),
             created_at=melody.created_at,
+            received_at=melody.received_at,
             responded_at=melody.responded_at,
         ),
         "",

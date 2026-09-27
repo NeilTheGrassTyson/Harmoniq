@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useSyncExternalStore } from "react";
 import CoverArt from "@/components/CoverArt";
 import EqualizerGlyph from "@/components/EqualizerGlyph";
+import { formatStamp, type MelodyStamp } from "@/lib/melodyStamps";
 import type { TrackSummary, UserSummary } from "@/types";
 
 // The card renders identity, not internal PKs — API payloads (which carry
@@ -20,6 +22,8 @@ interface MelodyCardProps {
   compact?: boolean;
   /** Muted status/outcome line under the person, e.g. "You passed on this". */
   statusLabel?: string;
+  /** Received / Sent, then Accepted / Opened / Passed — label, then local time. */
+  stamps?: MelodyStamp[];
   /** Quick actions rendered on the right edge (inbox rows). */
   actions?: React.ReactNode;
 }
@@ -36,6 +40,7 @@ export default function MelodyCard({
   direction,
   compact = false,
   statusLabel,
+  stamps,
   actions,
 }: MelodyCardProps) {
   const size = compact ? 40 : 56;
@@ -81,6 +86,23 @@ export default function MelodyCard({
             {statusLabel}
           </p>
         )}
+        {stamps && stamps.length > 0 && (
+          <dl
+            className="font-label text-tertiary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-[3px]"
+            data-testid="melody-stamps"
+          >
+            {stamps.map((stamp) => (
+              <div key={stamp.label} className="contents">
+                <dt className="text-[9.5px] leading-[16px] font-bold tracking-[1px] uppercase">
+                  {stamp.label}
+                </dt>
+                <dd className="text-[11px] leading-[16px]">
+                  <LocalTime iso={stamp.at} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
 
       {actions && (
@@ -90,4 +112,20 @@ export default function MelodyCard({
       )}
     </div>
   );
+}
+
+const noSubscription = () => () => {};
+
+/**
+ * Formatted in the viewer's own time zone, so only after mount: a server-
+ * rendered time would be the server's zone and mismatch on hydration. Until
+ * then the row holds its height with a non-breaking space.
+ */
+function LocalTime({ iso }: { iso: string }) {
+  const mounted = useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false
+  );
+  return <time dateTime={iso}>{mounted ? formatStamp(iso) : "\u00a0"}</time>;
 }
