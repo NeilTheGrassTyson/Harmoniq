@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import AvatarImage from "@/components/AvatarImage";
 import EqualizerGlyph from "@/components/EqualizerGlyph";
 import { getFriendsPresence } from "@/lib/presence";
-import type { FriendPresence, PresenceState } from "@/types";
+import type { FriendPresence, FriendsPresenceResponse, PresenceState } from "@/types";
 
 const POLL_MS = 30_000;
 
@@ -26,7 +26,12 @@ const GROUPS: { state: PresenceState; label: string }[] = [
  * people — a track is only ever a subtitle — and nothing is sorted by any
  * measure of a person.
  */
-export default function FriendsRail() {
+export default function FriendsRail({
+  initial = null,
+}: {
+  /** Server-rendered first read, so the rail paints with people in it. */
+  initial?: FriendsPresenceResponse | null;
+}) {
   const { getToken, isSignedIn } = useAuth();
   const { data, isError } = useQuery({
     queryKey: ["presence", "friends"],
@@ -36,6 +41,9 @@ export default function FriendsRail() {
       return getFriendsPresence(token);
     },
     enabled: Boolean(isSignedIn),
+    initialData: initial ?? undefined,
+    // The server just read it; the first refresh belongs to the interval.
+    refetchOnMount: initial === null,
     staleTime: POLL_MS,
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
@@ -125,5 +133,15 @@ function FriendRow({ friend }: { friend: FriendPresence }) {
         Send
       </Link>
     </li>
+  );
+}
+
+/** Same footprint as the rail, empty — shown while the server read streams in. */
+export function FriendsRailPlaceholder() {
+  return (
+    <aside
+      aria-hidden="true"
+      className="bg-sidebar border-hairline hidden w-[280px] shrink-0 border-l lg:block"
+    />
   );
 }

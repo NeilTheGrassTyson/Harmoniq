@@ -68,6 +68,15 @@ describe("FriendsRail", () => {
     expect(screen.queryByRole("heading", { name: "Online" })).toBeNull();
   });
 
+  it("paints the server's first read at once, without fetching again", () => {
+    renderWithQuery(
+      <FriendsRail initial={{ friends: [friend({ username: "mara", state: "online" })] }} />
+    );
+
+    expect(screen.getByRole("region", { name: "Online" })).toBeDefined();
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+
   it("offers Send as a link that carries the friend into search", async () => {
     mockGet.mockResolvedValue({
       friends: [friend({ username: "jules", display_name: "Jules", state: "online" })],

@@ -123,9 +123,25 @@ describe("ProfileEditPanel — save", () => {
         visibility_activity: "private",
         visibility_ratings: "public",
         visibility_follows: "public",
+        visibility_presence: "private",
       })
     );
     expect(onSaved).toHaveBeenCalledWith(updated);
+  });
+
+  it("shows the saved Online status and sends it back unchanged", async () => {
+    mockGetOwnProfile.mockResolvedValue(makeOwnProfile({ visibility_presence: "friends" }));
+    mockUpdateProfile.mockResolvedValue(makeOwnProfile());
+    await renderPanel();
+
+    expect(screen.getByLabelText("Online status")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalled());
+    expect(mockUpdateProfile).toHaveBeenCalledWith(
+      "mock-token",
+      expect.objectContaining({ visibility_presence: "friends" })
+    );
   });
 
   it("Cancel calls onCancel without calling updateProfile", async () => {

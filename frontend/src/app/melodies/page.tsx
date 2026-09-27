@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import AppShell from "@/components/AppShell";
-import FriendsRail from "@/components/FriendsRail";
+import { FriendsRailPlaceholder } from "@/components/FriendsRail";
+import FriendsRailSection from "./FriendsRailSection";
 import MelodiesTabs from "@/components/MelodiesTabs";
 import { getInbox, getSentMelodies } from "@/lib/melodies";
 import type { MelodyInboxResponse, MelodySentResponse } from "@/types";
@@ -45,7 +47,9 @@ export default async function MelodiesPage() {
             />
           )}
         </main>
-        <FriendsRail />
+        <Suspense fallback={<FriendsRailPlaceholder />}>
+          <FriendsRailSection />
+        </Suspense>
       </div>
     </AppShell>
   );
