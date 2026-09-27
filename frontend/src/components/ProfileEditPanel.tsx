@@ -45,6 +45,7 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
   const [visibilityActivity, setVisibilityActivity] = useState<VisibilityScope>("private");
   const [visibilityRatings, setVisibilityRatings] = useState<VisibilityScope>("private");
   const [visibilityFollows, setVisibilityFollows] = useState<VisibilityScope>("public");
+  const [visibilityPresence, setVisibilityPresence] = useState<VisibilityScope>("private");
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -70,6 +71,7 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
         setVisibilityActivity(data.visibility_activity);
         setVisibilityRatings(data.visibility_ratings);
         setVisibilityFollows(data.visibility_follows);
+        setVisibilityPresence(data.visibility_presence);
         setOriginalUsername(data.username);
       })
       .catch(() => setSaveError("Couldn't load your profile."))
@@ -139,6 +141,7 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
         visibility_activity: visibilityActivity,
         visibility_ratings: visibilityRatings,
         visibility_follows: visibilityFollows,
+        visibility_presence: visibilityPresence,
       });
       onSaved(updated);
     } catch (err: unknown) {
@@ -285,6 +288,14 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
               label: "Listening activity",
               value: visibilityActivity,
               setter: setVisibilityActivity,
+            },
+            {
+              // Whether friends can see you have Harmoniq open, on the
+              // Melodies page's friends rail. Private shows nothing at all.
+              field: "presence",
+              label: "Online status",
+              value: visibilityPresence,
+              setter: setVisibilityPresence,
             },
             {
               field: "ratings",

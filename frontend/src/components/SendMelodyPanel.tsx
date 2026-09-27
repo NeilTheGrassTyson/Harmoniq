@@ -9,17 +9,20 @@ import { friendlyError } from "@/lib/apiBase";
 
 interface SendMelodyPanelProps {
   track: Omit<TrackSummary, "id">;
+  /** Pre-fills the recipient and opens the panel (friends rail → search → here). */
+  initialRecipient?: string;
 }
 
 /**
  * Inline expandable panel on the track page. The only input is the
  * recipient — the Melody itself is the embed card previewed below.
  */
-export default function SendMelodyPanel({ track }: SendMelodyPanelProps) {
+export default function SendMelodyPanel({ track, initialRecipient }: SendMelodyPanelProps) {
   const { getToken } = useAuth();
   const { isSignedIn } = useUser();
-  const [open, setOpen] = useState(false);
-  const [recipient, setRecipient] = useState("");
+  const preset = initialRecipient?.trim().replace(/^@/, "").slice(0, 50) ?? "";
+  const [open, setOpen] = useState(preset !== "");
+  const [recipient, setRecipient] = useState(preset);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);

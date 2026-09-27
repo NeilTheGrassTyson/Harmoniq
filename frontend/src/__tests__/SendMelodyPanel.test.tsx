@@ -52,6 +52,14 @@ describe("SendMelodyPanel", () => {
     expect(screen.getByLabelText("Recipient username")).toBeDefined();
   });
 
+  it("opens pre-filled when a friend was chosen from the rail", () => {
+    render(<SendMelodyPanel track={TRACK} initialRecipient="@jules" />);
+
+    // Already open, recipient in place — no extra click from the rail's Send.
+    expect(screen.getByTestId("melody-card")).toBeDefined();
+    expect((screen.getByLabelText("Recipient username") as HTMLInputElement).value).toBe("jules");
+  });
+
   it("sends to the entered recipient and confirms calmly", async () => {
     mockSend.mockResolvedValue({
       id: "m1",

@@ -37,7 +37,9 @@ describe("appearance helpers", () => {
 });
 
 describe("setAppearance server action", () => {
-  beforeEach(() => cookieSet.mockReset());
+  beforeEach(() => {
+    cookieSet.mockReset();
+  });
 
   it("stores a valid choice for a year, site-wide", async () => {
     const { setAppearance } = await import("@/app/settings/actions");

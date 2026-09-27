@@ -94,6 +94,7 @@ function makeOwnProfileUpdate(overrides: Partial<OwnProfileResponse> = {}): OwnP
     visibility_activity: "private",
     visibility_ratings: "public",
     visibility_follows: "public",
+    visibility_presence: "private",
     melody_accept_scope: "everyone",
     is_moderator: false,
     ...overrides,

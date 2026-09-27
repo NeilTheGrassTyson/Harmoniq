@@ -1,0 +1,27 @@
+from fastapi import APIRouter, Request
+
+from app.api.v1.deps import CurrentActiveUser, CurrentUser, DbSession
+from app.core.rate_limit import limiter
+from app.schemas.presence import FriendsPresenceResponse, HeartbeatResponse
+from app.services import presence as presence_svc
+
+router = APIRouter(prefix="/presence", tags=["presence"])
+
+
+# One beat a minute per visible tab is expected; the headroom covers tabs
+# being shown and hidden. A suspended account broadcasts nothing.
+@router.post("/heartbeat", response_model=HeartbeatResponse)
+@limiter.limit("12/minute")
+async def heartbeat(
+    request: Request, current_user: CurrentActiveUser
+) -> HeartbeatResponse:
+    return HeartbeatResponse(recorded=presence_svc.heartbeat(current_user))
+
+
+# The rail re-reads every 30s while visible.
+@router.get("/friends", response_model=FriendsPresenceResponse)
+@limiter.limit("12/minute")
+async def friends(
+    request: Request, session: DbSession, current_user: CurrentUser
+) -> FriendsPresenceResponse:
+    return await presence_svc.friends_presence(session, current_user)

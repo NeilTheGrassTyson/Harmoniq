@@ -7,6 +7,7 @@ import SearchBar, { SearchBarFallback } from "@/components/SearchBar";
 import NavAuth from "@/components/NavAuth";
 import { useViewer } from "@/components/ViewerProvider";
 import NotificationBell from "@/components/NotificationBell";
+import PresenceHeartbeat from "@/components/PresenceHeartbeat";
 import OctaveMark from "@/components/brand/OctaveMark";
 import Wordmark from "@/components/brand/Wordmark";
 
@@ -196,6 +197,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex h-full flex-col">
+      <PresenceHeartbeat />
       {/* ── Header (3-column grid) ─────────────────────────────────────── */}
       <header className="border-hairline bg-canvas relative z-1 grid h-[52px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b px-5">
         {/* Left: toggle + logo */}

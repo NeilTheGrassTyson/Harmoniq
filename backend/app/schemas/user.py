@@ -73,6 +73,7 @@ class ProfileUpdateRequest(BaseModel):
     visibility_activity: VisibilityScope | None = None
     visibility_ratings: VisibilityScope | None = None
     visibility_follows: VisibilityScope | None = None
+    visibility_presence: VisibilityScope | None = None
     melody_accept_scope: MelodyAcceptScope | None = None
 
     @field_validator("username")
@@ -142,6 +143,9 @@ class OwnProfileResponse(BaseModel):
     visibility_activity: VisibilityScope
     visibility_ratings: VisibilityScope
     visibility_follows: VisibilityScope
+    # Own-profile only, like every setting here: who may see your online
+    # status is yours to know, not theirs (HARMONIQ.md §6).
+    visibility_presence: VisibilityScope
     melody_accept_scope: MelodyAcceptScope
     # Never present on public profile responses — own-profile only.
     is_moderator: bool = False

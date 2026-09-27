@@ -19,6 +19,7 @@ from app.models.user import User
 from app.schemas.follow import FollowState
 from app.schemas.user import OwnProfileResponse, ProfileResponse, UserSearchResult
 from app.services import follow as follow_svc
+from app.services import presence as presence_svc
 from app.services import rating as rating_svc
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ async def create_user(
         bio=None,
         visibility_bio=VisibilityScope.PRIVATE.value,
         visibility_activity=VisibilityScope.PRIVATE.value,
+        visibility_presence=VisibilityScope.PRIVATE.value,
         # Public defaults are documented constitutional exceptions — see
         # specs/phase-1-user-accounts-profiles.md and
         # phase-1-ratings-reviews.md, Amendments 2026-07-04.
@@ -103,6 +105,7 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         visibility_activity=VisibilityScope(user.visibility_activity),
         visibility_ratings=VisibilityScope(user.visibility_ratings),
         visibility_follows=VisibilityScope(user.visibility_follows),
+        visibility_presence=VisibilityScope(user.visibility_presence),
         melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
         is_moderator=user.is_moderator,
     )
@@ -201,6 +204,7 @@ async def update_profile(
     visibility_ratings: VisibilityScope | None,
     visibility_follows: VisibilityScope | None = None,
     melody_accept_scope: MelodyAcceptScope | None = None,
+    visibility_presence: VisibilityScope | None = None,
 ) -> OwnProfileResponse:
     if display_name is not None:
         user.display_name = display_name
@@ -262,6 +266,22 @@ async def update_profile(
                 old,
                 visibility_follows.value,
             )
+
+    if visibility_presence is not None:
+        old = user.visibility_presence
+        user.visibility_presence = visibility_presence.value
+        if old != visibility_presence.value:
+            logger.info(
+                "Visibility changed internal_id=%s field=presence %s→%s",
+                user.id,
+                old,
+                visibility_presence.value,
+            )
+        # Revocation is immediate: going Private drops the in-memory record in
+        # this same request, so no friend sees "Online" for the rest of the
+        # window. The rail also re-checks the setting on every read.
+        if visibility_presence == VisibilityScope.PRIVATE:
+            presence_svc.forget(user.id)
 
     if melody_accept_scope is not None:
         old = user.melody_accept_scope

@@ -18,8 +18,13 @@ function formatDuration(ms: number | null): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export default async function TrackPage(props: { params: Promise<{ mbid: string }> }) {
+export default async function TrackPage(props: {
+  params: Promise<{ mbid: string }>;
+  searchParams: Promise<{ to?: string }>;
+}) {
   const { mbid } = await props.params;
+  // Set by the friends rail's Send, carried through search.
+  const { to } = await props.searchParams;
   const { getToken } = await auth();
   const token = await getToken().catch(() => null);
 
@@ -88,6 +93,7 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
         </div>
 
         <SendMelodyPanel
+          initialRecipient={typeof to === "string" ? to : undefined}
           track={{
             mbid,
             title: track.title,

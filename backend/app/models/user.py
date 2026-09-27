@@ -29,6 +29,12 @@ class User(Base):
     visibility_activity: Mapped[str] = mapped_column(
         String, nullable=False, default=VisibilityScope.PRIVATE.value
     )
+    # "Online status" — whether friends may see that you have Harmoniq open
+    # (beta-ui Phase 5, docs/specs/beta-ui-phase-5-presence.md). Private by
+    # default; presence itself is never stored, only this consent.
+    visibility_presence: Mapped[str] = mapped_column(
+        String, nullable=False, default=VisibilityScope.PRIVATE.value
+    )
     # Public defaults below are documented constitutional exceptions — see
     # specs/phase-1-user-accounts-profiles.md and phase-1-ratings-reviews.md,
     # Amendments 2026-07-04. visibility_ratings is a master switch over every

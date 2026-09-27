@@ -106,6 +106,9 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 function SearchContent() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? "";
+  const sendTo = searchParams.get("to");
+  const trackHref = (mbid: string) =>
+    sendTo ? `/track/${mbid}?to=${encodeURIComponent(sendTo)}` : `/track/${mbid}`;
   // Only the async fetch outcome is state; the view state (idle / loading /
   // empty / results) is derived at render so no setState fires synchronously
   // inside the effect.
@@ -175,10 +178,17 @@ function SearchContent() {
 
   return (
     <main className="max-w-[680px] px-[22px] pt-[26px] pb-[30px]">
+      {sendTo && (
+        <p className="text-secondary mb-4 text-[13px]" data-testid="send-to-context">
+          Choose a track to send <span className="text-primary">@{sendTo}</span>.
+        </p>
+      )}
       {q.length < 2 && (
         <div className="text-secondary flex flex-col items-center justify-center gap-3 pt-20">
           <EqualizerGlyph size={36} />
-          <p className="font-display m-0 text-sm">Search for music or people</p>
+          <p className="font-display m-0 text-sm">
+            {sendTo ? "Search for a track" : "Search for music or people"}
+          </p>
         </div>
       )}
 
@@ -252,7 +262,7 @@ function SearchContent() {
             <Section label="Tracks">
               {state.music.tracks.slice(0, MAX_PER_SECTION).map((t) => (
                 <li key={t.mbid}>
-                  <ResultRow href={`/track/${t.mbid}`}>
+                  <ResultRow href={trackHref(t.mbid)}>
                     <span className="min-w-0 flex-1">
                       <PrimaryText>{t.title}</PrimaryText>
                       <SubText>

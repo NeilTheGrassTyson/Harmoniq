@@ -132,6 +132,8 @@ export interface OwnProfileResponse {
   visibility_activity: VisibilityScope;
   visibility_ratings: VisibilityScope;
   visibility_follows: VisibilityScope;
+  /** "Online status" — who may see you have Harmoniq open. Own profile only. */
+  visibility_presence: VisibilityScope;
   melody_accept_scope: MelodyAcceptScope;
   is_moderator: boolean;
 }
@@ -152,6 +154,7 @@ export interface ProfileUpdateRequest {
   visibility_activity?: VisibilityScope;
   visibility_ratings?: VisibilityScope;
   visibility_follows?: VisibilityScope;
+  visibility_presence?: VisibilityScope;
   melody_accept_scope?: MelodyAcceptScope;
 }
 
@@ -304,6 +307,24 @@ export interface MelodyInboxResponse {
 export interface MelodySentResponse {
   items: MelodySentItem[];
   next_cursor: string | null;
+}
+
+// ── Presence (friends rail) ──────────────────────────────────────────────────
+
+/** `null` = shares no online status. Deliberately not a value naming the choice. */
+export type PresenceState = "listening" | "online" | "offline" | null;
+
+export interface FriendPresence {
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  state: PresenceState;
+  track: { title: string; artist_name: string } | null;
+}
+
+export interface FriendsPresenceResponse {
+  /** Already ordered: listening, online, offline, then no status. */
+  friends: FriendPresence[];
 }
 
 // ── Notifications ────────────────────────────────────────────────────────────

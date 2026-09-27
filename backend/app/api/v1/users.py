@@ -168,6 +168,7 @@ async def update_profile(
             visibility_ratings=req.visibility_ratings,
             visibility_follows=req.visibility_follows,
             melody_accept_scope=req.melody_accept_scope,
+            visibility_presence=req.visibility_presence,
         )
         await session.commit()
     except IntegrityError as exc:

@@ -94,6 +94,10 @@ export default function SearchBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlQuery = pathname === "/search" ? (searchParams.get("q") ?? "") : "";
+  // A recipient chosen from the friends rail ("Send" → /search?to=…) has to
+  // survive the query being typed, or picking a track would lose who it's for.
+  const sendTo = pathname === "/search" ? searchParams.get("to") : null;
+  const toSuffix = sendTo ? `to=${encodeURIComponent(sendTo)}` : "";
   // Seeded from the URL rather than restored by an effect, so landing on
   // /search?q=… shows the query in the field on the very first render.
   const [query, setQuery] = useState(urlQuery);
@@ -153,7 +157,7 @@ export default function SearchBar() {
       // Clear URL param when query is cleared on /search
       if (pathname === "/search") {
         lastWritten.current = "";
-        router.replace("/search");
+        router.replace(toSuffix ? `/search?${toSuffix}` : "/search");
       }
       return;
     }
@@ -172,7 +176,7 @@ export default function SearchBar() {
         // Back walked the query backwards a few characters at a time instead
         // of leaving the page.
         lastWritten.current = trimmed;
-        router.replace(`/search?q=${encodeURIComponent(trimmed)}`);
+        router.replace(`/search?q=${encodeURIComponent(trimmed)}${toSuffix ? `&${toSuffix}` : ""}`);
         setPanel({ kind: "idle" });
         return;
       }
@@ -220,7 +224,7 @@ export default function SearchBar() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [query, pathname, router]);
+  }, [query, pathname, router, toSuffix]);
 
   // Close the panel WITHOUT clearing the query: clearing would re-trigger
   // the URL-sync effect mid-navigation and cancel the clicked link.

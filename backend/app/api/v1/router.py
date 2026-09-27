@@ -8,6 +8,7 @@ from app.api.v1 import (
     melodies,
     moderation,
     notifications,
+    presence,
     ratings,
     spotify,
     users,
@@ -26,3 +27,4 @@ api_router.include_router(spotify.router)
 api_router.include_router(melodies.router)
 api_router.include_router(notifications.router)
 api_router.include_router(moderation.router)
+api_router.include_router(presence.router)
