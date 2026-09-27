@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # the MusicBrainz-first path unchanged — the rollback lever.
     search_local_first: bool = True
 
+    # Independent Phase 2 rollback switches. Additive data is retained.
+    harmony_enabled: bool = True
+    melody_reactions_enabled: bool = True
+    streaming_links_enabled: bool = True
+
     # ── Home sections ────────────────────────────────────────────────────────
     # Number of entries returned per section on the Home page.
     home_trending_count: int = 10

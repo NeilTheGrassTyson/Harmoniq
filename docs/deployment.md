@@ -6,6 +6,11 @@ Harmoniq uses a split deployment:
 - **Backend** → Railway (automatic from `main`, with migration release command)
 - **Database** → Neon (managed PostgreSQL, always on)
 
+For Phase 2 Harmony, Melody reactions, and streaming links (PR #74), follow
+the [migration and rollback instructions](reviews/phase-2-v1-verification.md#release-and-rollback).
+The additive migration must run before the new backend starts. Merge authority
+remains with the Founder; this feature PR targets `dev`, not production.
+
 ---
 
 ## Frontend — Vercel

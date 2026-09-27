@@ -38,6 +38,12 @@ vi.mock("@/components/AppShell", () => ({
 
 const mockProfileHeaderProps = vi.fn();
 
+vi.mock("@/components/HarmonySection", () => ({
+  default: ({ username }: { username: string }) => (
+    <div data-testid="harmony-section">{username}</div>
+  ),
+}));
+
 vi.mock("@/components/ProfileHeader", () => ({
   default: (props: unknown) => {
     mockProfileHeaderProps(props);
@@ -104,6 +110,7 @@ describe("Profile page — ProfileHeader wiring", () => {
   it("renders ProfileHeader with the fetched profile", async () => {
     await renderPage();
     expect(screen.getByTestId("profile-header")).toBeTruthy();
+    expect(screen.getByTestId("harmony-section").textContent).toBe("testuser");
     expect(mockProfileHeaderProps).toHaveBeenCalledWith(
       expect.objectContaining({ profile: baseProfile })
     );
