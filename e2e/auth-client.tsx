@@ -54,16 +54,19 @@ export function SignInButton({
 }: {
   children: React.ReactNode;
   mode?: string;
+  signUpForceRedirectUrl?: string;
 }) {
   return children;
 }
 export function UserButton() {
   return <button>Test account</button>;
 }
-export function SignIn() {
+// Clerk's redirect props are accepted and ignored: the fixture never signs in.
+type HostedAuthProps = Record<string, unknown>;
+export function SignIn(_props: HostedAuthProps) {
   return <p>Sign-in provider fixture</p>;
 }
-export function SignUp() {
+export function SignUp(_props: HostedAuthProps) {
   return <p>Sign-up provider fixture</p>;
 }
 export function AuthenticateWithRedirectCallback() {

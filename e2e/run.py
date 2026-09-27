@@ -135,7 +135,7 @@ def main() -> int:
     track_mbid = str(uuid.uuid4())
     accounts = {}
     for viewport in ("desktop", "mobile"):
-        for role in ("sender", "recipient"):
+        for role in ("sender", "recipient", "asker", "owner"):
             name = f"e2e_{viewport}_{role}"
             claims = {
                 "sub": name,

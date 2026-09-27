@@ -51,6 +51,11 @@ describe("FriendsList", () => {
     expect(within(friends).getByRole("button", { name: "Follow cy" })).toBeDefined();
   });
 
+  it("offers no follow on a pending request, keeping the choice neutral", () => {
+    renderWithQuery(<FriendsList initial={{ friends: [], incoming: [person("fi")] }} />);
+    expect(screen.queryByRole("button", { name: "Follow fi" })).toBeNull();
+  });
+
   it("declining quietly removes the request", async () => {
     renderWithQuery(<FriendsList initial={{ friends: [], incoming: [person("di")] }} />);
     fireEvent.click(screen.getByRole("button", { name: "Not now" }));

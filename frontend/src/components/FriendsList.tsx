@@ -37,10 +37,11 @@ function Person({ person, children }: { person: FriendPerson; children: React.Re
 }
 
 /**
- * Owner-only lists. Friendship never creates a follow, so wherever the owner
- * doesn't follow someone a Follow control sits beside them — the one-tap
- * follow-back (Founder decision 2026-09-27). There is deliberately no list of
- * requests the owner has sent.
+ * Owner-only lists. Friendship never creates a follow, so beside any friend
+ * the owner doesn't follow sits a one-tap Follow — the follow-back (Founder
+ * decision 2026-09-27). It is not offered on a pending request, where it would
+ * outweigh Accept and "Not now". There is deliberately no list of requests the
+ * owner has sent.
  */
 export default function FriendsList({ initial }: { initial: FriendsOverview }) {
   const { getToken } = useAuth();
@@ -105,7 +106,6 @@ export default function FriendsList({ initial }: { initial: FriendsOverview }) {
                 <button className={quiet} disabled={busy} onClick={() => act(person, "decline")}>
                   Not now
                 </button>
-                {followBack(person)}
               </Person>
             ))}
           </ul>

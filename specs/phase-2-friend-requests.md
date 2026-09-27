@@ -228,10 +228,11 @@ _Founder decisions, 2026-09-27._
    which setting refused them.
 2. **Accepting does not create follows — but following back is one tap.**
    Friendship and follows stay independent, as the Model section already says.
-   Wherever a friend or a received request is shown to its owner, a Follow
-   control appears for anyone the owner does not already follow (the Instagram
-   "follow back" pattern), so the convenience exists without conflating the
-   two relationships.
+   Beside each friend the owner does not already follow, their friends list
+   shows a one-tap Follow (the Instagram "follow back" pattern), so accepting
+   moves the new friend there with the follow-back ready. It is not offered on
+   a pending request, where it would be the loudest control and outweigh the
+   Accept / "Not now" choice the Design Requirements keep neutral.
 3. **A sender never sees their own outstanding request.** After sending, the
    profile control returns to its normal state and no outgoing list exists, so
    there is also no withdraw action. A pending request and a declined one are
