@@ -4,6 +4,7 @@ Authorization precedes aggregation. Other viewers' query and schema contain
 only positive signals, never counts from which rejection can be reconstructed.
 """
 
+import logging
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -22,6 +23,8 @@ from app.schemas.harmony import (
 )
 from app.services import follow as follow_svc
 from app.services import user as user_svc
+
+logger = logging.getLogger(__name__)
 
 
 def window_start(now: datetime) -> datetime:
@@ -80,6 +83,10 @@ async def get_harmony(
             summary = "sustained"
         elif row.positives:
             summary = "listeners"
+        # An empty shared summary would disclose both the owner's sharing
+        # choice and an absence of positive reception; answer as if hidden.
+        if summary is None:
+            return HarmonyHidden()
         return HarmonyShared(summary=summary)
 
     resolved = Melody.reaction.is_not(None) | Melody.status.in_(
@@ -112,6 +119,14 @@ async def get_harmony(
 async def set_visibility(
     session: AsyncSession, user: User, visibility: VisibilityScope
 ) -> None:
+    old = user.visibility_harmony
     user.visibility_harmony = visibility.value
     user.updated_at = datetime.now(UTC)
     await session.flush()
+    if old != visibility.value:
+        logger.info(
+            "Visibility changed internal_id=%s field=harmony %s→%s",
+            user.id,
+            old,
+            visibility.value,
+        )

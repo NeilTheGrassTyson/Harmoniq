@@ -88,6 +88,7 @@ describe("MelodyInbox â€” quick actions", () => {
       expect(mockRespond).toHaveBeenCalledWith("test-token", "m1", "accept");
       expect(screen.getByText("You took this one.")).toBeDefined();
     });
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 
   it("open navigates to the track page", async () => {
@@ -100,6 +101,7 @@ describe("MelodyInbox â€” quick actions", () => {
       expect(mockRespond).toHaveBeenCalledWith("test-token", "m1", "open");
       expect(mockPush).toHaveBeenCalledWith("/track/mbid-1");
     });
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 
   it("reject keeps the row actionable (recoverable) with neutral copy", async () => {

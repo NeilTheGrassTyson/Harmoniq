@@ -46,6 +46,22 @@ describe("Harmony profile", () => {
     expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("friends");
   });
 
+  it("keeps the owner's control mounted and focused through the post-save refetch", async () => {
+    get.mockResolvedValue(own);
+    save.mockImplementation(async () => {
+      get.mockResolvedValue({ ...own, visibility: "public" });
+      return { visibility: "public" };
+    });
+    renderWithQuery(<HarmonySection username="alice" />);
+    const select = await screen.findByRole("combobox", { name: "Share a positive summary with" });
+    select.focus();
+    fireEvent.change(select, { target: { value: "public" } });
+    await screen.findByText("Visibility saved.");
+    await waitFor(() => expect((select as HTMLSelectElement).value).toBe("public"));
+    expect(screen.getByRole("combobox")).toBe(select);
+    expect(document.activeElement).toBe(select);
+  });
+
   it("distinguishes no responses from a failed request and leaves failed visibility unchanged", async () => {
     get.mockResolvedValue({
       ...own,

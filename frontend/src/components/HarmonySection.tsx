@@ -40,8 +40,10 @@ export default function HarmonySection({ username }: { username: string }) {
   });
   const harmony = query.data;
   // A refetch must not leave a previously visible summary on screen after
-  // consent is revoked, including if the new request fails.
-  if (!isLoaded || query.isFetching) return null;
+  // consent is revoked, including if the new request fails. Only someone
+  // else's summary can be revoked; the owner's view (keyed to this viewer)
+  // stays mounted so the visibility control keeps focus.
+  if (!isLoaded || (query.isFetching && harmony?.kind !== "owner")) return null;
   if (query.isError)
     return (
       <section aria-label="Harmony" className="text-tertiary mb-8 text-sm">
@@ -94,9 +96,12 @@ export default function HarmonySection({ username }: { username: string }) {
             <select
               id={selectId}
               value={harmony.visibility}
-              disabled={visibility.isPending}
-              onChange={(event) => visibility.mutate(event.target.value as VisibilityScope)}
-              className="rounded-control border-hairline bg-control text-primary border px-2 py-1 disabled:opacity-50"
+              aria-disabled={visibility.isPending}
+              aria-busy={visibility.isPending || query.isFetching}
+              onChange={(event) => {
+                if (!visibility.isPending) visibility.mutate(event.target.value as VisibilityScope);
+              }}
+              className="rounded-control border-hairline bg-control text-primary border px-2 py-1 aria-disabled:opacity-50"
             >
               <option value="private">Only you</option>
               <option value="friends">Friends — people you both follow</option>
