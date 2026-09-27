@@ -9,6 +9,9 @@
 > approval of each feature's spec per `WORKFLOW.md`.
 > Harmony, Melody reactions, and streaming links were approved 2026-09-08;
 > their implementation is under review in PR #74 and described below.
+> Friend Requests, Listen History and Highlights (with provider playlists)
+> were approved 2026-09-19 and are not yet implemented, so they are not
+> described here.
 > This document describes what the system _is_ today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---
@@ -398,6 +401,10 @@ Avatars are stored in **Cloudflare R2** (S3-compatible object storage).
 - **Ingestion:** On-demand: when a user searches for a track that doesn't
   exist in our catalog, the backend queries MusicBrainz, normalizes the
   response, and upserts into our catalog.
+- **Search is local-first** (`specs/local-first-search.md`, approved
+  2026-08-01): Postgres answers from pg_trgm similarity when the catalog can,
+  and MusicBrainz is consulted only when it cannot. `SEARCH_LOCAL_FIRST`
+  (default on) restores MusicBrainz-first behaviour when off.
 - **Audio previews:** Deezer API (supplementary, Phase NEXT — not present
   in Phase 0/1).
 
@@ -502,21 +509,31 @@ npm run dev
 
 ## Testing Strategy
 
-- **Backend:** pytest + httpx async client. Unit tests for services; integration
-  tests for API endpoints against a real test database (Neon branch or local
-  PostgreSQL). No mocking the database — see Engineering Bible §8.
-- **Frontend:** Vitest + React Testing Library for component logic; Playwright
-  for end-to-end flows (Phase NEXT).
-- **CI:** Both suites run on every pull request via GitHub Actions.
+- **Backend:** pytest + httpx async client, in two tiers (ADR 0007). The unit
+  tier (`-m "not integration"`) needs nothing external; the integration tier
+  runs against a real PostgreSQL started by Testcontainers, so it needs Docker.
+  No mocking the database.
+- **Frontend:** Vitest + React Testing Library for component logic.
+- **Browser:** `e2e/` drives the built Next.js app against real FastAPI and a
+  disposable PostgreSQL with Playwright (`e2e/README.md`). It is run locally,
+  not in CI.
+- **CI:** backend and frontend suites run on pull requests into, and pushes to,
+  `dev` and `main` via GitHub Actions — see `docs/GITHUB_WORKFLOW.md`.
 
 ---
 
 ## Branching Strategy
 
-- `main` — production. Protected; requires passing CI.
-- `feature/*` — feature branches. Each gets a Vercel preview URL and a Neon
-  database branch automatically.
-- Commits to `main` are squash-merged from feature branches.
+One direction only: feature branch → `dev` → `main` (WORKFLOW.md §1).
+
+- `main` — production. Reached only by a single `dev → main` PR.
+- `dev` — integration. Permanent and protected; feature PRs land here.
+- Feature branches get a Vercel preview URL. There is no per-branch Neon
+  database; production deploys directly for the current friends-only round,
+  with a `staging` Neon branch planned for the next tier (`docs/deployment.md`).
+
+Naming, PR conventions, CI triggers and branch protection are in
+`docs/GITHUB_WORKFLOW.md`, which is authoritative where this summary is brief.
 
 ---
 
@@ -544,3 +561,7 @@ share Harmoniq's tokens. See DESIGN_SYSTEM.md §15.
 | [0007](docs/adr/0007-backend-testing-strategy.md)     | Backend testing strategy                                         |
 | [0008](docs/adr/0008-profile-discoverability.md)      | Profile discoverability: every profile findable, content private |
 | [0009](docs/adr/0009-melody-no-message-embed-card.md) | Melody carries no message; renders as an embed card              |
+| [0010](docs/adr/0010-onboarding-submit-gate.md)       | Onboarding submit gate reads values, not `formState.isValid`     |
+| [0011](docs/adr/0011-misconfiguration-must-be-observable.md) | Configuration that can break every request must say so    |
+| [0012](docs/adr/0012-nav-identity-and-public-search.md) | Nav is server-resolved; search is a browse surface             |
+| [0013](docs/adr/0013-astra-second-engineer.md)        | Astra joins as a second, equal engineering contributor           |

@@ -15,6 +15,8 @@
 >
 > Open questions 3–6 below are still open and are not blocking in the same
 > way, but sequencing (3) does gate the build: friend requests ship first.
+> `specs/phase-2-friend-requests.md` was approved 2026-09-19 and is not yet
+> implemented, so this spec remains blocked on its build, not its approval.
 >
 > Raised by the Founder on 2026-09-06 while specifying Highlights, with the
 > observation that "this may need a constitutional amendment entirely." It

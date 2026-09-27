@@ -393,14 +393,16 @@ _Founder decides._
 2. **Should the empty state be shown to visitors, or only to the owner?**
    Showing "no highlights yet" to a stranger advertises an absence; hiding the
    section entirely may read as a missing feature.
-3. **Does a playlist highlight snapshot, or follow the provider live?** A
-   playlist's contents keep changing after it is highlighted. Following live
-   keeps the card honest, but it publishes changes the user never re-affirmed
-   on a public-by-default surface. Snapshotting title and art at add-time is
-   the safer consent position but drifts toward showing something that no
-   longer matches reality. Suggested: follow live, since the user can remove
-   the highlight at any moment and a stale card is its own failure — but this
-   is a §6 judgement and therefore the Founder's.
+3. ~~**Does a playlist highlight snapshot, or follow the provider live?**~~
+   **Resolved — follow live (Founder decision, 2026-09-27).** The card reads
+   the playlist's current name, art and contents from the provider rather than
+   a copy taken at add-time, so it never shows something that no longer
+   exists. The accepted tradeoff: edits the owner makes on Spotify appear on
+   their Harmoniq profile without a fresh decision here. That is bounded by the
+   owner being able to remove the highlight or narrow `visibility_highlights`
+   at any moment, with immediate effect (ENGINEERING_BIBLE §8.1). Nothing from
+   the playlist is persisted beyond the reference in "What is stored", so this
+   decision adds no stored provider data.
 4. **Does a playlist highlight carry a review?** Assumed no. Ratings are
    polymorphic over tracks and albums only, so there is no playlist review to
    resolve — the same reasoning that leaves artist highlights review-less.

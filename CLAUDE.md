@@ -160,14 +160,20 @@ frontend/src/
 ├── app/            Next.js App Router pages
 │   ├── album/[mbid]/
 │   ├── artist/[mbid]/
+│   ├── melodies/
+│   ├── moderation/
 │   ├── onboarding/
+│   ├── search/
 │   ├── settings/
 │   ├── sign-in/[[...sign-in]]/
 │   ├── sign-up/[[...sign-up]]/
+│   ├── spotify-callback/
 │   ├── sso-callback/
 │   ├── track/[mbid]/
 │   └── u/[username]/
 ├── components/     Shared UI components
-├── lib/            API client helpers (users, catalog, ratings, follows, home)
+├── lib/            One typed API client per backend domain, plus apiBase.ts
+│                   (backend origin and its misconfiguration checks, ADR 0011)
+├── proxy.ts        Clerk route gate — public routes and the onboarding redirect
 └── types/          Shared TypeScript types (index.ts)
 ```

@@ -14,11 +14,16 @@ This is the Harmoniq monorepo. It contains everything needed to build, run, and 
 Harmoniq/
 ├── backend/          FastAPI application (Python) — API, business logic, database
 ├── frontend/         Next.js application — UI, routing, Clerk session handling
+├── e2e/              Local browser tests against the built app (Playwright)
 ├── docs/
 │   ├── adr/          Architecture Decision Records — why major decisions were made
+│   ├── amendments/   Constitutional amendments, with previous wording and reasoning
+│   ├── reviews/      Audits, verification reports and doc-review records
 │   ├── setup.md      Local development guide
-│   └── deployment.md Deployment guide (Vercel + Railway + Neon)
+│   ├── deployment.md Deployment guide (Vercel + Railway + Neon)
+│   └── GITHUB_WORKFLOW.md  Branch flow, PR conventions, CI triggers
 ├── specs/            Feature specifications (written before implementation)
+├── AGENTS.md         Onboarding for astra (Codex); CLAUDE.md is Claude Code's
 ├── ARCHITECTURE.md   System overview, data flow, deployment diagram
 ├── HARMONIQ.md       Project constitution — principles that govern every decision
 ├── BRAND_BIBLE.md    Product identity, naming, tone, interaction philosophy
@@ -34,6 +39,8 @@ Harmoniq/
 **Phase 0 complete** — infrastructure and stack decisions are finalized and committed.
 
 **Phase 1 (NOW) is complete.** Music Catalog, User Accounts, Search, Ratings & Reviews, Follows, Home, Spotify integration, Melody, Notifications, Moderation, the Visibility Audit, and Deployment Verification have all shipped — see [ROADMAP.md](ROADMAP.md) for the checklist and dates. Phase 2 (NEXT) work starts from specs in `specs/`, written per [WORKFLOW.md](WORKFLOW.md).
+
+**Phase 2 (NEXT) is under way.** Harmony v1, Melody reactions and streaming links are implemented and awaiting Founder review in PR #74. Friend Requests, Listen History and Highlights are approved and not yet built. ROADMAP.md's NEXT tier has the current state of each.
 
 ---
 
@@ -61,11 +68,11 @@ You need accounts on [Neon](https://neon.tech) and [Clerk](https://clerk.com) be
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate   # .venv\Scripts\activate on Windows
-pip install poetry && poetry install
+poetry env use 3.12    # don't create or activate a venv yourself — docs/setup.md §2
+poetry install
 cp .env.example .env   # fill in DATABASE_URL, CLERK_JWKS_URL, MUSICBRAINZ_USER_AGENT
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
+poetry run alembic upgrade head
+poetry run uvicorn app.main:app --reload --port 8000
 ```
 
 **Frontend (terminal 2):**
@@ -100,10 +107,15 @@ The `specs/` directory holds feature specifications written using [SPEC_TEMPLATE
 | `backend/`  | `poetry run ruff check .`  | Lint                   |
 | `backend/`  | `poetry run ruff format .` | Format                 |
 | `backend/`  | `poetry run mypy app`      | Type check             |
-| `backend/`  | `poetry run pytest`        | Test suite             |
-| `backend/`  | `alembic upgrade head`     | Run pending migrations |
+| `backend/`  | `poetry run bandit -r app -c pyproject.toml` | Security scan (`-c` is required) |
+| `backend/`  | `poetry run pytest`        | Test suite (integration tier needs Docker) |
+| `backend/`  | `poetry run alembic upgrade head` | Run pending migrations |
 | `frontend/` | `npm run dev`              | Start dev server       |
+| `frontend/` | `npm run verify`           | **Everything CI runs**, in CI's order |
 | `frontend/` | `npm run typecheck`        | TypeScript check       |
 | `frontend/` | `npm run lint`             | ESLint                 |
 | `frontend/` | `npm run format`           | Prettier (auto-fix)    |
 | `frontend/` | `npm run build`            | Production build       |
+
+The full backend chain CI runs, and why each flag is there, is in `CLAUDE.md`
+under "Backend tooling".

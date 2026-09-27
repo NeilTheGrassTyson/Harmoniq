@@ -28,29 +28,24 @@ backend/
 │   ├── config.py        Settings (pydantic-settings, reads from .env)
 │   ├── database.py      Async SQLAlchemy engine + session dependency
 │   ├── auth.py          Clerk JWT verification — get_current_user dependency
-│   ├── api/
-│   │   └── v1/
-│   │       ├── router.py    Root API router (prefix: /api/v1)
-│   │       ├── health.py    GET /api/v1/health
-│   │       └── catalog.py   GET /api/v1/catalog/search, /artists/{mbid}, /albums/{mbid}, /tracks/{mbid}
-│   ├── core/
-│   │   ├── security.py  HTTP security headers middleware
-│   │   └── rate_limit.py  slowapi limiter instance
-│   ├── models/
-│   │   ├── __init__.py  Re-exports all models (required for Alembic autogenerate)
-│   │   └── catalog.py   Artist, Album, Track ORM models
-│   ├── schemas/
-│   │   └── catalog.py   Pydantic request/response schemas for catalog endpoints
-│   └── services/
-│       ├── musicbrainz.py  MusicBrainz API client (rate limiter, in-process cache)
-│       └── catalog.py      Upsert/ingestion logic and detail-view queries
+│   ├── api/v1/          One route module per domain, registered in router.py
+│   │                    (prefix /api/v1). Thin — no business logic.
+│   ├── core/            Enums, CORS, token crypto, rate limiting, security
+│   │                    headers, and the shared visibility check (visibility.py)
+│   ├── models/          SQLAlchemy ORM models. __init__.py re-exports every
+│   │                    model — required for Alembic autogenerate.
+│   ├── schemas/         Pydantic request/response contracts, per domain
+│   └── services/        Business logic, one module per domain. musicbrainz.py
+│                        is the rate-limited MusicBrainz client.
 ├── alembic/
 │   ├── env.py           Migration environment (reads settings, imports models)
 │   ├── script.py.mako   Migration file template
 │   └── versions/        Generated migration files
+├── scripts/             One-off operational scripts (e.g. seed_catalog.py)
 ├── tests/
-│   ├── conftest.py      Shared fixtures (async test client)
-│   └── test_health.py   Health endpoint smoke test
+│   ├── conftest.py      Shared fixtures
+│   ├── unit/            No external dependencies
+│   └── integration/     Real PostgreSQL via Testcontainers — needs Docker (ADR 0007)
 ├── .env.example         Required environment variables (no secrets)
 ├── alembic.ini          Alembic configuration
 ├── pyproject.toml       Dependencies + tool config (ruff, mypy, pytest)
@@ -65,13 +60,13 @@ backend/
 ```bash
 # From the backend/ directory:
 
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install poetry
+# Don't create or activate a venv yourself — docs/setup.md §2 explains why.
+poetry env use 3.12
 poetry install
 
 cp .env.example .env
-# Edit .env — all three required vars must be set before the app starts
+# Edit .env — the three variables below are the core set; the rest enable
+# individual integrations and features (see "Required environment variables")
 ```
 
 ### Required environment variables
@@ -81,6 +76,12 @@ cp .env.example .env
 | `DATABASE_URL`           | `postgresql+asyncpg://user:pass@host/db?sslmode=require`                                           |
 | `CLERK_JWKS_URL`         | From Clerk dashboard → API Keys (e.g. `https://your-app.clerk.accounts.dev/.well-known/jwks.json`) |
 | `MUSICBRAINZ_USER_AGENT` | Required by MetaBrainz API: `"AppName/Version (email@example.com)"`                                |
+
+These three are the core. `.env.example` lists every other variable — Clerk
+secret and webhook, CORS origins, Spotify credentials, `TOKEN_ENCRYPTION_KEY`,
+R2, and the per-feature flags (`SEARCH_LOCAL_FIRST`, `HARMONY_ENABLED`,
+`MELODY_REACTIONS_ENABLED`, `STREAMING_LINKS_ENABLED`) — and
+`docs/setup.md` §4 explains each one.
 
 ---
 
