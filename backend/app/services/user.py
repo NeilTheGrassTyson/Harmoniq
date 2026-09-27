@@ -21,6 +21,7 @@ from app.schemas.follow import FollowState
 from app.schemas.user import OwnProfileResponse, ProfileResponse, UserSearchResult
 from app.services import follow as follow_svc
 from app.services import friendship as friendship_svc
+from app.services import listens as listens_svc
 from app.services import rating as rating_svc
 
 logger = logging.getLogger(__name__)
@@ -107,6 +108,10 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         visibility_follows=VisibilityScope(user.visibility_follows),
         melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
         friend_request_scope=FriendRequestScope(user.friend_request_scope),
+        # Absent while the feature is off, so the settings page hides the switch.
+        store_listening=(
+            user.store_listening if settings.listen_history_enabled else None
+        ),
         is_moderator=user.is_moderator,
     )
 
@@ -209,6 +214,7 @@ async def update_profile(
     visibility_follows: VisibilityScope | None = None,
     melody_accept_scope: MelodyAcceptScope | None = None,
     friend_request_scope: FriendRequestScope | None = None,
+    store_listening: bool | None = None,
 ) -> OwnProfileResponse:
     if display_name is not None:
         user.display_name = display_name
@@ -292,6 +298,21 @@ async def update_profile(
                 old,
                 friend_request_scope.value,
             )
+
+    if store_listening is not None and settings.listen_history_enabled:
+        old_store = user.store_listening
+        user.store_listening = store_listening
+        if old_store != store_listening:
+            logger.info(
+                "Listening storage changed internal_id=%s %s→%s",
+                user.id,
+                old_store,
+                store_listening,
+            )
+        if not store_listening:
+            # Withdrawing the grant deletes what it allowed, immediately and
+            # for every provider — the grant is provider-agnostic.
+            await listens_svc.forget(session, user.id)
 
     user.updated_at = _now()
     return build_own_profile(user)

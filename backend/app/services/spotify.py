@@ -2,9 +2,11 @@
 Spotify service: OAuth account linking and display-only listening data.
 
 Constraints (spec: phase-1-spotify-listening.md, ENGINEERING_BIBLE §13):
-- The only persisted Spotify data is the connection row (encrypted refresh
-  token). Listening data is fetched live, cached briefly in process, and
-  never written to the database or fed to any other subsystem.
+- By default the only persisted Spotify data is the connection row
+  (encrypted refresh token); listening is fetched live and cached briefly in
+  process. With LISTEN_HISTORY_ENABLED on, a user who opts in also keeps up
+  to 20 recent plays as display-only rows (phase-2-listen-history.md) —
+  written through app/services/listens.py and never fed to recommendation.
 - Visibility (the existing visibility_activity profile scope) is enforced
   here, at the service layer, on every request — the payload cache sits
   below the visibility decision, never above it.
@@ -29,6 +31,7 @@ from app.config import settings
 from app.core.crypto import TokenCryptoError, decrypt_token, encrypt_token
 from app.core.enums import VisibilityScope
 from app.core.visibility import scope_allows
+from app.database import AsyncSessionLocal
 from app.models.spotify import SpotifyConnection
 from app.models.user import User
 from app.schemas.spotify import (
@@ -38,6 +41,7 @@ from app.schemas.spotify import (
     SpotifyConnectionStatus,
 )
 from app.services import friendship as friendship_svc
+from app.services import listens as listens_svc
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +62,10 @@ _access_tokens: dict[
     uuid.UUID, tuple[str, float]
 ] = {}  # user_id -> (token, monotonic expiry)
 _listening_cache: dict[uuid.UUID, tuple[float, dict[str, Any]]] = {}
+# History mode: one background refresh per user at a time, and a remembered
+# unusable connection so a stored-rows response can still say "reconnect".
+_refreshing: set[uuid.UUID] = set()
+_needs_reconnect: set[uuid.UUID] = set()
 
 
 class SpotifyNotConfiguredError(Exception):
@@ -294,6 +302,7 @@ async def connect(
         time.monotonic() + expires_in - _REFRESH_EARLY_SECONDS,
     )
     _listening_cache.pop(user.id, None)
+    _needs_reconnect.discard(user.id)
 
     logger.info("Spotify connected internal_id=%s", user.id)
     return SpotifyConnectionStatus(
@@ -308,6 +317,10 @@ async def disconnect(session: AsyncSession, user: User) -> None:
     )
     _access_tokens.pop(user.id, None)
     _listening_cache.pop(user.id, None)
+    _needs_reconnect.discard(user.id)
+    # Disconnecting the provider deletes what was stored from it, synchronously
+    # (phase-2-listen-history.md requirement 7).
+    await listens_svc.forget(session, user.id, "spotify")
     logger.info("Spotify disconnected internal_id=%s", user.id)
 
 
@@ -361,6 +374,7 @@ async def _get_access_token(session: AsyncSession, conn: SpotifyConnection) -> s
         )
         _access_tokens.pop(user_id, None)
         _listening_cache.pop(user_id, None)
+        await listens_svc.forget(session, user_id, "spotify")
         raise SpotifyNotConnectedError("Spotify grant revoked")
     if resp.status_code != 200:
         logger.warning(
@@ -443,6 +457,114 @@ async def _fetch_listening_payload(
     return payload
 
 
+def _observed(entry: dict[str, Any]) -> listens_svc.ObservedListen | None:
+    """A recently-played entry as a storable observation, or None."""
+    item = entry.get("track") or {}
+    track = _map_track(item)
+    played_at = entry.get("played_at")
+    if track is None or not played_at:
+        return None
+    track_id = item.get("id")
+    isrc = (item.get("external_ids") or {}).get("isrc")
+    return listens_svc.ObservedListen(
+        source="spotify",
+        # One play = one track at one moment; re-observing it is a no-op.
+        idempotency_key=f"{track_id or track.track_name}|{played_at}",
+        track_name=track.track_name,
+        artist_name=track.artist_name,
+        album_name=track.album_name,
+        album_art_url=track.album_art_url,
+        provider_url=track.spotify_url,
+        isrc=str(isrc).upper() if isrc else None,
+        played_at=datetime.fromisoformat(str(played_at).replace("Z", "+00:00")),
+    )
+
+
+def history_active(user: User) -> bool:
+    return settings.listen_history_enabled and user.store_listening
+
+
+def _fresh_payload(user_id: uuid.UUID) -> dict[str, Any] | None:
+    cached = _listening_cache.get(user_id)
+    if cached is not None and (time.monotonic() - cached[0]) < _LISTENING_CACHE_TTL:
+        return cached[1]
+    return None
+
+
+async def _history_response(
+    session: AsyncSession, user_id: uuid.UUID
+) -> ListeningResponse:
+    """Built from stored rows only — never waits on Spotify (requirement 10).
+    Now playing comes from the 60s cache when warm; otherwise a background
+    refresh is due and the client checks again shortly."""
+    payload = _fresh_payload(user_id)
+    stored = await listens_svc.recent_for_display(session, user_id)
+    now_playing = _payload_to_response(payload).now_playing if payload else None
+    return ListeningResponse(
+        connected=True,
+        needs_reconnect=user_id in _needs_reconnect,
+        now_playing=now_playing,
+        recently_played=[
+            RecentlyPlayedItem(
+                track_name=listen.track_name,
+                artist_name=listen.artist_name,
+                album_name=listen.album_name,
+                album_art_url=listen.album_art_url,
+                spotify_url=listen.provider_url,
+                played_at=listen.played_at or listen.observed_at,
+                track_mbid=mbid,
+            )
+            for listen, mbid in stored
+        ],
+        history=True,
+        refreshing=payload is None and user_id not in _needs_reconnect,
+    )
+
+
+async def refresh_history(
+    session: AsyncSession, user: User, conn: SpotifyConnection
+) -> None:
+    """Fetch the window (filling the 60s cache) and merge it into storage.
+    A failed or empty fetch stores nothing and deletes nothing."""
+    try:
+        payload = await _fetch_listening_payload(session, conn)
+    except SpotifyNotConnectedError:
+        _needs_reconnect.add(user.id)
+        logger.warning("Listening refresh: connection unusable internal_id=%s", user.id)
+        return
+    except (SpotifyAPIError, SpotifyNotConfiguredError, httpx.HTTPError):
+        logger.exception("Listening refresh failed internal_id=%s", user.id)
+        # Floor retries at the cache TTL: views keep serving stored rows and
+        # stop reporting a refresh in progress, so clients don't re-poll fast.
+        _listening_cache[user.id] = (time.monotonic(), {"now": None, "recent": []})
+        return
+    _needs_reconnect.discard(user.id)
+    if not history_active(user):
+        return
+    observed = [o for e in payload.get("recent", []) if (o := _observed(e))]
+    await listens_svc.record(session, user.id, observed)
+    await listens_svc.link_some(session)
+
+
+async def refresh_in_background(user_id: uuid.UUID) -> None:
+    """Runs after the response is sent, on its own session. At most one per
+    user at a time, so a burst of views can't multiply Spotify calls."""
+    if user_id in _refreshing:
+        return
+    _refreshing.add(user_id)
+    try:
+        async with AsyncSessionLocal() as session:
+            user = await session.get(User, user_id)
+            conn = await get_connection(session, user_id)
+            if user is not None and conn is not None:
+                await refresh_history(session, user, conn)
+                await session.commit()
+    except Exception:
+        logger.exception("Background listening refresh failed user_id=%s", user_id)
+    finally:
+        _refreshing.discard(user_id)
+
+
 def _payload_to_response(payload: dict[str, Any]) -> ListeningResponse:
     now_playing: ListeningTrack | None = None
     now = payload.get("now")
@@ -485,6 +607,9 @@ async def get_listening(
     conn = await get_connection(session, profile_user.id)
     if conn is None:
         return ListeningResponse(connected=False)
+
+    if history_active(profile_user):
+        return await _history_response(session, profile_user.id)
 
     try:
         payload = await _fetch_listening_payload(session, conn)

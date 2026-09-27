@@ -161,6 +161,8 @@ export interface OwnProfileResponse {
   visibility_follows: VisibilityScope;
   melody_accept_scope: MelodyAcceptScope;
   friend_request_scope?: FriendRequestScope;
+  /** Absent or null while listen history is switched off on the backend. */
+  store_listening?: boolean | null;
   is_moderator: boolean;
 }
 
@@ -182,6 +184,7 @@ export interface ProfileUpdateRequest {
   visibility_follows?: VisibilityScope;
   melody_accept_scope?: MelodyAcceptScope;
   friend_request_scope?: FriendRequestScope;
+  store_listening?: boolean;
 }
 
 // ── Spotify (account linking + listening display) ─────────────────────────────
@@ -202,6 +205,8 @@ export interface ListeningTrack {
 
 export interface RecentlyPlayedItem extends ListeningTrack {
   played_at: string;
+  /** Stored listens only: the Harmoniq catalog track, once linked. */
+  track_mbid?: string | null;
 }
 
 export interface ListeningResponse {
@@ -210,6 +215,10 @@ export interface ListeningResponse {
   needs_reconnect?: boolean;
   now_playing: ListeningTrack | null;
   recently_played: RecentlyPlayedItem[];
+  /** recently_played is the user's stored history, not Spotify's live window. */
+  history?: boolean;
+  /** Served from storage while a refresh runs; check again shortly. */
+  refreshing?: boolean;
 }
 
 // ── Ratings & Reviews ─────────────────────────────────────────────────────────

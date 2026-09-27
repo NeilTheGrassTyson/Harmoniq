@@ -20,6 +20,13 @@ vi.mock("@/lib/spotify", () => ({
   disconnectSpotify: (...args: unknown[]) => mockDisconnectSpotify(...args),
 }));
 
+// The listen-history switch reads the own profile; here the feature is off,
+// so it renders nothing and these tests see only the connection controls.
+vi.mock("@/lib/users", () => ({
+  getOwnProfile: vi.fn().mockResolvedValue({ store_listening: null }),
+  updateProfile: vi.fn(),
+}));
+
 const DISCONNECTED = { connected: false, spotify_user_id: null, connected_at: null };
 const CONNECTED = {
   connected: true,

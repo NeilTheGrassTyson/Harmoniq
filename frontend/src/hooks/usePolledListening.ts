@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getListening } from "@/lib/spotify";
 import type { ListeningResponse } from "@/types";
 
+const REFRESH_CHECK_MS = 3_000;
+
 interface UsePolledListeningOptions {
   username: string;
   token?: string;
@@ -37,7 +39,10 @@ export function usePolledListening({
     // fires when the data is actually older than a poll.
     refetchOnMount: false,
     staleTime: intervalMs,
-    refetchInterval: intervalMs,
+    // A stored-history answer with a refresh under way is re-checked soon, so
+    // now-playing and new plays appear without waiting a full cycle. The
+    // backend stops reporting a refresh once it lands or fails.
+    refetchInterval: (query) => (query.state.data?.refreshing ? REFRESH_CHECK_MS : intervalMs),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     retry: false,

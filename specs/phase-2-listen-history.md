@@ -1,9 +1,10 @@
 # Listen History — Durable Recent Listening
 
-> **Status: APPROVED — Founder, 2026-09-19 (rev 4).** Tier 1 per WORKFLOW.md §1
-> ("any change to how user data is collected, stored, or shared — including
-> anything touching the recommendation engine's data pipeline"). Approved as
-> written, with no modifications. Not yet implemented.
+> **Status: APPROVED — Founder, 2026-09-19 (rev 4); implementation decisions
+> 2026-09-27.** Tier 1 per WORKFLOW.md §1 ("any change to how user data is
+> collected, stored, or shared — including anything touching the
+> recommendation engine's data pipeline"). Implemented on
+> `claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review.
 >
 > Rev 4 drops the opt-in seed and specifies the latency requirement instead. The curated half is now specified
 > separately in `specs/phase-2-highlights.md`.
@@ -280,3 +281,33 @@ references the table, so dropping it is contained.
 | 9 | Curated count / types | **Up to 15**, track \| album \| artist. See the Highlights spec. |
 | 10 | Curated ordering | **Unordered**, with the owner's own review attached. |
 | 11 | Curated default visibility | **Public** — a recorded constitutional exception. |
+| 12 | Track identity (was "likely MusicBrainz resolution") | **Store now, link later** (2026-09-27). Each listen keeps a display snapshot plus the ISRC; a background step links it to the catalog track by ISRC when MusicBrainz can. Nothing is dropped or delayed. |
+| 13 | Where the opt-in lives | **Settings, under the connected Spotify account** (2026-09-27). Off by default. |
+
+# Implementation decisions
+
+Recorded because they affect future work (WORKFLOW.md §3).
+
+- **Now playing without waiting.** Views serve stored rows. Now playing comes
+  from the 60s payload cache when it is warm; otherwise the response says
+  `refreshing`, a refresh runs after the response is sent, and the client
+  checks again after 3 seconds. Requirement 10 and "now-playing stays live"
+  both hold without either waiting on Spotify.
+- **One background refresh per user at a time**, in process, alongside the
+  existing single-worker caches. A failed refresh is remembered for the cache
+  TTL so clients stop re-checking quickly; a stored-rows response still says
+  "reconnect" when the connection is unusable.
+- **Linking is gentle on MusicBrainz**: at most three ISRCs per refresh, with a
+  4-second timeout each. A definite answer (linked, or MusicBrainz has no such
+  ISRC) is recorded; an outage is retried on a later refresh. A linked listen
+  opens its Harmoniq track page; an unlinked one keeps the Spotify link.
+- **Deletion.** Turning the opt-in off deletes every stored listen, for every
+  provider, since the grant is provider-agnostic. Disconnecting Spotify, or
+  Spotify rejecting a revoked grant, deletes that user's Spotify rows only.
+- **The recommendation boundary** is `app/services/listens.py::first_party_listens`,
+  which reads only `source = 'harmoniq'`; a test pins that no provider row is
+  reachable through it.
+- **Rollout.** `LISTEN_HISTORY_ENABLED` defaults to off as specified. While
+  off, the Listening section is exactly the live window and the settings
+  switch is not shown.
+

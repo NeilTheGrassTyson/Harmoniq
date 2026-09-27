@@ -56,10 +56,13 @@ function TrackRow({
   track,
   meta,
   isNowPlaying = false,
+  trackMbid,
 }: {
   track: ListeningTrack;
   meta: string;
   isNowPlaying?: boolean;
+  /** A stored listen linked to the catalog opens its Harmoniq track page. */
+  trackMbid?: string | null;
 }) {
   const spotifyUrl = safeSpotifyUrl(track.spotify_url);
   return (
@@ -80,7 +83,14 @@ function TrackRow({
             whiteSpace: "nowrap",
           }}
         >
-          {spotifyUrl ? (
+          {trackMbid ? (
+            <Link
+              href={`/track/${encodeURIComponent(trackMbid)}`}
+              className="hover:text-accent underline underline-offset-2"
+            >
+              {track.track_name}
+            </Link>
+          ) : spotifyUrl ? (
             <a
               href={spotifyUrl}
               target="_blank"
@@ -220,6 +230,12 @@ export default function ListeningSection({
   return (
     <>
       {note}
+      {listening.history && (
+        // Honest about coverage: only plays Harmoniq happened to observe.
+        <p className="text-tertiary mb-2" style={{ fontSize: 12 }}>
+          Recent plays Harmoniq has seen — not a complete history.
+        </p>
+      )}
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {listening.now_playing && (
           <TrackRow track={listening.now_playing} meta="Now playing" isNowPlaying />
@@ -229,6 +245,7 @@ export default function ListeningSection({
             key={`${item.played_at}-${idx}`}
             track={item}
             meta={formatRelative(item.played_at)}
+            trackMbid={item.track_mbid}
           />
         ))}
       </ul>

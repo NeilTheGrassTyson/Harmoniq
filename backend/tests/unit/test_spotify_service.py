@@ -377,7 +377,12 @@ class TestTokenRefresh:
         with pytest.raises(spotify_svc.SpotifyNotConnectedError):
             await spotify_svc._get_access_token(session, conn)  # type: ignore[arg-type]
 
-        assert len(session.executed) == 1  # the DELETE
+        # A revoked grant is a disconnect: the connection goes, and so do the
+        # listens stored from it (phase-2-listen-history.md requirement 7).
+        assert [stmt.table.name for stmt in session.executed] == [
+            "spotify_connections",
+            "listens",
+        ]
         assert _USER_ID not in spotify_svc._access_tokens
 
     @respx.mock

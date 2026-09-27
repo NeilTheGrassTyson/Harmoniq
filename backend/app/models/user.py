@@ -57,6 +57,12 @@ class User(Base):
         default=FriendRequestScope.EVERYONE.value,
         server_default=FriendRequestScope.EVERYONE.value,
     )
+    # The separate, provider-agnostic opt-in for storing observed listening
+    # (specs/phase-2-listen-history.md). Off by default; turning it off
+    # deletes the stored rows.
+    store_listening: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     # Moderation fields. is_moderator is granted only via manual SQL — no API
     # path ever writes it (Founder decision 2026-07-07). suspended_at doubles
     # as flag and audit timestamp; NULL = active. Unsuspend is manual SQL.

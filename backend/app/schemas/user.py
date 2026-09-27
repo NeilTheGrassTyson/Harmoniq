@@ -80,6 +80,7 @@ class ProfileUpdateRequest(BaseModel):
     visibility_follows: VisibilityScope | None = None
     melody_accept_scope: MelodyAcceptScope | None = None
     friend_request_scope: FriendRequestScope | None = None
+    store_listening: bool | None = None
 
     @field_validator("username")
     @classmethod
@@ -152,6 +153,8 @@ class OwnProfileResponse(BaseModel):
     visibility_follows: VisibilityScope
     melody_accept_scope: MelodyAcceptScope
     friend_request_scope: FriendRequestScope = FriendRequestScope.EVERYONE
+    # None while LISTEN_HISTORY_ENABLED is off.
+    store_listening: bool | None = None
     # Never present on public profile responses — own-profile only.
     is_moderator: bool = False
 
