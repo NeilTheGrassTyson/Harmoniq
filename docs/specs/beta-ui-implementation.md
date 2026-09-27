@@ -284,15 +284,35 @@ enum/model/migration/schema/route/service change entirely.
 
 ## Acceptance criteria
 
-- [ ] A first-time visitor with no cookie gets **Midnight**.
-- [ ] Switching theme repaints without a full reload.
-- [ ] Hard reload in each theme shows **no flash** of the previous theme.
-- [ ] Signed-out pages honour the cookie.
-- [ ] Clerk modals match the active theme.
-- [ ] Every Light token passes WCAG AA, focus ring included, with the measured
-      ratios recorded in DESIGN_SYSTEM.md §2.2 replacing "unverified".
-- [ ] The preference appears in **no** profile API payload (ROADMAP.md: it is
-      per-viewer and must never become a visible field).
+Verified 2026-09-27 against production builds (`next start`), with a
+placeholder Clerk key since the sandbox cannot reach Clerk:
+
+- [x] A first-time visitor with no cookie gets **Midnight** — no `data-theme`,
+      body `rgb(0,0,0)`, cyan logo. A bogus value or an attribute-injection
+      attempt in the cookie also falls back to Midnight.
+- [x] Switching theme repaints without a full reload — one Server Action
+      request, attribute flips on click, a `window` marker survives.
+- [x] Hard reload in each theme shows **no flash** — the server's raw HTML
+      already carries `data-theme` on `<html>` in the first byte.
+- [x] Signed-out pages honour the cookie — `/`, `/sign-in`, `/search` checked
+      in all three themes, from raw HTML and in the browser.
+- [x] Clerk modals match the active theme — per-theme `colorBackground`,
+      `colorPrimary` and 80% `colorRing` confirmed in the page payload. Clerk's
+      own UI could not render in the sandbox, so this is checked at the
+      palette it is handed, not visually.
+- [x] Every Light token passes WCAG AA, focus ring included — DESIGN_SYSTEM.md
+      §2.2. Light tertiary moved `#6b7280` → `#666c7a` to clear 4.5:1 on tile
+      fills as well. **Dark** tertiary-on-tile is 4.24:1 — pre-existing,
+      flagged for the Founder.
+- [x] The preference appears in **no** profile API payload — no backend change;
+      the only write is the cookie from `app/settings/actions.ts`.
+
+Also verified: Dark is pixel-identical to the pre-Phase-3 app (10/10 captures,
+5 routes × desktop/mobile); the picker works by keyboard (arrow keys switch
+and save); a failed save rolls back with a `role="alert"`; no horizontal
+overflow at 390px. The picker itself was driven on a scratch build with only
+`/settings` added to the public routes (never committed), because the sandbox
+cannot sign in.
 
 **STOP. Review and sign-off before Phase 4.**
 
