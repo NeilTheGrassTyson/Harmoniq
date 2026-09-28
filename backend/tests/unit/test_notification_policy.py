@@ -29,6 +29,13 @@ from app.core.enums import NotificationType
 _RATIFIED_TYPES = {
     "melody_received": "ENGINEERING_BIBLE §3 — the Melody arrives for its recipient",
     "new_follower": "phase-1 follows — someone followed you",
+    "friend_request_received": (
+        "phase-2-friend-requests.md req 5 (approved 2026-09-19) — someone asked"
+    ),
+    "friend_request_accepted": (
+        "phase-2-friend-requests.md req 4 (approved 2026-09-19) — your request "
+        "was accepted; its decline has no counterpart by design"
+    ),
 }
 
 # Substrings describing an outcome its subject is not entitled to learn about.

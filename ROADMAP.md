@@ -180,19 +180,67 @@ Acceptance rate + reception signal, profile-level display only.
 _Security: computed from a user's own Melody history — no cross-user
 data gets exposed in the calculation itself._
 
-Spec approved 2026-09-08: `specs/phase-2-harmony-v1.md`. Implementation in
-PR #74 for Founder review and merge into `dev`. Includes private reception
+Spec approved 2026-09-08: `specs/phase-2-harmony-v1.md`. ✅ Merged into `dev`
+via PR #74 (2026-09-27), after a review pass that fixed six findings. Includes private reception
 statistics, an opt-in positive summary, and three editable Melody reactions
 (`specs/phase-2-melody-reactions.md`). All historical responses participate.
 Third-party song links are covered by `specs/phase-2-streaming-access.md`.
 XP rules remain draft; Harmony DNA and regional/global recommender rankings
 are future Founder ideas requiring their own spec and governance decisions.
 
+### Friend Requests
+
+Explicit, mutual friendship on top of the existing follow graph — modelled on
+Steam (Founder decision, 2026-09-06).
+_Security: friendship is the admittance mechanism the friends-only visibility
+scope already assumes; it grants nothing by itself beyond what a user has
+already pointed at that scope._
+
+Spec approved 2026-09-19, open questions resolved 2026-09-27:
+`specs/phase-2-friend-requests.md`. **Implemented** on
+`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review. On by default
+(`FRIENDSHIPS_ENABLED`); existing mutual follows migrate to friendships. Ships
+before `specs/phase-2-rating-visibility-split.md`, whose friends-only
+commentary is meaningless until a viewer can actually become a friend.
+
+### Listen History
+
+Persist observed listening so a profile keeps its Listening section between
+visits, instead of emptying whenever the provider's rolling window moves past.
+_Security: a separate, revocable opt-in from provider linking; stored rows are
+deleted when it is withdrawn or the provider is disconnected. Provider-sourced
+rows are structurally unreachable from recommendation code._
+
+Spec approved 2026-09-19 (rev 4), decisions 2026-09-27:
+`specs/phase-2-listen-history.md`. **Implemented** on
+`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review. Off by default
+(`LISTEN_HISTORY_ENABLED`) and per-user opt-in in Settings.
+
+### Highlights
+
+Up to 15 tracks, albums, artists or playlists a user picks to represent their
+taste — the curated half of the profile, paired with Listen History's observed
+half.
+_Security: public by default as a recorded constitutional exception, bounded by
+every highlight being added explicitly. An attached review stays gated by the
+owner's separate rating visibility._
+
+Spec approved with modification 2026-09-19, open questions resolved
+2026-09-27: `specs/phase-2-highlights.md`. **Implemented** on
+`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review, including
+**playlist highlights from Spotify**. Two switches, both off by default:
+`HIGHLIGHTS_ENABLED`, and `PLAYLIST_HIGHLIGHTS_ENABLED`, which is also the only
+time the wider Spotify scope is requested.
+
 ### Demo + Open (Melody enhancement)
 
 Preview a song before accepting the recommendation.
 _Security: preview playback shouldn't log as a "listen" in the
 recipient's public history unless they actually accept._
+
+Spec **approved** 2026-09-28: `specs/phase-2-demo-and-open.md`. Previews on
+Melodies (received and sent), track pages and album tracklists, from Deezer
+(ADR 0014). Required research comes before any build.
 
 ### Global Search (full)
 
@@ -202,13 +250,23 @@ _Security: same permission rules as minimal search, now enforced across
 a much larger result surface — worth a dedicated pass rather than
 assuming the minimal version's rules just scale._
 
+Spec **approved** 2026-09-28: `specs/phase-2-global-search.md`. Match
+quality first, then people you know, then Harmoniq's own activity; a
+Spotify-style top result; results grouped by kind with tabs on `/search`.
+
 ### Discovery layer
 
-Browsing surface: listening-history-based and playlist-based suggestions,
-plus "what trusted connections are listening to."
+Browsing surface: "what trusted connections are listening to" — highlights,
+reviews and visible listening from friends, follows and friends of friends,
+newest first. Listening-history-based and playlist-based suggestions were
+dropped from this item (Founder, 2026-09-28) and deferred to LATER →
+"Expanded Discovery sources".
 _Security: the first feature that reads across multiple users' data at
 once — visibility flags need to be enforced at the query level here, not
 just at the profile-page level._
+
+Spec **approved** 2026-09-28: `specs/phase-2-discovery.md`, a chronological
+v1 from friends, follows and friends of friends; Melodies excluded.
 
 ### Spotify starter-library import
 
@@ -218,6 +276,16 @@ _Security/compliance: nothing from this integration may be used to train
 or inform the recommendation layer — a Spotify ToS constraint, not just a
 privacy one. Also capped at 5 dev-mode users until extended access is
 granted._
+
+Spec **approved** 2026-09-28: `specs/phase-2-spotify-starter-import.md`. One
+button opens suggestions from the user's Spotify top artists and tracks, each
+added or ignored by hand; never auto-created highlights.
+
+**Scope overlap, noted 2026-09-19.** Highlights' playlist half also widens the
+Spotify OAuth scope. Whichever of the two ships first owns the re-consent
+flow; the second reuses it rather than making users re-authorize twice.
+Playlist highlights shipped it first (the picker's "Allow access"); the
+starter import reuses it.
 
 ---
 
@@ -240,7 +308,10 @@ treatment as the original profile fields._
 
 ### Expanded Discovery sources
 
-Deeper playlist-based recs, broader "trusted connections" signal.
+Deeper playlist-based recs, broader "trusted connections" signal. Also
+holds the listening-history-based and playlist-based suggestions dropped
+from Discovery v1 (Founder, 2026-09-28). They can't be built from Spotify
+data under its ToS, so they wait for first-party listening data.
 _Security: same query-level enforcement requirement as Discovery v1, just
 against more data sources._
 

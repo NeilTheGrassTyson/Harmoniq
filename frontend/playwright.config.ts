@@ -17,6 +17,11 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // Optional: a preinstalled Chromium, for environments that can't download
+    // the build this Playwright version pins. Unset means Playwright's own.
+    launchOptions: process.env.E2E_CHROMIUM_PATH
+      ? { executablePath: process.env.E2E_CHROMIUM_PATH }
+      : {},
   },
   projects: [
     { name: "desktop", use: { browserName: "chromium", viewport: { width: 1440, height: 1000 } } },

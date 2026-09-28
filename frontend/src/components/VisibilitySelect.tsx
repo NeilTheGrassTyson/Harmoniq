@@ -13,7 +13,7 @@ const OPTIONS: { value: VisibilityScope; label: string; description: string }[] 
   {
     value: "friends",
     label: "Friends",
-    description: "People you both follow",
+    description: "People you've accepted as friends",
   },
   { value: "public", label: "Everyone", description: "" },
 ];

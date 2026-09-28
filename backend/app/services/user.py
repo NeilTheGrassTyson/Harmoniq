@@ -14,11 +14,14 @@ from typing import Any
 from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import MelodyAcceptScope, VisibilityScope
+from app.config import settings
+from app.core.enums import FriendRequestScope, MelodyAcceptScope, VisibilityScope
 from app.models.user import User
 from app.schemas.follow import FollowState
 from app.schemas.user import OwnProfileResponse, ProfileResponse, UserSearchResult
 from app.services import follow as follow_svc
+from app.services import friendship as friendship_svc
+from app.services import listens as listens_svc
 from app.services import rating as rating_svc
 
 logger = logging.getLogger(__name__)
@@ -36,7 +39,7 @@ async def _is_friend(
     viewer_id: uuid.UUID,
     profile_id: uuid.UUID,
 ) -> bool:
-    return await follow_svc.is_mutual_follow(session, viewer_id, profile_id)
+    return await friendship_svc.are_friends(session, viewer_id, profile_id)
 
 
 # ── Basic lookups ─────────────────────────────────────────────────────────────
@@ -103,7 +106,21 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         visibility_activity=VisibilityScope(user.visibility_activity),
         visibility_ratings=VisibilityScope(user.visibility_ratings),
         visibility_follows=VisibilityScope(user.visibility_follows),
+        visibility_highlights=(
+            VisibilityScope(user.visibility_highlights)
+            if settings.highlights_enabled
+            else None
+        ),
         melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
+        friend_request_scope=FriendRequestScope(user.friend_request_scope),
+        # Absent while the feature is off, so the settings page hides the
+        # switch — unless the user opted in earlier: a grant they gave must
+        # stay visible so it can always be withdrawn.
+        store_listening=(
+            user.store_listening
+            if settings.listen_history_enabled or user.store_listening
+            else None
+        ),
         is_moderator=user.is_moderator,
     )
 
@@ -161,6 +178,10 @@ async def get_profile(
     }
     if follow_state is not None:
         fields["follow"] = follow_state
+        if settings.friendships_enabled and viewer is not None:
+            fields["friendship"] = await friendship_svc.get_state(
+                session, viewer.id, user.id
+            )
 
     # Bio: include for own profile (even if null, for "Add a bio" prompt) or
     # when viewer has permission AND bio has a value.
@@ -201,6 +222,9 @@ async def update_profile(
     visibility_ratings: VisibilityScope | None,
     visibility_follows: VisibilityScope | None = None,
     melody_accept_scope: MelodyAcceptScope | None = None,
+    friend_request_scope: FriendRequestScope | None = None,
+    store_listening: bool | None = None,
+    visibility_highlights: VisibilityScope | None = None,
 ) -> OwnProfileResponse:
     if display_name is not None:
         user.display_name = display_name
@@ -273,6 +297,46 @@ async def update_profile(
                 old,
                 melody_accept_scope.value,
             )
+
+    if friend_request_scope is not None:
+        old = user.friend_request_scope
+        user.friend_request_scope = friend_request_scope.value
+        if old != friend_request_scope.value:
+            logger.info(
+                "Friend request scope changed internal_id=%s %s→%s",
+                user.id,
+                old,
+                friend_request_scope.value,
+            )
+
+    if visibility_highlights is not None:
+        old = user.visibility_highlights
+        user.visibility_highlights = visibility_highlights.value
+        if old != visibility_highlights.value:
+            logger.info(
+                "Visibility changed internal_id=%s field=highlights %s→%s",
+                user.id,
+                old,
+                visibility_highlights.value,
+            )
+
+    # Opting in needs the feature; opting out never does.
+    if store_listening is not None and (
+        settings.listen_history_enabled or not store_listening
+    ):
+        old_store = user.store_listening
+        user.store_listening = store_listening
+        if old_store != store_listening:
+            logger.info(
+                "Listening storage changed internal_id=%s %s→%s",
+                user.id,
+                old_store,
+                store_listening,
+            )
+        if not store_listening:
+            # Withdrawing the grant deletes what it allowed, immediately and
+            # for every provider — the grant is provider-agnostic.
+            await listens_svc.forget(session, user.id)
 
     user.updated_at = _now()
     return build_own_profile(user)

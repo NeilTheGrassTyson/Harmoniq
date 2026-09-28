@@ -147,7 +147,7 @@ referencing the file by name in your prompt:
 ```
 backend/app/
 ├── api/v1/         Route handlers (thin — no business logic)
-├── core/           Enums, rate limiting, security helpers
+├── core/           Enums, rate limiting, security helpers, background runs
 ├── models/         SQLAlchemy ORM models
 ├── schemas/        Pydantic request/response contracts
 ├── services/       Business logic (one module per domain)
@@ -160,14 +160,22 @@ frontend/src/
 ├── app/            Next.js App Router pages
 │   ├── album/[mbid]/
 │   ├── artist/[mbid]/
+│   ├── friends/
+│   ├── melodies/
+│   ├── moderation/
 │   ├── onboarding/
+│   ├── search/
 │   ├── settings/
 │   ├── sign-in/[[...sign-in]]/
 │   ├── sign-up/[[...sign-up]]/
+│   ├── spotify-callback/
 │   ├── sso-callback/
 │   ├── track/[mbid]/
 │   └── u/[username]/
 ├── components/     Shared UI components
-├── lib/            API client helpers (users, catalog, ratings, follows, home)
+├── hooks/          Shared client hooks (polling, per-viewer queries)
+├── lib/            One typed API client per backend domain, plus apiBase.ts
+│                   (backend origin and its misconfiguration checks, ADR 0011)
+├── proxy.ts        Clerk route gate — public routes and the onboarding redirect
 └── types/          Shared TypeScript types (index.ts)
 ```

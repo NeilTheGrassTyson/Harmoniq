@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.core.enums import MelodyAcceptScope, VisibilityScope
+from app.core.enums import FriendRequestScope, MelodyAcceptScope, VisibilityScope
 from app.database import Base
 
 
@@ -43,11 +43,33 @@ class User(Base):
     visibility_follows: Mapped[str] = mapped_column(
         String, nullable=False, default=VisibilityScope.PUBLIC.value
     )
+    # Public by default — a recorded constitutional exception, bounded by every
+    # highlight being added explicitly (specs/phase-2-highlights.md).
+    visibility_highlights: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=VisibilityScope.PUBLIC.value,
+        server_default=VisibilityScope.PUBLIC.value,
+    )
     # Who may send this user a Melody. Consent guard for the anyone-can-send
     # model (Founder decision 2026-07-07). Not a VisibilityScope: it gates an
     # inbound gesture, not visibility of owned data.
     melody_accept_scope: Mapped[str] = mapped_column(
         String, nullable=False, default=MelodyAcceptScope.EVERYONE.value
+    )
+    # Who may send this user a friend request — the same kind of inbound
+    # consent gate as melody_accept_scope (specs/phase-2-friend-requests.md).
+    friend_request_scope: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=FriendRequestScope.EVERYONE.value,
+        server_default=FriendRequestScope.EVERYONE.value,
+    )
+    # The separate, provider-agnostic opt-in for storing observed listening
+    # (specs/phase-2-listen-history.md). Off by default; turning it off
+    # deletes the stored rows.
+    store_listening: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
     )
     # Moderation fields. is_moderator is granted only via manual SQL — no API
     # path ever writes it (Founder decision 2026-07-07). suspended_at doubles

@@ -104,6 +104,77 @@ export interface FollowListResponse {
   next_cursor: string | null;
 }
 
+// ── Friends ───────────────────────────────────────────────────────────────────
+
+/**
+ * The relationship as the viewer sees it. A sender never sees their own
+ * outstanding request, so "request_sent" is only ever the reply to a send —
+ * a profile shows "none" whether that request is pending or declined.
+ */
+export type FriendshipState = "none" | "friends" | "request_sent" | "request_received";
+
+export type FriendRequestScope = "everyone" | "follows" | "mutuals";
+
+export interface FriendPerson {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  /** False offers a one-tap follow-back; friendship never creates a follow. */
+  you_follow: boolean;
+}
+
+export interface FriendsOverview {
+  friends: FriendPerson[];
+  incoming: FriendPerson[];
+}
+
+// ── Highlights ────────────────────────────────────────────────────────────────
+
+export type HighlightType = "track" | "album" | "artist" | "playlist";
+
+export interface HighlightReview {
+  score: number;
+  review_text: string;
+  /** The album's review, standing in for a track the owner hasn't reviewed. */
+  of_album: boolean;
+}
+
+export interface HighlightItem {
+  id: string;
+  entity_type: HighlightType;
+  title: string;
+  subtitle: string | null;
+  image_url: string | null;
+  /** Catalog highlights open their Harmoniq page. */
+  mbid: string | null;
+  /** Playlists open in Spotify. */
+  external_url: string | null;
+  provider: "spotify" | null;
+  review: HighlightReview | null;
+}
+
+export interface HighlightsResponse {
+  items: HighlightItem[];
+  limit: number;
+  /** Owner-only. */
+  visibility?: VisibilityScope | null;
+  /** Owner-only: whether playlist highlights are switched on. */
+  playlists_available?: boolean | null;
+}
+
+export interface PlaylistOption {
+  id: string;
+  name: string;
+  image_url: string | null;
+  highlighted: boolean;
+}
+
+export interface PlaylistPickerResponse {
+  status: "ok" | "not_connected" | "needs_permission" | "unavailable";
+  playlists: PlaylistOption[];
+}
+
 /** Public or viewer-scoped profile. Gated fields are absent (not null) when excluded by visibility. */
 export interface ProfileResponse {
   username: string;
@@ -113,6 +184,8 @@ export interface ProfileResponse {
   follower_count: number;
   following_count: number;
   follow?: FollowState;
+  /** Same audience as follow; absent when friend requests are switched off. */
+  friendship?: FriendshipState;
   bio?: string | null;
   activity_placeholder?: boolean;
   /** Owner-only — absent for every other viewer. */
@@ -132,7 +205,12 @@ export interface OwnProfileResponse {
   visibility_activity: VisibilityScope;
   visibility_ratings: VisibilityScope;
   visibility_follows: VisibilityScope;
+  /** Absent or null while highlights are switched off on the backend. */
+  visibility_highlights?: VisibilityScope | null;
   melody_accept_scope: MelodyAcceptScope;
+  friend_request_scope?: FriendRequestScope;
+  /** Absent or null while listen history is switched off on the backend. */
+  store_listening?: boolean | null;
   is_moderator: boolean;
 }
 
@@ -152,7 +230,10 @@ export interface ProfileUpdateRequest {
   visibility_activity?: VisibilityScope;
   visibility_ratings?: VisibilityScope;
   visibility_follows?: VisibilityScope;
+  visibility_highlights?: VisibilityScope;
   melody_accept_scope?: MelodyAcceptScope;
+  friend_request_scope?: FriendRequestScope;
+  store_listening?: boolean;
 }
 
 // ── Spotify (account linking + listening display) ─────────────────────────────
@@ -173,6 +254,8 @@ export interface ListeningTrack {
 
 export interface RecentlyPlayedItem extends ListeningTrack {
   played_at: string;
+  /** Stored listens only: the Harmoniq catalog track, once linked. */
+  track_mbid?: string | null;
 }
 
 export interface ListeningResponse {
@@ -181,6 +264,10 @@ export interface ListeningResponse {
   needs_reconnect?: boolean;
   now_playing: ListeningTrack | null;
   recently_played: RecentlyPlayedItem[];
+  /** recently_played is the user's stored history, not Spotify's live window. */
+  history?: boolean;
+  /** Served from storage while a refresh runs; check again shortly. */
+  refreshing?: boolean;
 }
 
 // ── Ratings & Reviews ─────────────────────────────────────────────────────────
@@ -256,6 +343,8 @@ export interface HomeResponse {
   trending_error: boolean;
   friends: FriendEntry[];
   friends_error: boolean;
+  /** Absent from backends older than friend requests; fall back to has_mutual_follows. */
+  has_friends?: boolean;
   has_mutual_follows: boolean;
 }
 
@@ -332,7 +421,11 @@ export interface MelodySentResponse {
 
 // ── Notifications ────────────────────────────────────────────────────────────
 
-export type NotificationType = "melody_received" | "new_follower";
+export type NotificationType =
+  | "melody_received"
+  | "new_follower"
+  | "friend_request_received"
+  | "friend_request_accepted";
 
 export interface NotificationMelodyRef {
   id: string;

@@ -104,7 +104,7 @@ export default function HarmonySection({ username }: { username: string }) {
               className="rounded-control border-hairline bg-control text-primary border px-2 py-1 aria-disabled:opacity-50"
             >
               <option value="private">Only you</option>
-              <option value="friends">Friends — people you both follow</option>
+              <option value="friends">Friends</option>
               <option value="public">Everyone</option>
             </select>
           </div>

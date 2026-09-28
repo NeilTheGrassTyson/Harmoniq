@@ -34,6 +34,12 @@ the latest explicit reaction across repeat sends. Changing a reaction replaces
 its contribution. Earlier status-only responses remain included in Harmony's
 reception statistics but must not be relabeled as explicit love/like.
 
+**Founder direction, 2026-09-28** (Discovery review): XP will indicate how
+good a user is at recommending music. An accepted recommendation earns some,
+a "send me more like this" endorsement earns the most, and a rejected Melody
+earns nothing. It will need a constitutional amendment before it ships, and
+may later inform Discovery's ordering (`specs/phase-2-discovery.md`).
+
 The Founder has not approved these exact rules. PR #74 ships reactions
 first, with no points or historical XP conversion. Any XP implementation
 still needs a separately approved spec. XP must not use provider listening data, audio, or metadata as

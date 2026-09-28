@@ -115,6 +115,16 @@ test("recommend, react, share/revoke Harmony, listen, and retain existing social
     await s.goto(origin + "/u/" + recipient);
     await s.getByRole("button", { name: "Follow", exact: true }).click();
     await expect(s.getByRole("button", { name: "Following", exact: true })).toBeEnabled();
+    // Following each other is not friendship: friends-only stays hidden.
+    await r.reload();
+    await expect(r.getByRole("heading", { name: "Harmony" })).toHaveCount(0);
+    await r.getByRole("button", { name: "Add friend", exact: true }).click();
+    await expect(r.getByText("Request sent.")).toBeVisible();
+    await s.goto(origin + "/friends");
+    await s.getByRole("button", { name: "Accept", exact: true }).click();
+    await expect(
+      s.getByRole("region", { name: "Friends" }).getByText("@" + recipient)
+    ).toBeVisible();
     await r.reload();
     await expect(r.getByText("Your music has found listeners")).toBeVisible();
     await s.goto(origin + "/u/" + sender);

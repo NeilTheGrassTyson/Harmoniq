@@ -28,10 +28,13 @@ class ListeningTrack(BaseModel):
 
 class RecentlyPlayedItem(ListeningTrack):
     played_at: datetime
+    # Stored listens only: the Harmoniq catalog track, once linked by ISRC.
+    track_mbid: str | None = None
 
 
 class ListeningResponse(BaseModel):
-    """Display-only view of a user's Spotify listening. Never persisted."""
+    """Display-only view of a user's listening. recently_played comes from
+    stored rows when history is on for this user, live from Spotify otherwise."""
 
     connected: bool
     # True when a connection exists (or existed) but cannot be used — the
@@ -42,3 +45,9 @@ class ListeningResponse(BaseModel):
     needs_reconnect: bool = False
     now_playing: ListeningTrack | None = None
     recently_played: list[RecentlyPlayedItem] = []
+    # True when recently_played is this user's stored history rather than
+    # Spotify's live window — the UI then says it's what Harmoniq has seen.
+    history: bool = False
+    # True when this answer came from storage while a refresh from Spotify
+    # runs in the background; the client checks again shortly.
+    refreshing: bool = False

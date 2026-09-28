@@ -93,11 +93,63 @@ async def can_view_follow_lists(
     scope = VisibilityScope(owner.visibility_follows)
     is_friend = False
     if scope == VisibilityScope.FRIENDS and viewer is not None:
-        is_friend = await is_mutual_follow(session, viewer.id, owner.id)
+        # Imported here: the friendship service builds on this module.
+        from app.services import friendship as friendship_svc
+
+        is_friend = await friendship_svc.are_friends(session, viewer.id, owner.id)
     return scope_allows(scope, is_owner=False, is_friend=is_friend)
 
 
 # ── Mutual-follow check ───────────────────────────────────────────────────────
+# The Phase 1 definition of friend. Visibility code must call
+# friendship_svc.are_friends, which falls back to this when
+# FRIENDSHIPS_ENABLED is off.
+
+
+# ── Inbound-gesture consent ─────────────────────────────────────────────────
+
+
+def gesture_scope_satisfied(
+    scope: str, recipient_follows_sender: bool, is_mutual: bool
+) -> bool:
+    """May a sender reach a recipient whose inbound scope is `scope`?
+
+    One rule for every inbound gesture — a Melody (melody_accept_scope) or a
+    friend request (friend_request_scope) — so the two can't drift apart.
+    'follows' means people the recipient follows. Unknown scopes fail closed.
+    """
+    if scope == "everyone":
+        return True
+    if scope == "follows":
+        return recipient_follows_sender
+    if scope == "mutuals":
+        return is_mutual
+    return False
+
+
+async def _is_following(
+    session: AsyncSession, follower_id: uuid.UUID, followed_id: uuid.UUID
+) -> bool:
+    result = await session.execute(
+        select(Follow.follower_id).where(
+            Follow.follower_id == follower_id, Follow.followed_id == followed_id
+        )
+    )
+    return result.first() is not None
+
+
+async def inbound_gesture_allowed(
+    session: AsyncSession, scope: str, sender_id: uuid.UUID, recipient_id: uuid.UUID
+) -> bool:
+    """The data-access half of gesture_scope_satisfied: reads only the follow
+    edges the scope needs."""
+    if scope == "everyone":
+        return True
+    recipient_follows = await _is_following(session, recipient_id, sender_id)
+    is_mutual = recipient_follows and await _is_following(
+        session, sender_id, recipient_id
+    )
+    return gesture_scope_satisfied(scope, recipient_follows, is_mutual)
 
 
 async def is_mutual_follow(
@@ -175,12 +227,12 @@ async def get_follow_state(
         )
     )
     edges = {(r.follower_id, r.followed_id) for r in rows}
-    is_following = (viewer_id, profile_id) in edges
-    follows_you = (profile_id, viewer_id) in edges
+    from app.services import friendship as friendship_svc
+
     return FollowState(
-        is_following=is_following,
-        follows_you=follows_you,
-        is_friend=is_following and follows_you,
+        is_following=(viewer_id, profile_id) in edges,
+        follows_you=(profile_id, viewer_id) in edges,
+        is_friend=await friendship_svc.are_friends(session, viewer_id, profile_id),
     )
 
 

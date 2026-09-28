@@ -9,7 +9,7 @@ Spotify ToS constraint, branch flow).
 ```
 backend/app/
 ├── api/v1/         Route handlers (thin — no business logic)
-├── core/           Enums, rate limiting, security helpers
+├── core/           Enums, rate limiting, security helpers, background runs
 ├── models/         SQLAlchemy ORM models
 ├── schemas/        Pydantic request/response contracts
 ├── services/       Business logic (one module per domain)
@@ -49,7 +49,11 @@ errors that look unrelated to the change that caused them.
 
 Every shareable entity (highlight, listening activity, Melody history,
 Harmony detail) carries an explicit visibility scope, defaulting to the
-most private option. **Enforcement happens at the data-access layer, not
+most private option — except where a documented constitutional exception
+says otherwise. Today those are `visibility_ratings` and
+`visibility_follows` (public; see the comment in `app/models/user.py`) and
+the approved-but-unbuilt `visibility_highlights` (public; see
+`specs/phase-2-highlights.md`). Never add a public default without one. **Enforcement happens at the data-access layer, not
 the presentation layer** — a query for another user's data must itself
 respect visibility scope. It is never acceptable to return private data
 from an endpoint and rely on the frontend to hide it. This is the single

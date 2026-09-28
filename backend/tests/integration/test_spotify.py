@@ -20,9 +20,9 @@ from app.core.crypto import decrypt_token
 from app.core.enums import VisibilityScope
 from app.models.spotify import SpotifyConnection
 from app.models.user import User
-from app.services import follow as follow_svc
 from app.services import spotify as spotify_svc
 from app.services import user as user_svc
+from tests.integration.friends_helpers import make_friends
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -412,7 +412,7 @@ class TestListeningVisibility:
         assert result is not None
         assert result.connected is True
 
-    async def test_friends_scope_allows_mutual_follow_only(
+    async def test_friends_scope_allows_friends_only(
         self, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         owner = await _make_user(
@@ -425,8 +425,7 @@ class TestListeningVisibility:
             db_session, clerk_id="sp_vis_04s", username="sp_vis_04s"
         )
         owner.visibility_activity = VisibilityScope.FRIENDS.value
-        await follow_svc.follow(db_session, owner.id, friend.id)
-        await follow_svc.follow(db_session, friend.id, owner.id)
+        await make_friends(db_session, owner, friend)
         await self._connect(db_session, owner)
         self._mock_payload(monkeypatch)
 

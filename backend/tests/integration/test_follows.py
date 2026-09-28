@@ -18,6 +18,7 @@ from app.models.follow import Follow
 from app.models.user import User
 from app.services import follow as follow_svc
 from app.services import user as user_svc
+from tests.integration.friends_helpers import make_friends
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -346,7 +347,7 @@ class TestFriendStubReplacement:
     reflects real mutual-follow state rather than the previous always-False stub.
     """
 
-    async def test_user_profile_friends_field_visible_to_mutual_follower(
+    async def test_user_profile_friends_field_visible_to_friend(
         self, db_session: AsyncSession
     ) -> None:
         from app.core.enums import VisibilityScope
@@ -360,9 +361,7 @@ class TestFriendStubReplacement:
             db_session, clerk_id="fw_fr_01v", username="fw_fr_01v"
         )
 
-        # Establish mutual follow
-        await _follow(db_session, owner, viewer)
-        await _follow(db_session, viewer, owner)
+        await make_friends(db_session, viewer, owner)
 
         profile = await user_svc.get_profile(
             db_session, owner.username, viewer.clerk_id
@@ -435,14 +434,13 @@ class TestFollowStateInProfile:
         assert profile.follow.follows_you is False
         assert profile.follow.is_friend is False
 
-    async def test_follow_state_is_friend_true_when_mutual(
+    async def test_follow_state_is_friend_true_for_friends(
         self, db_session: AsyncSession
     ) -> None:
         a = await _make_user(db_session, clerk_id="fw_ps_02a", username="fw_ps_02a")
         b = await _make_user(db_session, clerk_id="fw_ps_02b", username="fw_ps_02b")
 
-        await _follow(db_session, a, b)
-        await _follow(db_session, b, a)
+        await make_friends(db_session, a, b)
 
         profile = await user_svc.get_profile(db_session, b.username, a.clerk_id)
         assert profile is not None
@@ -693,7 +691,7 @@ class TestFollowListVisibility:
         assert resp.status_code == 200
         assert len(resp.json()["items"]) == 1
 
-    async def test_friends_scope_allows_mutual_follow_only(
+    async def test_friends_scope_allows_friends_only(
         self, db_session: AsyncSession
     ) -> None:
         owner = await _make_user(
@@ -706,8 +704,7 @@ class TestFollowListVisibility:
             db_session, clerk_id="fw_vis_05s", username="fw_vis_05s"
         )
         owner.visibility_follows = "friends"
-        await _follow(db_session, owner, friend)
-        await _follow(db_session, friend, owner)
+        await make_friends(db_session, owner, friend)
 
         async with await self._authed_client(db_session, friend.clerk_id) as client:
             as_friend = await client.get(f"/api/v1/follows/{owner.username}/followers")

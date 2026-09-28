@@ -1001,7 +1001,7 @@ class TestMasterSwitch:
     async def test_profile_friends_caps_public_rating_to_friends(
         self, db_session: AsyncSession
     ) -> None:
-        from app.services import follow as follow_svc
+        from tests.integration.friends_helpers import make_friends
 
         owner = await _make_user(db_session, clerk_id="clerk_ms_04a", username="ms_u4a")
         friend = await _make_user(
@@ -1011,8 +1011,7 @@ class TestMasterSwitch:
             db_session, clerk_id="clerk_ms_04c", username="ms_u4c"
         )
         owner.visibility_ratings = VisibilityScope.FRIENDS.value
-        await follow_svc.follow(db_session, owner.id, friend.id)
-        await follow_svc.follow(db_session, friend.id, owner.id)
+        await make_friends(db_session, owner, friend)
         track = await _make_track(db_session, mbid="mbid-ms-04")
 
         await _rate(

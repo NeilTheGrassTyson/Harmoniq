@@ -7,7 +7,14 @@ enforcement all live in app/services/spotify.py.
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 
 from app.api.v1.deps import CurrentUser, DbSession, OptionalClerkId
 from app.core.rate_limit import limiter
@@ -113,6 +120,7 @@ async def get_listening(
     username: str,
     session: DbSession,
     viewer_clerk_id: OptionalClerkId,
+    background: BackgroundTasks,
 ) -> ListeningResponse:
     profile_user = await user_svc.get_by_username(session, username)
     if profile_user is None:
@@ -129,4 +137,9 @@ async def get_listening(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail=_LISTENING_PRIVATE
         )
+    if result.refreshing:
+        # After the response: a slow Spotify costs a stale row, never a slow
+        # page. Any viewer may trigger it, floored by the 60s cache and a
+        # one-refresh-per-user guard (spec decision 7).
+        background.add_task(spotify_svc.refresh_in_background, profile_user.id)
     return result

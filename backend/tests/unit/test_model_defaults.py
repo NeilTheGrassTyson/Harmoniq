@@ -30,6 +30,10 @@ _RATIFIED_PUBLIC_DEFAULTS = {
     "visibility_follows": (
         "specs/phase-1-user-accounts-profiles.md, Amendments 2026-07-04"
     ),
+    "visibility_highlights": (
+        "specs/phase-2-highlights.md, Constitutional exception (Founder, "
+        "2026-09-06) — bounded by every highlight being added explicitly"
+    ),
 }
 
 

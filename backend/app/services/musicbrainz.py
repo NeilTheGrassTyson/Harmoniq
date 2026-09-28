@@ -190,6 +190,16 @@ async def lookup_release(mbid: str) -> dict[str, Any] | None:
         raise
 
 
+async def lookup_isrc(isrc: str) -> dict[str, Any] | None:
+    """Recordings carrying this ISRC, or None when MusicBrainz has none."""
+    try:
+        return await _get(f"isrc/{isrc}", {})
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 404):
+            return None
+        raise
+
+
 async def lookup_recording(mbid: str) -> dict[str, Any] | None:
     try:
         return await _get(f"recording/{mbid}", {})

@@ -6,7 +6,7 @@ then accepted / opened / rejected by the recipient. Rejected is recoverable
 (→ accepted/opened); accepted may upgrade to opened; opened is terminal.
 Rejection never produces a notification and is visible only to the sender.
 
-The pure helpers (_can_transition, _sender_visible_status, _scope_satisfied)
+The pure helpers (_can_transition, _sender_visible_status)
 hold the business rules and are unit-testable without a database; the async
 functions handle I/O and delegate to them (home.py pattern).
 """
@@ -23,9 +23,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.enums import MelodyAcceptScope, MelodyStatus
+from app.core.enums import MelodyStatus
 from app.models.catalog import Album, Artist, Track
-from app.models.follow import Follow
 from app.models.melody import Melody
 from app.models.user import User
 from app.schemas.home import TrackSummary, UserSummary
@@ -37,6 +36,7 @@ from app.schemas.melody import (
     MelodySentItem,
     MelodySentResponse,
 )
+from app.services import follow as follow_svc
 from app.services import notification as notification_svc
 
 logger = logging.getLogger(__name__)
@@ -104,21 +104,6 @@ def _sender_visible_status(status: str) -> MelodyStatus:
     return MelodyStatus(status)
 
 
-def _scope_satisfied(
-    scope: str,
-    recipient_follows_sender: bool,
-    is_mutual: bool,
-) -> bool:
-    """May a sender reach a recipient with this melody_accept_scope?"""
-    if scope == MelodyAcceptScope.EVERYONE.value:
-        return True
-    if scope == MelodyAcceptScope.FOLLOWS.value:
-        return recipient_follows_sender
-    if scope == MelodyAcceptScope.MUTUALS.value:
-        return is_mutual
-    return False  # unknown scope: fail closed
-
-
 # ── Internal query helpers ────────────────────────────────────────────────────
 
 _TRACK_COLS = (
@@ -162,17 +147,6 @@ def _user_summary(user: User) -> UserSummary:
     )
 
 
-async def _recipient_follows_sender(
-    session: AsyncSession, recipient_id: uuid.UUID, sender_id: uuid.UUID
-) -> bool:
-    result = await session.execute(
-        select(func.count())
-        .select_from(Follow)
-        .where(Follow.follower_id == recipient_id, Follow.followed_id == sender_id)
-    )
-    return result.scalar_one() > 0
-
-
 # ── Public async API ──────────────────────────────────────────────────────────
 
 
@@ -199,19 +173,10 @@ async def send_melody(
     if track_id is None:
         return None, _ERR_TRACK_NOT_FOUND
 
-    if recipient.melody_accept_scope != MelodyAcceptScope.EVERYONE.value:
-        recipient_follows = await _recipient_follows_sender(
-            session, recipient.id, sender.id
-        )
-        is_mutual = False
-        if recipient_follows:
-            is_mutual = await _recipient_follows_sender(
-                session, sender.id, recipient.id
-            )
-        if not _scope_satisfied(
-            recipient.melody_accept_scope, recipient_follows, is_mutual
-        ):
-            return None, _ERR_SCOPE
+    if not await follow_svc.inbound_gesture_allowed(
+        session, recipient.melody_accept_scope, sender.id, recipient.id
+    ):
+        return None, _ERR_SCOPE
 
     # Friendly pre-check; the partial unique index is the race-proof backstop.
     dup_result = await session.execute(

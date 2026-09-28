@@ -16,7 +16,8 @@ from app.models.notification import Notification
 from app.models.user import User
 from app.schemas.harmony import HarmonyOwn
 from app.schemas.melody import MelodyReaction
-from app.services import follow, harmony, melody
+from app.services import follow, friendship, harmony, melody
+from tests.integration.friends_helpers import make_friends
 
 pytestmark = pytest.mark.integration
 NOW = datetime(2026, 9, 8, tzinfo=UTC)
@@ -239,14 +240,15 @@ async def test_public_rejection_has_no_payload_delta_and_revocation_is_immediate
         await harmony.get_harmony(db_session, sender.username, None)
     ).kind == "hidden"
     await follow.follow(db_session, sender.id, recipient.id)
-    assert (
-        await harmony.get_harmony(db_session, sender.username, recipient.clerk_id)
-    ).kind == "hidden"
     await follow.follow(db_session, recipient.id, sender.id)
     assert (
         await harmony.get_harmony(db_session, sender.username, recipient.clerk_id)
+    ).kind == "hidden"
+    await make_friends(db_session, recipient, sender)
+    assert (
+        await harmony.get_harmony(db_session, sender.username, recipient.clerk_id)
     ).kind == "shared"
-    await follow.unfollow(db_session, recipient.id, sender.id)
+    await friendship.remove_friend(db_session, sender, recipient)
     assert (
         await harmony.get_harmony(db_session, sender.username, recipient.clerk_id)
     ).kind == "hidden"

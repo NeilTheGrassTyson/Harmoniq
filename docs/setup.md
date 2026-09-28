@@ -441,8 +441,9 @@ This keeps your local migrations isolated without affecting `main`.
 ## 10. Common issues
 
 **`ModuleNotFoundError: No module named 'app'`**  
-Make sure your virtual environment is activated and you're running commands
-from inside the `backend/` directory.
+Run the command through Poetry (`poetry run …`) from inside the `backend/`
+directory. Do not activate a virtualenv to fix this — §2 explains why an
+active `VIRTUAL_ENV` makes Poetry's own environment look broken.
 
 **`401 Unauthorized` on all API calls**  
 The Clerk JWKS URL must match your Clerk application's instance URL exactly.

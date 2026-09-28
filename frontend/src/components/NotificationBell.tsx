@@ -127,7 +127,13 @@ export default function NotificationBell() {
         // Non-fatal; the row re-appears unread next fetch.
       }
     }
-    router.push(item.type === "melody_received" ? "/melodies" : `/u/${item.actor.username}`);
+    router.push(
+      item.type === "melody_received"
+        ? "/melodies"
+        : item.type === "friend_request_received"
+          ? "/friends"
+          : `/u/${item.actor.username}`
+    );
   };
 
   const handleMarkAll = async () => {
@@ -207,6 +213,10 @@ export default function NotificationBell() {
                               {item.actor.display_name} sent you a Melody —{" "}
                               <em>{item.melody.track.title}</em>
                             </>
+                          ) : item.type === "friend_request_received" ? (
+                            <>{item.actor.display_name} would like to be friends</>
+                          ) : item.type === "friend_request_accepted" ? (
+                            <>You and {item.actor.display_name} are now friends</>
                           ) : (
                             <>{item.actor.display_name} followed you</>
                           )}

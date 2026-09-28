@@ -11,10 +11,13 @@ from app.database import Base
 
 class SpotifyConnection(Base):
     """
-    A user's linked Spotify account. The ONLY Spotify data persisted anywhere
-    (spec: phase-1-spotify-listening.md) — listening data is display-only and
-    never written to the database. refresh_token_encrypted holds Fernet
+    A user's linked Spotify account. refresh_token_encrypted holds Fernet
     ciphertext (app/core/crypto.py), never a plaintext token.
+
+    Listening data is display-only. By default it is never written to the
+    database; with LISTEN_HISTORY_ENABLED on and the user's own opt-in, up to
+    20 recent plays are kept in `listens` (phase-2-listen-history.md), deleted
+    when this connection is removed, and never read by recommendation code.
     """
 
     __tablename__ = "spotify_connections"

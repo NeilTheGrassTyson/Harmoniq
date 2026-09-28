@@ -230,3 +230,49 @@ describe("ListeningSection — needs reconnecting", () => {
     expect(screen.queryByText(/needs reconnecting/)).toBeNull();
   });
 });
+
+describe("ListeningSection — stored history", () => {
+  beforeEach(() => mockGetListening.mockReset());
+
+  it("says it's what Harmoniq has seen, and links catalog-linked plays", () => {
+    renderSection({
+      connected: true,
+      now_playing: null,
+      history: true,
+      recently_played: [
+        makeItem({ track_name: "Linked", track_mbid: "mb-1" }),
+        makeItem({ track_name: "Snapshot", spotify_url: null }),
+      ],
+    });
+    expect(screen.getByText(/not a complete history/)).toBeDefined();
+    expect(screen.getByRole("link", { name: "Linked" }).getAttribute("href")).toBe("/track/mb-1");
+    expect(screen.queryByRole("link", { name: "Snapshot" })).toBeNull();
+  });
+
+  it("makes no completeness claim for the live window", () => {
+    renderSection({ connected: true, now_playing: null, recently_played: [makeItem()] });
+    expect(screen.queryByText(/not a complete history/)).toBeNull();
+  });
+});
+
+describe("ListeningSection — stored history with a broken connection", () => {
+  const broken = {
+    connected: true,
+    needs_reconnect: true,
+    now_playing: null,
+    history: true,
+    recently_played: [makeItem({ track_name: "Kept" })],
+  };
+
+  it("keeps showing stored plays to visitors, with no reconnect talk", () => {
+    renderSection(broken);
+    expect(screen.getByText("Kept")).toBeDefined();
+    expect(screen.queryByText(/reconnect/i)).toBeNull();
+  });
+
+  it("tells the owner to reconnect above their stored plays", () => {
+    renderSection(broken, { isOwnProfile: true });
+    expect(screen.getByText("Kept")).toBeDefined();
+    expect(screen.getByText(/needs reconnecting to add new plays/)).toBeDefined();
+  });
+});

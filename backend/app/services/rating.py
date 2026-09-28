@@ -32,7 +32,7 @@ from app.schemas.rating import (
     UserRatingListResponse,
     UserRatingRead,
 )
-from app.services import follow as follow_svc
+from app.services import friendship as friendship_svc
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ async def _is_friend(
     viewer_id: uuid.UUID,
     subject_id: uuid.UUID,
 ) -> bool:
-    return await follow_svc.is_mutual_follow(session, viewer_id, subject_id)
+    return await friendship_svc.are_friends(session, viewer_id, subject_id)
 
 
 # ── Visibility gate ───────────────────────────────────────────────────────────
@@ -155,10 +155,10 @@ async def list_for_entity(
     )
     rows = rows_result.all()
 
-    # One mutual-follows fetch for the viewer instead of a per-row query.
+    # One friends fetch for the viewer instead of a per-row query.
     viewer_friend_ids: set[uuid.UUID] = set()
     if viewer_id is not None and rows:
-        viewer_friend_ids = await follow_svc.get_mutual_follow_ids(session, viewer_id)
+        viewer_friend_ids = await friendship_svc.get_friend_ids(session, viewer_id)
 
     visible: list[RatingRead] = []
     for rating, user in rows:
@@ -252,6 +252,52 @@ async def list_for_user(
 
 
 # ── Count current ratings for a user (profile display) ───────────────────────
+
+
+async def latest_visible_reviews(
+    session: AsyncSession,
+    author: User,
+    viewer_id: uuid.UUID | None,
+    entities: list[tuple[str, uuid.UUID]],
+) -> tuple[dict[tuple[str, uuid.UUID], Rating], set[tuple[str, uuid.UUID]]]:
+    """
+    The author's own latest review of each entity, when this viewer may see
+    it — one query for the lot. Also returns which entities the author has
+    reviewed at all, so a caller can tell "no review" from "not for you".
+    Only the latest review counts: an older one is never shown in place of a
+    newer one the viewer can't see, since that would publish something the
+    author has since replaced.
+
+    Highlights attach reviews through this so the rule that decides who may
+    see a review stays here, in one place (specs/phase-2-highlights.md,
+    "The review-visibility trap").
+    """
+    if not entities:
+        return {}, set()
+    is_friend = (
+        viewer_id is not None
+        and viewer_id != author.id
+        and await _is_friend(session, viewer_id, author.id)
+    )
+    wanted = set(entities)
+    rows = await session.execute(
+        select(Rating)
+        .where(
+            Rating.user_id == author.id,
+            Rating.entity_id.in_([entity_id for _, entity_id in wanted]),
+        )
+        .order_by(Rating.created_at.desc(), Rating.id)
+    )
+    seen: set[tuple[str, uuid.UUID]] = set()
+    visible: dict[tuple[str, uuid.UUID], Rating] = {}
+    for rating in rows.scalars():
+        key = (rating.entity_type, rating.entity_id)
+        if key not in wanted or key in seen:
+            continue
+        seen.add(key)
+        if _can_view(rating, author.visibility_ratings, viewer_id, is_friend):
+            visible[key] = rating
+    return visible, seen
 
 
 async def count_for_user(

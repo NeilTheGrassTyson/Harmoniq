@@ -95,6 +95,26 @@ function IconUser({ size = 18 }: { size?: number }) {
   );
 }
 
+function IconFriends({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.4c1.8.8 3 2.9 3 5.6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function IconMelody({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -190,6 +210,7 @@ export default function AppShell({ children }: AppShellProps) {
   const isHomeActive = pathname === "/";
   const isSearchActive = pathname.startsWith("/search");
   const isMelodiesActive = pathname.startsWith("/melodies");
+  const isFriendsActive = pathname.startsWith("/friends");
   const isProfileActive = !!username && pathname.startsWith(`/u/${username}`);
   const isSettingsActive = pathname.startsWith("/settings");
 
@@ -256,6 +277,14 @@ export default function AppShell({ children }: AppShellProps) {
                 icon={<IconMelody size={16} />}
                 label="Melodies"
                 active={isMelodiesActive}
+              />
+            )}
+            {signedIn && (
+              <NavLink
+                href="/friends"
+                icon={<IconFriends size={16} />}
+                label="Friends"
+                active={isFriendsActive}
               />
             )}
             {signedIn && username && (

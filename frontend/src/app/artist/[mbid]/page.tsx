@@ -6,6 +6,7 @@ import CoverArt from "@/components/CoverArt";
 import { getArtist } from "@/lib/catalog";
 import type { AlbumResult } from "@/types";
 import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
+import HighlightButton from "@/components/HighlightButton";
 
 // Discography sections, in display order. The backend only returns these
 // three types (live/compilation/etc. are filtered out at the source).
@@ -76,6 +77,7 @@ export default async function ArtistPage(props: { params: Promise<{ mbid: string
             {artist.disambiguation && (
               <p className="text-tertiary mt-0.5 text-sm">{artist.disambiguation}</p>
             )}
+            <HighlightButton entityType="artist" mbid={mbid} />
           </div>
         </div>
 

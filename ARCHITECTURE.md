@@ -7,8 +7,12 @@
 > Railway + Neon confirmed live end to end 2026-07-08) — see `ROADMAP.md`
 > for the checklist and dates. Phase 2 (NEXT) work is gated on Founder
 > approval of each feature's spec per `WORKFLOW.md`.
-> Harmony, Melody reactions, and streaming links were approved 2026-09-08;
-> their implementation is under review in PR #74 and described below.
+> Harmony, Melody reactions, and streaming links were approved 2026-09-08
+> and merged into `dev` via PR #74. Friend Requests, Listen History and
+> Highlights (with Spotify playlists) were approved 2026-09-19 and are
+> implemented on `claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder
+> review; they are described below. Listen History and Highlights ship behind
+> switches that default off.
 > This document describes what the system _is_ today. Evolutionary changes are recorded as ADRs in `docs/adr/`.
 
 ---
@@ -20,7 +24,7 @@ Harmoniq/
 ├── backend/              FastAPI application (Python 3.12+)
 │   ├── app/
 │   │   ├── api/v1/       HTTP route handlers (thin — no business logic)
-│   │   ├── core/         Enums, rate limiting, security helpers
+│   │   ├── core/         Enums, rate limiting, security helpers, background runs
 │   │   ├── models/       SQLAlchemy ORM models (database schema)
 │   │   ├── schemas/      Pydantic request/response contracts
 │   │   ├── services/     Business logic (one module per domain)
@@ -189,13 +193,16 @@ modules, only from shared `models/` and `schemas/`.
 | `storage`            | ✅ Phase 1 | Cloudflare R2 avatar upload                                                                     |
 | `rating`             | ✅ Phase 1 | Ratings and reviews; aggregate scores; reports                                                  |
 | `follow`             | ✅ Phase 1 | Follow graph (follower/followed relationships)                                                  |
+| `friendship`         | Phase 2    | Explicit friendship and requests; `are_friends` is the one friends check every visibility decision uses |
 | `home`               | ✅ Phase 1 | Home surface: trending + friends' top songs                                                     |
-| `spotify`            | ✅ Phase 1 | Spotify OAuth linking; display-only listening data (never persisted, never feeds other systems) |
+| `spotify`            | ✅ Phase 1 | Spotify OAuth linking; display-only listening and owned-playlist reads; never feeds recommendation |
 | `melody`             | ✅ Phase 1 | Melody lifecycle state machine (sent → received → accepted/opened/rejected)                     |
 | `notifications`      | ✅ Phase 1 | In-app notification center (Melody received, new follower)                                      |
 | `moderation`         | ✅ Phase 1 | Report review/action: dismiss, hide rating, suspend user                                        |
-| `harmony`            | Phase 2, PR #74 | Profile-only reception aggregation; owner statistics and opt-in positive summary             |
-| `streaming`          | Phase 2, PR #74 | Public recording links and labeled provider searches via MusicBrainz                         |
+| `harmony`            | Phase 2    | Profile-only reception aggregation; owner statistics and opt-in positive summary             |
+| `streaming`          | Phase 2    | Public recording links and labeled provider searches via MusicBrainz                         |
+| `listens`            | Phase 2    | Opt-in stored recent listening; merge-never-replace; ISRC linking; `first_party_listens` boundary |
+| `highlight`          | Phase 2    | Up to 15 chosen tracks/albums/artists/playlists; attached reviews via `rating_svc`; `first_party_highlights` boundary |
 | `discovery`          | Planned    | Discovery surface (Harmonic Feed) composition                                                   |
 
 Phase 2 in PR #74 adds editable recipient reactions to `melody`, independently
@@ -253,7 +260,10 @@ users
   visibility_harmony  VARCHAR NOT NULL DEFAULT 'private'  ← gates positive summary; numbers always owner-only
   visibility_ratings  VARCHAR NOT NULL DEFAULT 'public'   ← master switch; public default is a documented exception
   visibility_follows  VARCHAR NOT NULL DEFAULT 'public'   ← gates follow lists; public default is a documented exception
+  visibility_highlights VARCHAR NOT NULL DEFAULT 'public' ← public default is a documented exception, bounded by explicit adds
   melody_accept_scope VARCHAR NOT NULL DEFAULT 'everyone' ← who may send this user a Melody
+  friend_request_scope VARCHAR NOT NULL DEFAULT 'everyone' ← who may send this user a friend request
+  store_listening   BOOLEAN NOT NULL DEFAULT false        ← opt-in for stored recent listening
   is_moderator      BOOLEAN NOT NULL DEFAULT false        ← granted only via manual SQL, never via API
   suspended_at      TIMESTAMPTZ                           ← NULL = active; doubles as flag + audit timestamp; unsuspend is manual SQL
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -266,7 +276,9 @@ spotify_connections
   refresh_token_encrypted  VARCHAR NOT NULL   ← Fernet ciphertext, never plaintext
   scopes                   VARCHAR NOT NULL
   connected_at             TIMESTAMPTZ NOT NULL DEFAULT now()
-  -- The ONLY persisted Spotify data. Listening data is display-only.
+  -- scopes is what Spotify reported granting ("" if it didn't say).
+  -- Listening is display-only; with the opt-in, up to 20 plays are kept in
+  -- `listens`. Removing this row deletes those and any playlist highlights.
 
 artists
   id            UUID PK
@@ -334,6 +346,48 @@ follows
   INDEX ix_follows_followed_id (followed_id)   ← who follows this user?
   INDEX ix_follows_follower_id (follower_id)   ← who does this user follow?
 
+friendships
+  user_low_id   UUID FK → users.id (CASCADE)     ← canonical order: one row per pair
+  user_high_id  UUID FK → users.id (CASCADE)
+  status        VARCHAR NOT NULL                 ← 'pending' | 'accepted' | 'declined'
+  requested_by  UUID FK → users.id NOT NULL
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  responded_at  TIMESTAMPTZ
+  PRIMARY KEY (user_low_id, user_high_id)
+  CHECK ck_friendships_canonical_order (user_low_id < user_high_id)
+  CHECK ck_friendships_requester_in_pair
+  INDEX ix_friendships_{low,high}_accepted WHERE status = 'accepted'
+  -- Independent of follows. A decline notifies no one and is invisible to
+  -- its sender. Existing mutual follows were migrated to accepted rows.
+
+listens
+  id              UUID PK
+  user_id         UUID FK → users.id NOT NULL (CASCADE)
+  source          VARCHAR NOT NULL    ← 'spotify' | 'apple_music' | 'harmoniq'
+  idempotency_key VARCHAR NOT NULL
+  track_id        UUID FK → tracks.id (SET NULL)  ← filled in later from the ISRC
+  isrc            VARCHAR
+  link_checked_at TIMESTAMPTZ
+  track_name, artist_name, album_name, album_art_url, provider_url  ← display snapshot
+  played_at       TIMESTAMPTZ         ← nullable: Apple Music reports none
+  observed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  UNIQUE uq_listens_observation (user_id, source, idempotency_key)
+  -- Capped at 20 per user on write. Provider rows are display-only; only
+  -- listens_svc.first_party_listens may feed recommendation.
+
+highlights
+  id                   UUID PK
+  user_id              UUID FK → users.id NOT NULL (CASCADE)
+  entity_type          VARCHAR NOT NULL   ← 'track' | 'album' | 'artist' | 'playlist'
+  entity_id            UUID               ← catalog PK (polymorphic, like ratings)
+  provider, provider_ref VARCHAR          ← playlists only ('spotify', playlist id)
+  display_name, display_image_url, display_refreshed_at  ← playlists only; follow Spotify live
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+  CHECK ck_highlights_reference (catalog XOR playlist reference)
+  UNIQUE uq_highlights_entity (user_id, entity_type, entity_id) WHERE entity_id IS NOT NULL
+  UNIQUE uq_highlights_playlist (user_id, provider, provider_ref) WHERE provider_ref IS NOT NULL
+  -- At most 15 per user, enforced under a row lock.
+
 melodies
   id            UUID PK
   sender_id     UUID FK → users.id NOT NULL     ← always a real human sender (ENGINEERING_BIBLE §6)
@@ -355,7 +409,7 @@ melodies
 notifications
   id            UUID PK
   user_id       UUID FK → users.id NOT NULL     ← recipient
-  type          VARCHAR NOT NULL                ← 'melody_received' | 'new_follower'
+  type          VARCHAR NOT NULL                ← 'melody_received' | 'new_follower' | 'friend_request_received' | 'friend_request_accepted' (never a decline)
   actor_id      UUID FK → users.id NOT NULL
   melody_id     UUID FK → melodies.id           ← nullable
   read_at       TIMESTAMPTZ
@@ -364,6 +418,7 @@ notifications
   INDEX ix_notifications_unread (user_id) WHERE read_at IS NULL
   UNIQUE uq_notifications_follower (user_id, actor_id) WHERE type = 'new_follower'
   UNIQUE uq_notifications_melody (melody_id) WHERE melody_id IS NOT NULL
+  UNIQUE uq_notifications_friend_request (user_id, actor_id, type) WHERE type IN (the two friend types)
 ```
 
 Notifications are created synchronously in the same transaction as their
@@ -398,6 +453,10 @@ Avatars are stored in **Cloudflare R2** (S3-compatible object storage).
 - **Ingestion:** On-demand: when a user searches for a track that doesn't
   exist in our catalog, the backend queries MusicBrainz, normalizes the
   response, and upserts into our catalog.
+- **Search is local-first** (`specs/local-first-search.md`, approved
+  2026-08-01): Postgres answers from pg_trgm similarity when the catalog can,
+  and MusicBrainz is consulted only when it cannot. `SEARCH_LOCAL_FIRST`
+  (default on) restores MusicBrainz-first behaviour when off.
 - **Audio previews:** Deezer API (supplementary, Phase NEXT — not present
   in Phase 0/1).
 
@@ -502,21 +561,31 @@ npm run dev
 
 ## Testing Strategy
 
-- **Backend:** pytest + httpx async client. Unit tests for services; integration
-  tests for API endpoints against a real test database (Neon branch or local
-  PostgreSQL). No mocking the database — see Engineering Bible §8.
-- **Frontend:** Vitest + React Testing Library for component logic; Playwright
-  for end-to-end flows (Phase NEXT).
-- **CI:** Both suites run on every pull request via GitHub Actions.
+- **Backend:** pytest + httpx async client, in two tiers (ADR 0007). The unit
+  tier (`-m "not integration"`) needs nothing external; the integration tier
+  runs against a real PostgreSQL started by Testcontainers, so it needs Docker.
+  No mocking the database.
+- **Frontend:** Vitest + React Testing Library for component logic.
+- **Browser:** `e2e/` drives the built Next.js app against real FastAPI and a
+  disposable PostgreSQL with Playwright (`e2e/README.md`). It is run locally,
+  not in CI.
+- **CI:** backend and frontend suites run on pull requests into, and pushes to,
+  `dev` and `main` via GitHub Actions — see `docs/GITHUB_WORKFLOW.md`.
 
 ---
 
 ## Branching Strategy
 
-- `main` — production. Protected; requires passing CI.
-- `feature/*` — feature branches. Each gets a Vercel preview URL and a Neon
-  database branch automatically.
-- Commits to `main` are squash-merged from feature branches.
+One direction only: feature branch → `dev` → `main` (WORKFLOW.md §1).
+
+- `main` — production. Reached only by a single `dev → main` PR.
+- `dev` — integration. Permanent and protected; feature PRs land here.
+- Feature branches get a Vercel preview URL. There is no per-branch Neon
+  database; production deploys directly for the current friends-only round,
+  with a `staging` Neon branch planned for the next tier (`docs/deployment.md`).
+
+Naming, PR conventions, CI triggers and branch protection are in
+`docs/GITHUB_WORKFLOW.md`, which is authoritative where this summary is brief.
 
 ---
 
@@ -544,3 +613,8 @@ share Harmoniq's tokens. See DESIGN_SYSTEM.md §15.
 | [0007](docs/adr/0007-backend-testing-strategy.md)     | Backend testing strategy                                         |
 | [0008](docs/adr/0008-profile-discoverability.md)      | Profile discoverability: every profile findable, content private |
 | [0009](docs/adr/0009-melody-no-message-embed-card.md) | Melody carries no message; renders as an embed card              |
+| [0010](docs/adr/0010-onboarding-submit-gate.md)       | Onboarding submit gate reads values, not `formState.isValid`     |
+| [0011](docs/adr/0011-misconfiguration-must-be-observable.md) | Configuration that can break every request must say so    |
+| [0012](docs/adr/0012-nav-identity-and-public-search.md) | Nav is server-resolved; search is a browse surface             |
+| [0013](docs/adr/0013-astra-second-engineer.md)        | Astra joins as a second, equal engineering contributor           |
+| [0014](docs/adr/0014-audio-previews-deezer-direct-stream.md) | Audio previews come from Deezer and stream straight from its CDN |

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { disconnectSpotify, getSpotifyConnection, getSpotifyConnectUrl } from "@/lib/spotify";
 import type { SpotifyConnectionStatus } from "@/types";
 import { friendlyError } from "@/lib/apiBase";
+import ListenHistorySetting from "@/components/ListenHistorySetting";
 
 interface ConnectedAccountsProps {
   /** True immediately after the Spotify OAuth callback redirects back here. */
@@ -115,6 +116,8 @@ export default function ConnectedAccounts({ justConnected = false }: ConnectedAc
           </button>
         </div>
       )}
+
+      {spotify?.connected && !checkFailed && <ListenHistorySetting />}
 
       <p className="text-tertiary mt-2 text-xs">
         Listening activity is shown on your profile according to your Listening activity visibility
