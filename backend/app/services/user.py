@@ -106,6 +106,7 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         visibility_activity=VisibilityScope(user.visibility_activity),
         visibility_ratings=VisibilityScope(user.visibility_ratings),
         visibility_follows=VisibilityScope(user.visibility_follows),
+        visibility_highlights=VisibilityScope(user.visibility_highlights),
         melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
         friend_request_scope=FriendRequestScope(user.friend_request_scope),
         # Absent while the feature is off, so the settings page hides the switch.
@@ -215,6 +216,7 @@ async def update_profile(
     melody_accept_scope: MelodyAcceptScope | None = None,
     friend_request_scope: FriendRequestScope | None = None,
     store_listening: bool | None = None,
+    visibility_highlights: VisibilityScope | None = None,
 ) -> OwnProfileResponse:
     if display_name is not None:
         user.display_name = display_name
@@ -297,6 +299,17 @@ async def update_profile(
                 user.id,
                 old,
                 friend_request_scope.value,
+            )
+
+    if visibility_highlights is not None:
+        old = user.visibility_highlights
+        user.visibility_highlights = visibility_highlights.value
+        if old != visibility_highlights.value:
+            logger.info(
+                "Visibility changed internal_id=%s field=highlights %s→%s",
+                user.id,
+                old,
+                visibility_highlights.value,
             )
 
     if store_listening is not None and settings.listen_history_enabled:

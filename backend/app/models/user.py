@@ -43,6 +43,14 @@ class User(Base):
     visibility_follows: Mapped[str] = mapped_column(
         String, nullable=False, default=VisibilityScope.PUBLIC.value
     )
+    # Public by default — a recorded constitutional exception, bounded by every
+    # highlight being added explicitly (specs/phase-2-highlights.md).
+    visibility_highlights: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=VisibilityScope.PUBLIC.value,
+        server_default=VisibilityScope.PUBLIC.value,
+    )
     # Who may send this user a Melody. Consent guard for the anyone-can-send
     # model (Founder decision 2026-07-07). Not a VisibilityScope: it gates an
     # inbound gesture, not visibility of owned data.

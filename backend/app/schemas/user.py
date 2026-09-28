@@ -78,6 +78,7 @@ class ProfileUpdateRequest(BaseModel):
     visibility_activity: VisibilityScope | None = None
     visibility_ratings: VisibilityScope | None = None
     visibility_follows: VisibilityScope | None = None
+    visibility_highlights: VisibilityScope | None = None
     melody_accept_scope: MelodyAcceptScope | None = None
     friend_request_scope: FriendRequestScope | None = None
     store_listening: bool | None = None
@@ -151,6 +152,7 @@ class OwnProfileResponse(BaseModel):
     visibility_activity: VisibilityScope
     visibility_ratings: VisibilityScope
     visibility_follows: VisibilityScope
+    visibility_highlights: VisibilityScope = VisibilityScope.PUBLIC
     melody_accept_scope: MelodyAcceptScope
     friend_request_scope: FriendRequestScope = FriendRequestScope.EVERYONE
     # None while LISTEN_HISTORY_ENABLED is off.

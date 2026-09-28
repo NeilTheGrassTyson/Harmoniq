@@ -6,6 +6,7 @@ from app.api.v1 import (
     friends,
     harmony,
     health,
+    highlights,
     home,
     melodies,
     moderation,
@@ -31,4 +32,5 @@ api_router.include_router(melodies.router)
 api_router.include_router(notifications.router)
 api_router.include_router(moderation.router)
 api_router.include_router(harmony.router)
+api_router.include_router(highlights.router)
 api_router.include_router(streaming.router)

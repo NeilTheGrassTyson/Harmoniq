@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     # Durable recent listening (specs/phase-2-listen-history.md). Off restores
     # the live-only Listening section exactly; stored rows are kept.
     listen_history_enabled: bool = False
+    # Highlights (specs/phase-2-highlights.md). Two independent switches so the
+    # provider-backed playlist half can be withdrawn without the rest. Off
+    # hides the surface; rows are kept. Playlist highlights also widen the
+    # Spotify OAuth scope, so connected users are asked again only once on.
+    highlights_enabled: bool = False
+    playlist_highlights_enabled: bool = False
 
     # ── Home sections ────────────────────────────────────────────────────────
     # Number of entries returned per section on the Home page.

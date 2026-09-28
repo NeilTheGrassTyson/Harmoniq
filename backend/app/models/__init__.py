@@ -3,6 +3,7 @@
 from app.models.catalog import Album, Artist, Track  # noqa: F401
 from app.models.follow import Follow  # noqa: F401
 from app.models.friendship import Friendship  # noqa: F401
+from app.models.highlight import Highlight  # noqa: F401
 from app.models.listen import Listen  # noqa: F401
 from app.models.melody import Melody  # noqa: F401
 from app.models.notification import Notification  # noqa: F401

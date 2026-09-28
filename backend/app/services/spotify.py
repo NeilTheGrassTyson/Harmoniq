@@ -15,6 +15,7 @@ Constraints (spec: phase-1-spotify-listening.md, ENGINEERING_BIBLE §13):
 import base64
 import hmac
 import logging
+import re
 import secrets
 import time
 import uuid
@@ -32,6 +33,7 @@ from app.core.crypto import TokenCryptoError, decrypt_token, encrypt_token
 from app.core.enums import VisibilityScope
 from app.core.visibility import scope_allows
 from app.database import AsyncSessionLocal
+from app.models.highlight import Highlight
 from app.models.spotify import SpotifyConnection
 from app.models.user import User
 from app.schemas.spotify import (
@@ -50,6 +52,24 @@ _TOKEN_URL = "https://accounts.spotify.com/api/token"  # noqa: S105 — endpoint
 _API_BASE = "https://api.spotify.com/v1"
 
 SCOPES = "user-read-recently-played user-read-currently-playing"
+# Reading a user's own playlists, for playlist highlights. Requested only while
+# PLAYLIST_HIGHLIGHTS_ENABLED is on, so nobody is asked to re-authorize for a
+# feature that is switched off (specs/phase-2-highlights.md).
+PLAYLIST_SCOPE = "playlist-read-private"
+_PLAYLIST_ID = re.compile(r"^[A-Za-z0-9]{22}$")
+
+
+def requested_scopes() -> str:
+    if settings.playlist_highlights_enabled:
+        return f"{SCOPES} {PLAYLIST_SCOPE}"
+    return SCOPES
+
+
+def has_playlist_access(conn: SpotifyConnection) -> bool:
+    """Whether the stored grant includes playlist reading. Read from what
+    Spotify reported granting, never assumed from what was requested."""
+    return PLAYLIST_SCOPE in conn.scopes.split()
+
 
 _STATE_TTL_SECONDS = 600
 _LISTENING_CACHE_TTL = 60.0
@@ -173,7 +193,7 @@ def build_authorize_url(user_id: uuid.UUID) -> str:
             "client_id": client_id,
             "response_type": "code",
             "redirect_uri": redirect_uri,
-            "scope": SCOPES,
+            "scope": requested_scopes(),
             "state": create_state(user_id),
         }
     )
@@ -280,7 +300,8 @@ async def connect(
             user_id=user.id,
             spotify_user_id=spotify_user_id,
             refresh_token_encrypted=encrypt_token(refresh_token),
-            scopes=tokens.get("scope", SCOPES),
+            # "" when Spotify omits it: what was requested is no proof of grant.
+            scopes=tokens.get("scope", ""),
             connected_at=now,
         )
         .on_conflict_do_update(
@@ -288,7 +309,7 @@ async def connect(
             set_={
                 "spotify_user_id": spotify_user_id,
                 "refresh_token_encrypted": encrypt_token(refresh_token),
-                "scopes": tokens.get("scope", SCOPES),
+                "scopes": tokens.get("scope", ""),
                 "connected_at": now,
             },
         )
@@ -321,7 +342,19 @@ async def disconnect(session: AsyncSession, user: User) -> None:
     # Disconnecting the provider deletes what was stored from it, synchronously
     # (phase-2-listen-history.md requirement 7).
     await listens_svc.forget(session, user.id, "spotify")
+    await _forget_playlist_highlights(session, user.id)
     logger.info("Spotify disconnected internal_id=%s", user.id)
+
+
+async def _forget_playlist_highlights(
+    session: AsyncSession, user_id: uuid.UUID
+) -> None:
+    """Playlist highlights are provider-backed: when the grant ends, they go."""
+    await session.execute(
+        delete(Highlight).where(
+            Highlight.user_id == user_id, Highlight.provider == "spotify"
+        )
+    )
 
 
 async def get_connection(
@@ -375,6 +408,7 @@ async def _get_access_token(session: AsyncSession, conn: SpotifyConnection) -> s
         _access_tokens.pop(user_id, None)
         _listening_cache.pop(user_id, None)
         await listens_svc.forget(session, user_id, "spotify")
+        await _forget_playlist_highlights(session, user_id)
         raise SpotifyNotConnectedError("Spotify grant revoked")
     if resp.status_code != 200:
         logger.warning(
@@ -632,3 +666,72 @@ async def get_listening(
         return ListeningResponse(connected=True)
 
     return _payload_to_response(payload)
+
+
+# ── Playlists (for playlist highlights) ───────────────────────────────────────
+
+
+def _playlist_display(item: dict[str, Any]) -> dict[str, Any] | None:
+    playlist_id = item.get("id")
+    name = item.get("name")
+    if not isinstance(playlist_id, str) or not _PLAYLIST_ID.match(playlist_id):
+        return None
+    if not name:
+        return None
+    images = item.get("images") or []
+    image = images[0].get("url") if images and isinstance(images[0], dict) else None
+    return {
+        "id": playlist_id,
+        "name": str(name),
+        "image_url": image if isinstance(image, str) else None,
+        "owner_id": (item.get("owner") or {}).get("id"),
+    }
+
+
+async def list_owned_playlists(
+    session: AsyncSession, conn: SpotifyConnection
+) -> list[dict[str, Any]]:
+    """The user's own playlists (not followed ones), newest first as Spotify
+    lists them. Raises SpotifyNotConnectedError / SpotifyAPIError."""
+    access_token = await _get_access_token(session, conn)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{_API_BASE}/me/playlists",
+            params={"limit": 50},
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10.0,
+        )
+    if resp.status_code != 200:
+        raise SpotifyAPIError(f"Playlist list failed: {resp.status_code}")
+    owned = []
+    for item in resp.json().get("items") or []:
+        display = _playlist_display(item) if isinstance(item, dict) else None
+        if display and display["owner_id"] == conn.spotify_user_id:
+            owned.append(display)
+    return owned
+
+
+async def get_owned_playlist(
+    session: AsyncSession, conn: SpotifyConnection, playlist_id: str
+) -> dict[str, Any] | None:
+    """Current name and art of one of the user's own playlists. None when it
+    no longer exists, isn't theirs, or can't be read under the grant — a
+    definite answer. Transient failures raise instead."""
+    if not _PLAYLIST_ID.match(playlist_id):
+        return None
+    access_token = await _get_access_token(session, conn)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{_API_BASE}/playlists/{playlist_id}",
+            params={"fields": "id,name,images,owner(id)"},
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10.0,
+        )
+    if resp.status_code in (403, 404):
+        return None
+    if resp.status_code != 200:
+        raise SpotifyAPIError(f"Playlist fetch failed: {resp.status_code}")
+    display = _playlist_display(resp.json())
+    if display is None or display["owner_id"] != conn.spotify_user_id:
+        return None
+    return display

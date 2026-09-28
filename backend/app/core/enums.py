@@ -59,6 +59,16 @@ class FriendshipState(StrEnum):
     REQUEST_RECEIVED = "request_received"
 
 
+class HighlightType(StrEnum):
+    """What a highlight points at. Playlists are provider-backed; the rest are
+    Harmoniq catalog entities (specs/phase-2-highlights.md)."""
+
+    TRACK = "track"
+    ALBUM = "album"
+    ARTIST = "artist"
+    PLAYLIST = "playlist"
+
+
 class NotificationType(StrEnum):
     """
     In-app notification events. Deliberately narrow: never any event for a
