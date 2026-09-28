@@ -50,7 +50,7 @@ A reverse-chronological feed — no ranking function — of things people the
 viewer trusts have *chosen* or *done*, each visible to the viewer under that
 person's own settings:
 
-- **Highlights** friends and followed people added.
+- **Highlights** added by friends, followed people and friends of friends.
 - **Reviews** they wrote, subject to rating visibility.
 - **Recent listening** they've made visible (their stored plays, shown as
   display, newest first — which the listen-history spec explicitly classes as
@@ -108,8 +108,10 @@ on read, not by fan-out on write.
 # Functional Requirements
 
 1. `GET /discovery` (authenticated), cursor-paginated, separate from `/home`.
-2. Sources: highlights, reviews and stored listens of the viewer's friends and
-   followed users, each gated by its own visibility in SQL.
+2. Sources: highlights, reviews and stored listens of the viewer's friends,
+   followed users and friends of friends (public items only for the last),
+   each gated by its own visibility in SQL. A friend-of-a-friend item never
+   names the connecting friend.
 3. Order: newest first. No weighting, scoring or personalisation.
 4. Every item carries the person it came from and the kind of action.
 5. No provider-sourced data is used to select or order items beyond showing
@@ -126,7 +128,9 @@ on read, not by fan-out on write.
 - [ ] Private or friends-only items never reach a viewer outside their scope —
       verified per source by integration test.
 - [ ] Unfriending removes that person's friends-scoped items on the next load.
-- [ ] Items from people the viewer neither befriended nor follows never appear.
+- [ ] Items appear only from friends, follows and friends of friends; a
+      friend-of-a-friend item is public and never names the connecting
+      friend — verified by test.
 - [ ] No ranking beyond recency — verified by test.
 - [ ] Discovery is never the default route.
 
@@ -145,7 +149,9 @@ feed designed to keep you scrolling.
 
 - A union query over three sources with keyset pagination on
   `(created_at, id)`; indexes exist on each source's user and time columns.
-- Scale: bounded by the viewer's friends and follows. At 100k users, a user
+- Scale: bounded by the viewer's friends, follows and friends of friends; the
+  second hop grows roughly with the square of friend count, so cap it per
+  request and measure. At 100k users, a user
   following many people makes the union heavier; measure before adding a
   fan-out table, which would also complicate revocation.
 
@@ -162,15 +168,25 @@ returns 404. Read-only feature: nothing to preserve.
 
 _Founder decides._
 
-1. **Is a chronological, unranked v1 acceptable?** It is the constitutionally
-   safest reading and needs no trust formula. The alternative is to define
-   trust scoring first (§13) and ship the §5 ranking, which is a much larger
-   spec.
-2. **Whose activity appears: friends only, or friends and followed users?** §6
-   ranks trusted before followed; including follows widens the feed but
-   weakens the "people you trust" framing.
-3. **Should Melodies appear?** A Melody is private between two people, so the
-   draft excludes them — but a user might want to share that they sent one.
+1. ~~**Is a chronological, unranked v1 acceptable?**~~ **RESOLVED 2026-09-28 —
+   yes, for now, and expected to change later.** The Founder plans a
+   recommendation XP system that indicates how good someone is at
+   recommending music: an accepted Melody earns some XP, a "send me more like
+   this" endorsement earns the most, and a rejection earns nothing and costs
+   nothing. XP needs a constitutional amendment and its own spec before it can
+   inform Discovery's ordering; it builds on the XP proposal in
+   `specs/phase-2-melody-reactions.md`.
+2. ~~**Whose activity appears?**~~ **RESOLVED 2026-09-28 — friends, followed
+   profiles, and friends of friends.** Two consent guardrails apply to friends
+   of friends: only their *public* items appear (they aren't the owner's
+   friends, so friends-scoped items never reach them), and an item reads
+   "from your wider circle" without naming the connecting friend, because
+   friend lists are owner-only (`GET /friends/me`) and naming the bridge would
+   disclose a friendship neither person chose to show.
+3. ~~**Should Melodies appear?**~~ **RESOLVED 2026-09-28 — no, Melodies are
+   left out.** A follow-up is open with the Founder on the review page: whether
+   site-wide popularity belongs to Home's trending section (as ENGINEERING_BIBLE
+   §5 has it) or to Discovery.
 4. **The roadmap's "playlist-based" and "listening-history-based suggestions"**
    can't be built from Spotify data under the ToS. Drop them from the roadmap
    item, or keep them for when first-party listening exists?
