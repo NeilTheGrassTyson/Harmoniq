@@ -97,7 +97,8 @@ relationship to anyone else:
 - [ ] One request returns ranked people and music.
 - [ ] An exact username match ranks first.
 - [ ] Among equal matches, a friend ranks above a followed user above a
-      stranger — verified by test.
+      stranger; a stranger with a stronger match still ranks above a friend
+      with a weaker one — both verified by test.
 - [ ] A viewer's relationships never change what another viewer sees or learns.
 - [ ] Anonymous search works and ranks by match only.
 - [ ] Suspended users never appear.
@@ -134,9 +135,11 @@ existing endpoints when the new one answers 404. No data changes.
 
 _Founder decides._
 
-1. **Should relationship ordering apply at all?** It surfaces people you know
-   first, but it means search results differ by viewer. The alternative is
-   pure match-quality ranking for everyone.
+1. ~~**Should relationship ordering apply at all?**~~ **RESOLVED 2026-09-28 —
+   match quality first, people the searcher knows second.** A relationship
+   only reorders equally good matches (friend, then followed, then everyone)
+   and never lifts a weaker match above a stronger one — which is
+   requirement 2 as written.
 2. **Top result threshold** — always show the best match as "top", or only
    when it is clearly ahead?
 3. **Should people and music be interleaved** into one ranked list, or stay
