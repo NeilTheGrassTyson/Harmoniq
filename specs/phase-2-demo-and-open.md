@@ -1,9 +1,15 @@
 # Demo + Open — Hear a Melody Before Answering It
 
-> **Status: DRAFT — awaiting Founder approval.** Tier 1 per WORKFLOW.md §1
-> (net-new, user-facing feature; adds an external audio source). Nothing here
-> is implemented. Drafted 2026-09-28 from the ROADMAP NEXT item "Demo + Open
-> (Melody enhancement)".
+> **Status: APPROVED by the Founder, 2026-09-28.** Tier 1 per WORKFLOW.md §1
+> (net-new, user-facing feature; adds an external audio source). Not yet
+> implemented. Drafted 2026-09-28 from the ROADMAP NEXT item "Demo + Open
+> (Melody enhancement)"; all open questions resolved in the Founder's review
+> the same day.
+>
+> **Implementation starts with "Required research before build" below.** The
+> Founder was explicit: those steps are requirements, not suggestions. No
+> implementation code is written until every one is done and its findings are
+> recorded in this spec.
 
 ---
 
@@ -159,26 +165,49 @@ returns 404. Nothing is stored, so there is nothing to preserve.
 
 ---
 
+# Required research before build
+
+_Founder direction, 2026-09-28: these are requirements, not suggestions._
+Each step's findings are written into this spec (or ADR 0014, where noted)
+before any implementation code. If a finding contradicts the approved
+design, stop and bring it to the Founder rather than working around it.
+
+1. **Read Deezer's developer terms in full**, at
+   https://developers.deezer.com/termsofuse, plus its logo guidelines. The
+   2026-09-28 review only saw excerpts, because the session's network policy
+   blocked the page. Confirm: non-commercial use, no storage or downloads of
+   audio, logo placement, rate limits, and anything on previews specifically.
+   Update ADR 0014's Conditions with the confirmed wording.
+2. **Research how comparable social music apps present previews**, starting
+   with Airbuds. Record where their clips come from where that can be found,
+   how long clips are, how attribution is shown, and how the app hands off to
+   a full-length service. Record what Harmoniq adopts or deliberately doesn't.
+3. **Measure the ISRC match rate** against Harmoniq's catalog: take a sample
+   of catalog tracks, resolve each ISRC through Deezer, and record how many
+   return a preview. Record the artist + title fallback's rate separately.
+   ADR 0014 treats a low rate as a reason to revisit.
+4. **Confirm the preview mechanics directly.** Check that Deezer's preview
+   URLs are time-limited, that `/track/isrc:<ISRC>` behaves as described, and
+   that Spotify returns no `preview_url` for this app.
+
+---
+
 # Open Questions
 
-_Founder decides._
+_All resolved in the Founder's review, 2026-09-28._
 
-1. **Is Deezer acceptable as a preview source?** Founder leaning yes
-   (2026-09-28), pending its terms; see ADR 0014. It's free and needs no
-   account, but it is a new third-party dependency, and its terms (attribution,
-   caching, commercial use) must be checked before build. Alternatives: no
-   preview at all, or previews only where a user has linked a service that
-   can play them.
+1. ~~**Is Deezer acceptable as a preview source?**~~ **RESOLVED — yes, for
+   now**, under the conditions and revisit triggers in
+   `docs/adr/0014-audio-previews-deezer-direct-stream.md`. Deezer's terms, from
+   excerpts: free for non-commercial use only, no storage or downloads of
+   audio, and a visible Deezer logo. Confirming them in full is required
+   research step 1.
 2. ~~**Should audio stream from the provider's CDN directly, or be proxied?**~~
-   **RESOLVED 2026-09-28 — directly, for now**, recorded with its tradeoffs and
-   revisit conditions in `docs/adr/0014-audio-previews-deezer-direct-stream.md`.
-   Original question:
-   Direct is simple and is how cover art works today. Proxying keeps every
-   external call on the backend (a stricter reading of ENGINEERING_BIBLE §7)
-   but moves audio bandwidth through Railway.
-3. **Verify before build:** that Spotify still withholds previews for new
-   apps, and that Deezer's ISRC lookup and preview URLs behave as described.
-   Both are from memory, not checked in this session.
+   **RESOLVED — directly, for now**, recorded with its tradeoffs and revisit
+   conditions in ADR 0014.
+3. ~~**Verify before build.**~~ **Folded into "Required research before
+   build"** (steps 1, 3 and 4). Spotify's withdrawal of previews for apps
+   created after 27 November 2024 is confirmed by Spotify's announcement.
 4. ~~**Should senders hear the preview too** (track page), or only
-   recipients?~~ **RESOLVED 2026-09-28 — yes**, on the track page and from
-   their sent Melodies.
+   recipients?~~ **RESOLVED — yes**, on the track page and from their sent
+   Melodies.

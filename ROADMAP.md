@@ -238,8 +238,9 @@ Preview a song before accepting the recommendation.
 _Security: preview playback shouldn't log as a "listen" in the
 recipient's public history unless they actually accept._
 
-Spec **drafted** 2026-09-28, awaiting Founder approval:
-`specs/phase-2-demo-and-open.md`.
+Spec **approved** 2026-09-28: `specs/phase-2-demo-and-open.md`. Previews on
+Melodies (received and sent), track pages and album tracklists, from Deezer
+(ADR 0014). Required research comes before any build.
 
 ### Global Search (full)
 
