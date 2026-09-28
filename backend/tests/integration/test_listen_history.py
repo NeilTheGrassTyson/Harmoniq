@@ -296,10 +296,28 @@ async def test_nothing_is_stored_without_the_opt_in_or_the_feature(
     opted = await _user(db_session, "lh_off")
     await _refresh(db_session, opted)
     assert await _titles(db_session, opted) == []
+    # And no one can opt in while the feature is off.
     own = await user_svc.update_profile(
-        db_session, opted, None, None, None, None, None, None, store_listening=True
+        db_session, out, None, None, None, None, None, None, store_listening=True
     )
+    assert own.store_listening is None and out.store_listening is False
+
+
+async def test_an_opt_in_can_be_withdrawn_while_the_feature_is_off(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = await _user(db_session, "lh_withdraw_off")
+    _window(monkeypatch, 1, 2)
+    await _refresh(db_session, user)
+    monkeypatch.setattr(settings, "listen_history_enabled", False)
+    # The switch they turned on stays on the settings page so it can be undone.
+    assert user_svc.build_own_profile(user).store_listening is True
+    own = await user_svc.update_profile(
+        db_session, user, None, None, None, None, None, None, store_listening=False
+    )
+    await db_session.flush()
     assert own.store_listening is None
+    assert await _titles(db_session, user) == []
 
 
 # ── The boundary ──────────────────────────────────────────────────────────────
@@ -375,6 +393,76 @@ async def test_listens_link_to_the_catalog_by_isrc_when_they_can(
     lookups.clear()
     await listens_svc.link_some(db_session, limit=10)
     assert lookups == ["X3"]
+
+
+async def test_a_broken_ingestion_settles_its_isrc_without_blocking_the_rest(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = await _user(db_session, "lh_broken")
+    await listens_svc.record(
+        db_session,
+        user.id,
+        [
+            listens_svc.ObservedListen(
+                source="spotify",
+                idempotency_key=isrc,
+                track_name=isrc,
+                artist_name="A",
+                isrc=isrc,
+                played_at=T0 + timedelta(minutes=i),
+            )
+            for i, isrc in enumerate(["BROKEN1", "FINE2"])
+        ],
+    )
+
+    async def lookup(isrc: str) -> dict[str, Any] | None:
+        return {"recordings": [{"id": f"mb-{isrc}"}]}
+
+    async def get_track(mbid: str, session: AsyncSession) -> Any:
+        if mbid == "mb-BROKEN1":
+            raise ValueError("malformed recording")
+        session.add(Track(mbid=mbid, title="Fine", last_fetched_at=T0))
+        await session.flush()
+        return object()
+
+    monkeypatch.setattr(listens_svc.mb, "lookup_isrc", lookup)
+    monkeypatch.setattr(listens_svc.catalog_svc, "get_track", get_track)
+    assert await listens_svc.link_some(db_session, limit=10) == 2
+    rows = {
+        listen.track_name: (listen, mbid)
+        for listen, mbid in await listens_svc.recent_for_display(db_session, user.id)
+    }
+    # Not an outage, so not retried forever — and the next ISRC still linked.
+    assert rows["BROKEN1"][1] is None
+    assert rows["BROKEN1"][0].link_checked_at is not None
+    assert rows["FINE2"][1] == "mb-FINE2"
+
+
+async def test_a_linking_failure_never_rolls_back_the_recording(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = await _user(db_session, "lh_linkfail")
+    _window(monkeypatch, 1, 2)
+
+    async def link_some(session: AsyncSession, limit: int = 3) -> int:
+        raise RuntimeError("linking exploded")
+
+    monkeypatch.setattr(listens_svc, "link_some", link_some)
+    await _refresh(db_session, user)
+    assert await _titles(db_session, user) == ["Song 2", "Song 1"]
+
+
+async def test_an_unexpected_fetch_failure_still_floors_the_cache(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = await _user(db_session, "lh_unexpected")
+
+    async def broken(session: AsyncSession, conn: SpotifyConnection) -> Any:
+        raise KeyError("items")
+
+    monkeypatch.setattr(spotify_svc, "_fetch_listening_payload", broken)
+    await _refresh(db_session, user)
+    assert user.id in spotify_svc._listening_cache
 
 
 async def test_one_background_refresh_per_user_at_a_time(

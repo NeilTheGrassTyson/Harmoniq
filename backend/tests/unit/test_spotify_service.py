@@ -415,3 +415,73 @@ class TestTokenRefresh:
 
         with pytest.raises(spotify_svc.SpotifyAPIError):
             await spotify_svc._get_access_token(session, conn)  # type: ignore[arg-type]
+
+
+# ── Playlists ─────────────────────────────────────────────────────────────────
+
+_PID = "37i9dQZF1DXcBWIGoYBM5M"
+
+
+def _playlist_json(pid: str, owner: str = "spotify-user") -> dict[str, Any]:
+    return {"id": pid, "name": f"List {pid[:4]}", "images": [], "owner": {"id": owner}}
+
+
+@pytest.mark.asyncio
+class TestPlaylists:
+    @pytest.fixture(autouse=True)
+    def warm_token(self) -> None:
+        spotify_svc._access_tokens[_USER_ID] = ("token", time.monotonic() + 600)
+
+    @respx.mock
+    async def test_a_missing_playlist_is_a_definite_none(self) -> None:
+        respx.get(f"{spotify_svc._API_BASE}/playlists/{_PID}").mock(
+            return_value=Response(404)
+        )
+        conn = _FakeConn("unused")
+        assert (
+            await spotify_svc.get_owned_playlist(_FakeSession(), conn, _PID)  # type: ignore[arg-type]
+            is None
+        )
+
+    @respx.mock
+    async def test_a_refusal_is_transient_not_a_deletion(self) -> None:
+        # Spotify also answers 403 for rate and quota limits.
+        respx.get(f"{spotify_svc._API_BASE}/playlists/{_PID}").mock(
+            return_value=Response(403)
+        )
+        with pytest.raises(spotify_svc.SpotifyAPIError):
+            await spotify_svc.get_owned_playlist(
+                _FakeSession(),  # type: ignore[arg-type]
+                _FakeConn("unused"),  # type: ignore[arg-type]
+                _PID,
+            )
+
+    @respx.mock
+    async def test_owned_playlists_past_the_first_page_are_listed(self) -> None:
+        first = [_playlist_json(f"{n:022d}", owner="someone-else") for n in range(50)]
+        route = respx.get(f"{spotify_svc._API_BASE}/me/playlists").mock(
+            side_effect=[
+                Response(200, json={"items": first, "next": "page-2"}),
+                Response(200, json={"items": [_playlist_json(_PID)], "next": None}),
+            ]
+        )
+        owned = await spotify_svc.list_owned_playlists(
+            _FakeSession(),  # type: ignore[arg-type]
+            _FakeConn("unused"),  # type: ignore[arg-type]
+        )
+        assert [p["id"] for p in owned] == [_PID]
+        assert [call.request.url.params["offset"] for call in route.calls] == [
+            "0",
+            "50",
+        ]
+
+    @respx.mock
+    async def test_paging_is_bounded(self) -> None:
+        route = respx.get(f"{spotify_svc._API_BASE}/me/playlists").mock(
+            return_value=Response(200, json={"items": [], "next": "always-more"})
+        )
+        await spotify_svc.list_owned_playlists(
+            _FakeSession(),  # type: ignore[arg-type]
+            _FakeConn("unused"),  # type: ignore[arg-type]
+        )
+        assert route.call_count == spotify_svc._PLAYLIST_PAGES

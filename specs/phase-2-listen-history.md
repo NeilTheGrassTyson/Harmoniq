@@ -298,8 +298,11 @@ Recorded because they affect future work (WORKFLOW.md §3).
   TTL so clients stop re-checking quickly; a stored-rows response still says
   "reconnect" when the connection is unusable.
 - **Linking is gentle on MusicBrainz**: at most three ISRCs per refresh, with a
-  4-second timeout each. A definite answer (linked, or MusicBrainz has no such
-  ISRC) is recorded; an outage is retried on a later refresh. A linked listen
+  4-second timeout on each lookup. A definite answer (linked, or MusicBrainz
+  has no such ISRC) is recorded; an outage is retried on a later refresh. Any
+  other failure is logged and recorded as unlinked rather than retried
+  forever. Linking runs in its own savepoint, so it can never roll back the
+  listens the same refresh just stored. A linked listen
   opens its Harmoniq track page; an unlinked one keeps the Spotify link.
 - **Deletion.** Turning the opt-in off deletes every stored listen, for every
   provider, since the grant is provider-agnostic. Disconnecting Spotify, or
@@ -309,5 +312,7 @@ Recorded because they affect future work (WORKFLOW.md §3).
   reachable through it.
 - **Rollout.** `LISTEN_HISTORY_ENABLED` defaults to off as specified. While
   off, the Listening section is exactly the live window and the settings
-  switch is not shown.
+  switch is not shown, except to anyone already opted in. Turning the
+  opt-in off always works, flag or no flag, because a grant must stay
+  revocable (HARMONIQ.md §6). Turning it on needs the flag.
 

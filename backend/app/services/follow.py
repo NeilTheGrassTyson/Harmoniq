@@ -106,6 +106,52 @@ async def can_view_follow_lists(
 # FRIENDSHIPS_ENABLED is off.
 
 
+# ── Inbound-gesture consent ─────────────────────────────────────────────────
+
+
+def gesture_scope_satisfied(
+    scope: str, recipient_follows_sender: bool, is_mutual: bool
+) -> bool:
+    """May a sender reach a recipient whose inbound scope is `scope`?
+
+    One rule for every inbound gesture — a Melody (melody_accept_scope) or a
+    friend request (friend_request_scope) — so the two can't drift apart.
+    'follows' means people the recipient follows. Unknown scopes fail closed.
+    """
+    if scope == "everyone":
+        return True
+    if scope == "follows":
+        return recipient_follows_sender
+    if scope == "mutuals":
+        return is_mutual
+    return False
+
+
+async def _is_following(
+    session: AsyncSession, follower_id: uuid.UUID, followed_id: uuid.UUID
+) -> bool:
+    result = await session.execute(
+        select(Follow.follower_id).where(
+            Follow.follower_id == follower_id, Follow.followed_id == followed_id
+        )
+    )
+    return result.first() is not None
+
+
+async def inbound_gesture_allowed(
+    session: AsyncSession, scope: str, sender_id: uuid.UUID, recipient_id: uuid.UUID
+) -> bool:
+    """The data-access half of gesture_scope_satisfied: reads only the follow
+    edges the scope needs."""
+    if scope == "everyone":
+        return True
+    recipient_follows = await _is_following(session, recipient_id, sender_id)
+    is_mutual = recipient_follows and await _is_following(
+        session, sender_id, recipient_id
+    )
+    return gesture_scope_satisfied(scope, recipient_follows, is_mutual)
+
+
 async def is_mutual_follow(
     session: AsyncSession,
     user_a_id: uuid.UUID,

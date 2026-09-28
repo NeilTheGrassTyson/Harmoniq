@@ -113,9 +113,13 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         ),
         melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
         friend_request_scope=FriendRequestScope(user.friend_request_scope),
-        # Absent while the feature is off, so the settings page hides the switch.
+        # Absent while the feature is off, so the settings page hides the
+        # switch — unless the user opted in earlier: a grant they gave must
+        # stay visible so it can always be withdrawn.
         store_listening=(
-            user.store_listening if settings.listen_history_enabled else None
+            user.store_listening
+            if settings.listen_history_enabled or user.store_listening
+            else None
         ),
         is_moderator=user.is_moderator,
     )
@@ -316,7 +320,10 @@ async def update_profile(
                 visibility_highlights.value,
             )
 
-    if store_listening is not None and settings.listen_history_enabled:
+    # Opting in needs the feature; opting out never does.
+    if store_listening is not None and (
+        settings.listen_history_enabled or not store_listening
+    ):
         old_store = user.store_listening
         user.store_listening = store_listening
         if old_store != store_listening:

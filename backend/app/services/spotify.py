@@ -29,10 +29,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.background import run_exclusive
 from app.core.crypto import TokenCryptoError, decrypt_token, encrypt_token
 from app.core.enums import VisibilityScope
 from app.core.visibility import scope_allows
-from app.database import AsyncSessionLocal
 from app.models.highlight import Highlight
 from app.models.spotify import SpotifyConnection
 from app.models.user import User
@@ -315,6 +315,10 @@ async def connect(
         )
     )
     await session.execute(stmt)
+    # A reconnect that no longer grants playlist access ends those highlights,
+    # just as a disconnect does — they must not linger unseen and hold slots.
+    if PLAYLIST_SCOPE not in tokens.get("scope", "").split():
+        await _forget_playlist_highlights(session, user.id)
 
     # Prime the access-token cache; expires_in is seconds from now.
     expires_in = float(tokens.get("expires_in", 3600))
@@ -566,7 +570,8 @@ async def refresh_history(
         _needs_reconnect.add(user.id)
         logger.warning("Listening refresh: connection unusable internal_id=%s", user.id)
         return
-    except (SpotifyAPIError, SpotifyNotConfiguredError, httpx.HTTPError):
+    except Exception:
+        # Any failure, expected or not, gets the same floor.
         logger.exception("Listening refresh failed internal_id=%s", user.id)
         # Floor retries at the cache TTL: views keep serving stored rows and
         # stop reporting a refresh in progress, so clients don't re-poll fast.
@@ -577,26 +582,25 @@ async def refresh_history(
         return
     observed = [o for e in payload.get("recent", []) if (o := _observed(e))]
     await listens_svc.record(session, user.id, observed)
-    await listens_svc.link_some(session)
+    # Linking is a nicety: a failure there must not roll back the recording.
+    try:
+        async with session.begin_nested():
+            await listens_svc.link_some(session)
+    except Exception:
+        logger.exception("ISRC linking failed internal_id=%s", user.id)
 
 
 async def refresh_in_background(user_id: uuid.UUID) -> None:
     """Runs after the response is sent, on its own session. At most one per
     user at a time, so a burst of views can't multiply Spotify calls."""
-    if user_id in _refreshing:
-        return
-    _refreshing.add(user_id)
-    try:
-        async with AsyncSessionLocal() as session:
-            user = await session.get(User, user_id)
-            conn = await get_connection(session, user_id)
-            if user is not None and conn is not None:
-                await refresh_history(session, user, conn)
-                await session.commit()
-    except Exception:
-        logger.exception("Background listening refresh failed user_id=%s", user_id)
-    finally:
-        _refreshing.discard(user_id)
+
+    async def work(session: AsyncSession) -> None:
+        user = await session.get(User, user_id)
+        conn = await get_connection(session, user_id)
+        if user is not None and conn is not None:
+            await refresh_history(session, user, conn)
+
+    await run_exclusive(_refreshing, user_id, work, "listening refresh")
 
 
 def _payload_to_response(payload: dict[str, Any]) -> ListeningResponse:
@@ -671,6 +675,12 @@ async def get_listening(
 # ── Playlists (for playlist highlights) ───────────────────────────────────────
 
 
+# /me/playlists paging: 50 is Spotify's maximum page; four pages bounds a
+# picker open to four calls.
+_PLAYLIST_PAGE_SIZE = 50
+_PLAYLIST_PAGES = 4
+
+
 def _playlist_display(item: dict[str, Any]) -> dict[str, Any] | None:
     playlist_id = item.get("id")
     name = item.get("name")
@@ -694,23 +704,32 @@ def _playlist_display(item: dict[str, Any]) -> dict[str, Any] | None:
 async def list_owned_playlists(
     session: AsyncSession, conn: SpotifyConnection
 ) -> list[dict[str, Any]]:
-    """The user's own playlists (not followed ones), newest first as Spotify
-    lists them. Raises SpotifyNotConnectedError / SpotifyAPIError."""
+    """The user's own playlists (not followed ones), in Spotify's order.
+    Follows Spotify's paging up to a bound, since owned playlists can sit past
+    the first page behind followed ones. Raises SpotifyNotConnectedError /
+    SpotifyAPIError."""
     access_token = await _get_access_token(session, conn)
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            f"{_API_BASE}/me/playlists",
-            params={"limit": 50},
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=10.0,
-        )
-    if resp.status_code != 200:
-        raise SpotifyAPIError(f"Playlist list failed: {resp.status_code}")
     owned = []
-    for item in resp.json().get("items") or []:
-        display = _playlist_display(item) if isinstance(item, dict) else None
-        if display and display["owner_id"] == conn.spotify_user_id:
-            owned.append(display)
+    async with httpx.AsyncClient() as client:
+        for page in range(_PLAYLIST_PAGES):
+            resp = await client.get(
+                f"{_API_BASE}/me/playlists",
+                params={
+                    "limit": _PLAYLIST_PAGE_SIZE,
+                    "offset": page * _PLAYLIST_PAGE_SIZE,
+                },
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10.0,
+            )
+            if resp.status_code != 200:
+                raise SpotifyAPIError(f"Playlist list failed: {resp.status_code}")
+            body = resp.json()
+            for item in body.get("items") or []:
+                display = _playlist_display(item) if isinstance(item, dict) else None
+                if display and display["owner_id"] == conn.spotify_user_id:
+                    owned.append(display)
+            if not body.get("next"):
+                break
     return owned
 
 
@@ -718,8 +737,9 @@ async def get_owned_playlist(
     session: AsyncSession, conn: SpotifyConnection, playlist_id: str
 ) -> dict[str, Any] | None:
     """Current name and art of one of the user's own playlists. None when it
-    no longer exists, isn't theirs, or can't be read under the grant — a
-    definite answer. Transient failures raise instead."""
+    no longer exists or isn't theirs — a definite answer. Anything else,
+    including a 403 (which Spotify also returns for rate and quota limits),
+    raises instead, so a transient refusal never deletes a highlight."""
     if not _PLAYLIST_ID.match(playlist_id):
         return None
     access_token = await _get_access_token(session, conn)
@@ -730,7 +750,7 @@ async def get_owned_playlist(
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=10.0,
         )
-    if resp.status_code in (403, 404):
+    if resp.status_code == 404:
         return None
     if resp.status_code != 200:
         raise SpotifyAPIError(f"Playlist fetch failed: {resp.status_code}")

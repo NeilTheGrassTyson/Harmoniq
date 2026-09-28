@@ -29,9 +29,9 @@ the switches below; do not run an Alembic downgrade against production.
 | Switch                        | Default | Off means                                                          |
 | ----------------------------- | ------- | ------------------------------------------------------------------ |
 | `FRIENDSHIPS_ENABLED`         | `true`  | Friends-scoped checks fall back to mutual follow; `/friends` 404s. |
-| `LISTEN_HISTORY_ENABLED`      | `false` | Listening is live-only as before; the settings switch is hidden.   |
+| `LISTEN_HISTORY_ENABLED`      | `false` | Listening is live-only as before; the settings switch is hidden, except for anyone already opted in, who can still opt out. |
 | `HIGHLIGHTS_ENABLED`          | `false` | No Highlights section, buttons or visibility setting.              |
-| `PLAYLIST_HIGHLIGHTS_ENABLED` | `false` | No playlist highlights, and Spotify isn't asked for playlist access. |
+| `PLAYLIST_HIGHLIGHTS_ENABLED` | `false` | No playlist highlights, and Spotify isn't asked for playlist access. Hidden playlist highlights don't count toward the 15. |
 
 Rows are kept while a switch is off and reappear when it's turned back on.
 Turning on `PLAYLIST_HIGHLIGHTS_ENABLED` adds `playlist-read-private` to the

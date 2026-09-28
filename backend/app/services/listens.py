@@ -152,11 +152,18 @@ async def link_some(session: AsyncSession, limit: int = _LINKS_PER_REFRESH) -> i
         if isrc is None:  # pragma: no cover — filtered in the query
             continue
         try:
-            async with asyncio.timeout(_LINK_TIMEOUT_SECONDS):
+            # A savepoint per ISRC, so a failed ingestion rolls back only
+            # its own writes and the session stays usable for the next one.
+            async with session.begin_nested():
                 track_id = await _resolve_isrc(session, isrc)
         except (httpx.HTTPError, TimeoutError):
             logger.info("ISRC link deferred: isrc=%s", isrc)
             continue
+        except Exception:
+            # Not an outage: retrying would fail the same way on every
+            # refresh, so record it as settled-without-a-link.
+            logger.exception("ISRC link failed, not retrying: isrc=%s", isrc)
+            track_id = None
         await session.execute(
             update(Listen)
             .where(Listen.isrc == isrc, Listen.track_id.is_(None))
@@ -167,7 +174,10 @@ async def link_some(session: AsyncSession, limit: int = _LINKS_PER_REFRESH) -> i
 
 
 async def _resolve_isrc(session: AsyncSession, isrc: str) -> uuid.UUID | None:
-    data = await mb.lookup_isrc(isrc)
+    # Only the lookup is bounded: once a recording is found, ingestion and
+    # the database work run to completion rather than being cut off midway.
+    async with asyncio.timeout(_LINK_TIMEOUT_SECONDS):
+        data = await mb.lookup_isrc(isrc)
     recordings = (data or {}).get("recordings") or []
     if not recordings or not recordings[0].get("id"):
         return None

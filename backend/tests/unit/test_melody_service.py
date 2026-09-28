@@ -1,16 +1,14 @@
 """
 Unit tests for the pure Melody helpers: the transition matrix, the
-sender-visible status collapse, and the accept-scope check. No database.
+sender-visible status collapse, and the accept-scope check (shared with friend
+requests, so it lives in the follow service). No database.
 """
 
 import pytest
 
-from app.core.enums import MelodyAcceptScope, MelodyStatus
-from app.services.melody import (
-    _can_transition,
-    _scope_satisfied,
-    _sender_visible_status,
-)
+from app.core.enums import FriendRequestScope, MelodyAcceptScope, MelodyStatus
+from app.services.follow import gesture_scope_satisfied as _scope_satisfied
+from app.services.melody import _can_transition, _sender_visible_status
 
 _ALL = [s.value for s in MelodyStatus]
 
@@ -76,3 +74,10 @@ class TestScopeSatisfied:
 
     def test_unknown_scope_fails_closed(self) -> None:
         assert not _scope_satisfied("bogus", True, True)
+
+    def test_friend_requests_share_the_same_scopes(self) -> None:
+        # One rule serves both gestures; a scope added to one enum and not the
+        # other would silently fail closed, so the sets must stay identical.
+        assert {s.value for s in FriendRequestScope} == {
+            s.value for s in MelodyAcceptScope
+        }

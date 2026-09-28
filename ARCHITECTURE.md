@@ -24,7 +24,7 @@ Harmoniq/
 ├── backend/              FastAPI application (Python 3.12+)
 │   ├── app/
 │   │   ├── api/v1/       HTTP route handlers (thin — no business logic)
-│   │   ├── core/         Enums, rate limiting, security helpers
+│   │   ├── core/         Enums, rate limiting, security helpers, background runs
 │   │   ├── models/       SQLAlchemy ORM models (database schema)
 │   │   ├── schemas/      Pydantic request/response contracts
 │   │   ├── services/     Business logic (one module per domain)

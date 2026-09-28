@@ -147,7 +147,7 @@ referencing the file by name in your prompt:
 ```
 backend/app/
 ├── api/v1/         Route handlers (thin — no business logic)
-├── core/           Enums, rate limiting, security helpers
+├── core/           Enums, rate limiting, security helpers, background runs
 ├── models/         SQLAlchemy ORM models
 ├── schemas/        Pydantic request/response contracts
 ├── services/       Business logic (one module per domain)

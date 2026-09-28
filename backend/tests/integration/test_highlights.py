@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 import pytest
+from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -445,6 +446,97 @@ async def test_switching_off_playlists_hides_them_without_deleting(
     )
     monkeypatch.setattr(settings, "playlist_highlights_enabled", True)
     assert len((await _view(db_session, owner, None)).items) == 1
+
+
+async def test_hidden_playlists_do_not_hold_slots(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner = await _user(db_session, "hl_pl_slots")
+    await _connect(db_session, owner, playlists=True)
+    _spotify_playlist(monkeypatch)
+    await highlight_svc.add(
+        db_session,
+        owner,
+        AddHighlightRequest(
+            entity_type=HighlightType.PLAYLIST, playlist_id=PLAYLIST_ID
+        ),
+    )
+    for n in range(highlight_svc.LIMIT - 1):
+        _, album, _ = await _catalog(db_session, f"slot{n}")
+        await _add(db_session, owner, "album", album.mbid)
+    _, _, extra = await _catalog(db_session, "slot-extra")
+    with pytest.raises(highlight_svc.HighlightError):
+        await _add(db_session, owner, "track", extra.mbid)
+    # With the feature off the playlist renders nowhere, so it can't count.
+    monkeypatch.setattr(settings, "playlist_highlights_enabled", False)
+    await _add(db_session, owner, "track", extra.mbid)
+    assert len((await _view(db_session, owner, None)).items) == highlight_svc.LIMIT
+
+
+async def test_reconnecting_without_playlist_access_removes_playlists(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner = await _user(db_session, "hl_regrant")
+    await _connect(db_session, owner, playlists=True)
+    _spotify_playlist(monkeypatch)
+    await highlight_svc.add(
+        db_session,
+        owner,
+        AddHighlightRequest(
+            entity_type=HighlightType.PLAYLIST, playlist_id=PLAYLIST_ID
+        ),
+    )
+
+    async def exchange(code: str) -> dict[str, Any]:
+        return {"access_token": "a", "refresh_token": "r", "scope": spotify_svc.SCOPES}
+
+    async def profile(access_token: str) -> str:
+        return f"sp_{owner.username}"
+
+    monkeypatch.setattr(spotify_svc, "_exchange_code", exchange)
+    monkeypatch.setattr(spotify_svc, "_fetch_spotify_profile", profile)
+    monkeypatch.setattr(
+        settings, "token_encryption_key", Fernet.generate_key().decode()
+    )
+    await spotify_svc.connect(
+        db_session, owner, "code", spotify_svc.create_state(owner.id)
+    )
+    remaining = await db_session.execute(
+        select(Highlight).where(Highlight.user_id == owner.id)
+    )
+    assert remaining.scalars().all() == []
+
+
+async def test_an_outage_mid_refresh_stops_and_defers_every_card(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    owner = await _user(db_session, "hl_pl_outage")
+    await _connect(db_session, owner, playlists=True)
+    _spotify_playlist(monkeypatch)
+    ids = []
+    for pid in (PLAYLIST_ID, "0" * 22):
+        item = await highlight_svc.add(
+            db_session,
+            owner,
+            AddHighlightRequest(entity_type=HighlightType.PLAYLIST, playlist_id=pid),
+        )
+        row = await db_session.get(Highlight, item.id)
+        assert row is not None
+        row.display_refreshed_at = NOW - timedelta(days=1)
+        ids.append(item.id)
+    await db_session.flush()
+    calls: list[str] = []
+
+    async def outage(session: AsyncSession, conn: Any, pid: str) -> Any:
+        calls.append(pid)
+        raise spotify_svc.SpotifyAPIError("rate limited")
+
+    monkeypatch.setattr(spotify_svc, "get_owned_playlist", outage)
+    await highlight_svc.refresh_playlists(db_session, owner.id)
+    assert len(calls) == 1
+    _, stale = await highlight_svc.list_for(db_session, owner, None)
+    assert stale is False
+    assert len((await _view(db_session, owner, None)).items) == 2
 
 
 async def test_no_playlist_is_reachable_from_the_recommendation_accessor(

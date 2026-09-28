@@ -22,9 +22,9 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.background import run_exclusive
 from app.core.enums import HighlightType, VisibilityScope
 from app.core.visibility import scope_allows
-from app.database import AsyncSessionLocal
 from app.models.catalog import Album, Artist, Track
 from app.models.highlight import Highlight
 from app.models.rating import Rating
@@ -277,12 +277,15 @@ async def list_for(
 
 
 async def _lock_owner(session: AsyncSession, user_id: uuid.UUID) -> int:
-    """Serialize adds per user so two tabs can't both take the 15th slot."""
+    """Serialize adds per user so two tabs can't both take the 15th slot.
+    Returns the slots in use: playlist rows count only while they render, so
+    a switched-off feature can't fill slots with highlights nobody sees."""
     await session.execute(select(User.id).where(User.id == user_id).with_for_update())
-    result = await session.execute(
-        select(func.count()).select_from(Highlight).where(Highlight.user_id == user_id)
-    )
-    return int(result.scalar_one())
+    counted = select(func.count()).select_from(Highlight)
+    counted = counted.where(Highlight.user_id == user_id)
+    if not _playlists_shown(await spotify_svc.get_connection(session, user_id)):
+        counted = counted.where(Highlight.entity_type != HighlightType.PLAYLIST.value)
+    return int((await session.execute(counted)).scalar_one())
 
 
 async def _item_for(session: AsyncSession, user: User, row: Highlight) -> HighlightItem:
@@ -430,9 +433,9 @@ async def playlist_options(session: AsyncSession, user: User) -> PlaylistPickerR
 
 
 async def refresh_playlists(session: AsyncSession, owner_id: uuid.UUID) -> None:
-    """Bring playlist cards up to date with Spotify. A playlist that's gone,
-    no longer theirs or no longer readable is removed; an outage changes
-    nothing and is retried on a later view."""
+    """Bring playlist cards up to date with Spotify. A playlist that's gone or
+    no longer theirs is removed; an outage or refusal changes nothing and is
+    retried after the next staleness window."""
     conn = await spotify_svc.get_connection(session, owner_id)
     if conn is None or not _playlists_shown(conn):
         return
@@ -441,14 +444,19 @@ async def refresh_playlists(session: AsyncSession, owner_id: uuid.UUID) -> None:
         for row in await _rows(session, owner_id)
         if row.entity_type == HighlightType.PLAYLIST.value and row.provider_ref
     ]
-    for row in rows:
+    for index, row in enumerate(rows):
         try:
             display = await spotify_svc.get_owned_playlist(
                 session, conn, row.provider_ref or ""
             )
         except _SPOTIFY_FAILURES:
-            logger.info("Playlist refresh deferred: highlight_id=%s", row.id)
-            continue
+            # Spotify is struggling: stop here rather than spend a call per
+            # remaining card, and treat them as checked so the next view
+            # doesn't retry at once. Their cards keep the last-known display.
+            logger.info("Playlist refresh deferred: owner_id=%s", owner_id)
+            for waiting in rows[index:]:
+                waiting.display_refreshed_at = _now()
+            break
         if display is None:
             await session.delete(row)
             logger.info("Playlist highlight removed (gone): highlight_id=%s", row.id)
@@ -461,17 +469,11 @@ async def refresh_playlists(session: AsyncSession, owner_id: uuid.UUID) -> None:
 
 async def refresh_playlists_in_background(owner_id: uuid.UUID) -> None:
     """After the response, on its own session; one at a time per owner."""
-    if owner_id in _refreshing:
-        return
-    _refreshing.add(owner_id)
-    try:
-        async with AsyncSessionLocal() as session:
-            await refresh_playlists(session, owner_id)
-            await session.commit()
-    except Exception:
-        logger.exception("Background playlist refresh failed user_id=%s", owner_id)
-    finally:
-        _refreshing.discard(owner_id)
+
+    async def work(session: AsyncSession) -> None:
+        await refresh_playlists(session, owner_id)
+
+    await run_exclusive(_refreshing, owner_id, work, "playlist refresh")
 
 
 async def first_party_highlights(

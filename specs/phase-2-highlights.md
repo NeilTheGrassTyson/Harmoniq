@@ -416,8 +416,11 @@ Recorded because they affect future work (WORKFLOW.md §3).
 - **Follow live without waiting.** A profile view serves each playlist card's
   last-seen name and art, stored on the highlight as its display fields, and
   refreshes cards older than ten minutes in the background (one refresh per
-  owner at a time). A playlist that is gone, no longer the owner's, or no
-  longer readable is removed; an outage changes nothing and is retried.
+  owner at a time). A playlist that is gone (404) or no longer the owner's is
+  removed. Anything else, a 403 included, since Spotify also uses 403 for
+  rate and quota limits, changes nothing. The refresh then stops early and
+  retries after the next ten-minute window, rather than spending a call per
+  remaining card.
 - **Only the latest review counts.** If the owner's newest review of an item
   isn't visible to the viewer, no review is shown — an older, visible one is
   never substituted, since that would publish something the owner has since
@@ -431,11 +434,18 @@ Recorded because they affect future work (WORKFLOW.md §3).
   as empty rather than assumed to equal the request. The picker's "Allow
   access" goes through Spotify's own consent screen, and declining there
   changes nothing — the existing connection and listening keep working.
-- **Owned playlists only**, filtered by the playlist owner's Spotify id.
-- **Disconnecting Spotify, or Spotify rejecting a revoked grant, removes
-  playlist highlights**; first-party highlights are untouched.
+- **Owned playlists only**, filtered by the playlist owner's Spotify id. The
+  picker follows Spotify's paging up to four pages (200 playlists), since
+  owned playlists can sit behind followed ones.
+- **Disconnecting Spotify, Spotify rejecting a revoked grant, or reconnecting
+  without playlist access removes playlist highlights**; first-party
+  highlights are untouched.
 - **The cap is enforced under a per-user row lock**, so two tabs can't both
   take the fifteenth slot. Re-adding something already highlighted is a no-op.
+  Playlist highlights count toward the 15 only while they can render, so
+  switching the playlist feature off never leaves invisible rows holding
+  slots. The cost: turning it back on can briefly show more than 15 until
+  the owner removes one. New adds are still refused over the cap.
 - **The recommendation boundary** is `highlight_svc.first_party_highlights`,
   which cannot return a playlist; a test pins it.
 - **Rollout.** `HIGHLIGHTS_ENABLED` and `PLAYLIST_HIGHLIGHTS_ENABLED` both

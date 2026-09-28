@@ -23,7 +23,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.enums import (
-    FriendRequestScope,
     FriendshipState,
     FriendshipStatus,
     NotificationType,
@@ -126,27 +125,10 @@ async def get_state(
 # ── Consent gate ──────────────────────────────────────────────────────────────
 
 
-async def _follows(
-    session: AsyncSession, follower_id: uuid.UUID, followed_id: uuid.UUID
-) -> bool:
-    result = await session.execute(
-        select(Follow.follower_id).where(
-            Follow.follower_id == follower_id, Follow.followed_id == followed_id
-        )
-    )
-    return result.first() is not None
-
-
 async def _may_request(session: AsyncSession, sender: User, recipient: User) -> bool:
-    scope = recipient.friend_request_scope
-    if scope == FriendRequestScope.EVERYONE.value:
-        return True
-    recipient_follows = await _follows(session, recipient.id, sender.id)
-    if scope == FriendRequestScope.FOLLOWS.value:
-        return recipient_follows
-    if scope == FriendRequestScope.MUTUALS.value:
-        return recipient_follows and await _follows(session, sender.id, recipient.id)
-    return False  # unknown scope: fail closed
+    return await follow_svc.inbound_gesture_allowed(
+        session, recipient.friend_request_scope, sender.id, recipient.id
+    )
 
 
 # ── Writes ────────────────────────────────────────────────────────────────────
