@@ -254,3 +254,25 @@ describe("ListeningSection — stored history", () => {
     expect(screen.queryByText(/not a complete history/)).toBeNull();
   });
 });
+
+describe("ListeningSection — stored history with a broken connection", () => {
+  const broken = {
+    connected: true,
+    needs_reconnect: true,
+    now_playing: null,
+    history: true,
+    recently_played: [makeItem({ track_name: "Kept" })],
+  };
+
+  it("keeps showing stored plays to visitors, with no reconnect talk", () => {
+    renderSection(broken);
+    expect(screen.getByText("Kept")).toBeDefined();
+    expect(screen.queryByText(/reconnect/i)).toBeNull();
+  });
+
+  it("tells the owner to reconnect above their stored plays", () => {
+    renderSection(broken, { isOwnProfile: true });
+    expect(screen.getByText("Kept")).toBeDefined();
+    expect(screen.getByText(/needs reconnecting to add new plays/)).toBeDefined();
+  });
+});

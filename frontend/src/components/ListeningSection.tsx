@@ -171,7 +171,11 @@ export default function ListeningSection({
   // A linked account whose token no longer works. Distinct from "never
   // connected": telling this user to *connect* Spotify sends them to a
   // settings page that says they already have — the dead end this fixes.
-  if (listening.needs_reconnect) {
+  // Stored history stays valid when the connection breaks: keep showing it,
+  // and tell only the owner to reconnect.
+  const storedRows = !!listening.history && listening.recently_played.length > 0;
+
+  if (listening.needs_reconnect && !storedRows) {
     return (
       <>
         {note}
@@ -230,6 +234,15 @@ export default function ListeningSection({
   return (
     <>
       {note}
+      {listening.needs_reconnect && isOwnProfile && (
+        <p className="text-tertiary mb-2" style={{ fontSize: 12 }}>
+          Spotify needs reconnecting to add new plays.{" "}
+          <Link href="/settings" className="underline underline-offset-2">
+            Reconnect it in settings
+          </Link>
+          .
+        </p>
+      )}
       {listening.history && (
         // Honest about coverage: only plays Harmoniq happened to observe.
         <p className="text-tertiary mb-2" style={{ fontSize: 12 }}>

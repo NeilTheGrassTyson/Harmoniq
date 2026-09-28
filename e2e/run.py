@@ -83,6 +83,8 @@ async def seed(url: str, accounts: dict, track_mbid: str) -> None:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app.models.catalog import Artist, Track
+    from app.models.listen import Listen
+    from app.models.spotify import SpotifyConnection
     from app.models.user import User
 
     engine = create_async_engine(url)
@@ -92,22 +94,61 @@ async def seed(url: str, accounts: dict, track_mbid: str) -> None:
         )
         session.add(artist)
         await session.flush()
-        session.add(
-            Track(
-                mbid=track_mbid,
-                title="E2E 青い空 / & Song",
-                artist_id=artist.id,
-                last_fetched_at=datetime.now(UTC),
-            )
+        track = Track(
+            mbid=track_mbid,
+            title="E2E 青い空 / & Song",
+            artist_id=artist.id,
+            last_fetched_at=datetime.now(UTC),
         )
+        session.add(track)
+        await session.flush()
         for account in accounts.values():
-            session.add(
-                User(
-                    clerk_id=account["id"],
-                    username=account["username"],
-                    display_name=account["username"],
-                )
+            user = User(
+                id=uuid.uuid4(),
+                clerk_id=account["id"],
+                username=account["username"],
+                display_name=account["username"],
             )
+            session.add(user)
+            if account["username"].endswith("_curator"):
+                # A linked Spotify account whose token can't be used here (no
+                # key in the harness) plus stored plays: the history view must
+                # still serve them without calling Spotify.
+                user.store_listening = True
+                user.visibility_activity = "public"
+                await session.flush()
+                session.add(
+                    SpotifyConnection(
+                        user_id=user.id,
+                        spotify_user_id="e2e-spotify",
+                        refresh_token_encrypted="unusable-in-e2e",  # noqa: S106 — not a secret
+                        scopes="user-read-recently-played user-read-currently-playing",
+                    )
+                )
+                now = datetime.now(UTC)
+                session.add_all(
+                    [
+                        Listen(
+                            user_id=user.id,
+                            source="spotify",
+                            idempotency_key="e2e-1",
+                            track_id=track.id,
+                            track_name="E2E Linked Play",
+                            artist_name="E2E Artist",
+                            played_at=now,
+                            observed_at=now,
+                        ),
+                        Listen(
+                            user_id=user.id,
+                            source="spotify",
+                            idempotency_key="e2e-2",
+                            track_name="E2E Snapshot Play",
+                            artist_name="Someone Else",
+                            played_at=now,
+                            observed_at=now,
+                        ),
+                    ]
+                )
         await session.commit()
     await engine.dispose()
 
@@ -135,7 +176,7 @@ def main() -> int:
     track_mbid = str(uuid.uuid4())
     accounts = {}
     for viewport in ("desktop", "mobile"):
-        for role in ("sender", "recipient", "asker", "owner"):
+        for role in ("sender", "recipient", "asker", "owner", "curator", "visitor"):
             name = f"e2e_{viewport}_{role}"
             claims = {
                 "sub": name,
@@ -215,6 +256,9 @@ def main() -> int:
                     "APP_ENV": "test",
                     "CORS_ALLOWED_ORIGINS": base,
                     "E2E_PROVIDER_URL": provider_url + "/mb",
+                    # Features under test that default off in production.
+                    "HIGHLIGHTS_ENABLED": "true",
+                    "LISTEN_HISTORY_ENABLED": "true",
                     "NEXT_PUBLIC_API_URL": api,
                     "NEXT_TELEMETRY_DISABLED": "1",
                     "E2E_BASE_URL": base,
