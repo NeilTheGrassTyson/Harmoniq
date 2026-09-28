@@ -617,3 +617,4 @@ share Harmoniq's tokens. See DESIGN_SYSTEM.md §15.
 | [0011](docs/adr/0011-misconfiguration-must-be-observable.md) | Configuration that can break every request must say so    |
 | [0012](docs/adr/0012-nav-identity-and-public-search.md) | Nav is server-resolved; search is a browse surface             |
 | [0013](docs/adr/0013-astra-second-engineer.md)        | Astra joins as a second, equal engineering contributor           |
+| [0014](docs/adr/0014-audio-previews-deezer-direct-stream.md) | Audio previews come from Deezer and stream straight from its CDN |

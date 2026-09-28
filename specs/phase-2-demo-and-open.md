@@ -163,12 +163,16 @@ returns 404. Nothing is stored, so there is nothing to preserve.
 
 _Founder decides._
 
-1. **Is Deezer acceptable as a preview source?** It's free and needs no
+1. **Is Deezer acceptable as a preview source?** Founder leaning yes
+   (2026-09-28), pending its terms; see ADR 0014. It's free and needs no
    account, but it is a new third-party dependency, and its terms (attribution,
    caching, commercial use) must be checked before build. Alternatives: no
    preview at all, or previews only where a user has linked a service that
    can play them.
-2. **Should audio stream from the provider's CDN directly, or be proxied?**
+2. ~~**Should audio stream from the provider's CDN directly, or be proxied?**~~
+   **RESOLVED 2026-09-28 — directly, for now**, recorded with its tradeoffs and
+   revisit conditions in `docs/adr/0014-audio-previews-deezer-direct-stream.md`.
+   Original question:
    Direct is simple and is how cover art works today. Proxying keeps every
    external call on the backend (a stricter reading of ENGINEERING_BIBLE §7)
    but moves audio bandwidth through Railway.
