@@ -148,8 +148,9 @@ _Founder decides._
    **RESOLVED 2026-09-28 — yes.** A user with Spotify connected gets a quick
    way to populate their profile with highlights drawn from their streaming
    data, choosing each one themselves.
-2. **Top items, saved tracks, or both?** Top items are a better "this is me"
-   signal and a narrower grant; saved tracks are larger and noisier.
+2. ~~**Top items, saved tracks, or both?**~~ **RESOLVED 2026-09-28 — top items
+   only.** Saved tracks stay out of scope, keeping the narrower
+   `user-top-read` grant.
 3. **Should suggestions include "rate this"** as well as highlight, or stay
    highlight-only to keep the picker light?
 4. **Verify before build:** that the top-items endpoints work for a
