@@ -11,6 +11,33 @@ the [migration and rollback instructions](reviews/phase-2-v1-verification.md#rel
 The additive migration must run before the new backend starts. Merge authority
 remains with the Founder; this feature PR targets `dev`, not production.
 
+### Friend Requests, Listen History and Highlights
+
+Three migrations, all run by the existing release command (`alembic upgrade
+head`) before the new backend starts:
+
+| Revision       | Adds                                                                 |
+| -------------- | -------------------------------------------------------------------- |
+| `b0c1d2e3f4a5` | `friendships`, `users.friend_request_scope`; converts mutual follows |
+| `c1d2e3f4a5b6` | `listens`, `users.store_listening`                                   |
+| `d2e3f4a5b6c7` | `highlights`, `users.visibility_highlights`                          |
+
+Every change is additive, and the friendships conversion creates rows
+*alongside* follows, never in place of them. Roll application code back with
+the switches below; do not run an Alembic downgrade against production.
+
+| Switch                        | Default | Off means                                                          |
+| ----------------------------- | ------- | ------------------------------------------------------------------ |
+| `FRIENDSHIPS_ENABLED`         | `true`  | Friends-scoped checks fall back to mutual follow; `/friends` 404s. |
+| `LISTEN_HISTORY_ENABLED`      | `false` | Listening is live-only as before; the settings switch is hidden.   |
+| `HIGHLIGHTS_ENABLED`          | `false` | No Highlights section, buttons or visibility setting.              |
+| `PLAYLIST_HIGHLIGHTS_ENABLED` | `false` | No playlist highlights, and Spotify isn't asked for playlist access. |
+
+Rows are kept while a switch is off and reappear when it's turned back on.
+Turning on `PLAYLIST_HIGHLIGHTS_ENABLED` adds `playlist-read-private` to the
+Spotify request, so each connected user is asked to re-authorize the first
+time they open the playlist picker. Declining leaves listening working.
+
 ---
 
 ## Frontend — Vercel

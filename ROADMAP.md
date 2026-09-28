@@ -180,8 +180,8 @@ Acceptance rate + reception signal, profile-level display only.
 _Security: computed from a user's own Melody history — no cross-user
 data gets exposed in the calculation itself._
 
-Spec approved 2026-09-08: `specs/phase-2-harmony-v1.md`. Implementation in
-PR #74 for Founder review and merge into `dev`. Includes private reception
+Spec approved 2026-09-08: `specs/phase-2-harmony-v1.md`. ✅ Merged into `dev`
+via PR #74 (2026-09-27), after a review pass that fixed six findings. Includes private reception
 statistics, an opt-in positive summary, and three editable Melody reactions
 (`specs/phase-2-melody-reactions.md`). All historical responses participate.
 Third-party song links are covered by `specs/phase-2-streaming-access.md`.
@@ -196,8 +196,11 @@ _Security: friendship is the admittance mechanism the friends-only visibility
 scope already assumes; it grants nothing by itself beyond what a user has
 already pointed at that scope._
 
-Spec approved 2026-09-19: `specs/phase-2-friend-requests.md`. Not implemented.
-Ships before `specs/phase-2-rating-visibility-split.md`, whose friends-only
+Spec approved 2026-09-19, open questions resolved 2026-09-27:
+`specs/phase-2-friend-requests.md`. **Implemented** on
+`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review. On by default
+(`FRIENDSHIPS_ENABLED`); existing mutual follows migrate to friendships. Ships
+before `specs/phase-2-rating-visibility-split.md`, whose friends-only
 commentary is meaningless until a viewer can actually become a friend.
 
 ### Listen History
@@ -208,9 +211,10 @@ _Security: a separate, revocable opt-in from provider linking; stored rows are
 deleted when it is withdrawn or the provider is disconnected. Provider-sourced
 rows are structurally unreachable from recommendation code._
 
-Spec approved 2026-09-19 (rev 4): `specs/phase-2-listen-history.md`. Not
-implemented. Introduces the `source` discriminator that Highlights' playlist
-half also depends on.
+Spec approved 2026-09-19 (rev 4), decisions 2026-09-27:
+`specs/phase-2-listen-history.md`. **Implemented** on
+`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review. Off by default
+(`LISTEN_HISTORY_ENABLED`) and per-user opt-in in Settings.
 
 ### Highlights
 
@@ -221,17 +225,21 @@ _Security: public by default as a recorded constitutional exception, bounded by
 every highlight being added explicitly. An attached review stays gated by the
 owner's separate rating visibility._
 
-Spec approved with modification 2026-09-19: `specs/phase-2-highlights.md`. Not
-implemented. The Founder's modification adds **playlist highlights from a
-connected provider, Spotify only in v1** — which widens the Spotify OAuth scope
-and requires every already-connected user to re-authorize. The first-party half
-(track/album/artist) carries no provider dependency and can ship first.
+Spec approved with modification 2026-09-19, open questions resolved
+2026-09-27: `specs/phase-2-highlights.md`. **Implemented** on
+`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review, including
+**playlist highlights from Spotify**. Two switches, both off by default:
+`HIGHLIGHTS_ENABLED`, and `PLAYLIST_HIGHLIGHTS_ENABLED`, which is also the only
+time the wider Spotify scope is requested.
 
 ### Demo + Open (Melody enhancement)
 
 Preview a song before accepting the recommendation.
 _Security: preview playback shouldn't log as a "listen" in the
 recipient's public history unless they actually accept._
+
+Spec **drafted** 2026-09-28, awaiting Founder approval:
+`specs/phase-2-demo-and-open.md`.
 
 ### Global Search (full)
 
@@ -241,6 +249,9 @@ _Security: same permission rules as minimal search, now enforced across
 a much larger result surface — worth a dedicated pass rather than
 assuming the minimal version's rules just scale._
 
+Spec **drafted** 2026-09-28, awaiting Founder approval:
+`specs/phase-2-global-search.md`.
+
 ### Discovery layer
 
 Browsing surface: listening-history-based and playlist-based suggestions,
@@ -248,6 +259,11 @@ plus "what trusted connections are listening to."
 _Security: the first feature that reads across multiple users' data at
 once — visibility flags need to be enforced at the query level here, not
 just at the profile-page level._
+
+Spec **drafted** 2026-09-28, awaiting Founder approval:
+`specs/phase-2-discovery.md`. The draft proposes a chronological v1 and flags
+that "listening-history-based and playlist-based suggestions" can't be built
+from Spotify data under its ToS.
 
 ### Spotify starter-library import
 
@@ -258,9 +274,15 @@ or inform the recommendation layer — a Spotify ToS constraint, not just a
 privacy one. Also capped at 5 dev-mode users until extended access is
 granted._
 
+Spec **drafted** 2026-09-28, awaiting Founder approval:
+`specs/phase-2-spotify-starter-import.md` — proposed as suggestions the user
+picks from, never auto-created highlights.
+
 **Scope overlap, noted 2026-09-19.** Highlights' playlist half also widens the
 Spotify OAuth scope. Whichever of the two ships first owns the re-consent
 flow; the second reuses it rather than making users re-authorize twice.
+Playlist highlights shipped it first (the picker's "Allow access"); the
+starter-import draft reuses it.
 
 ---
 

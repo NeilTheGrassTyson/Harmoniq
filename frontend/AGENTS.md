@@ -21,6 +21,7 @@ frontend/src/
 ├── app/            Next.js App Router pages
 │   ├── album/[mbid]/
 │   ├── artist/[mbid]/
+│   ├── friends/
 │   ├── melodies/
 │   ├── moderation/
 │   ├── onboarding/
@@ -33,6 +34,7 @@ frontend/src/
 │   ├── track/[mbid]/
 │   └── u/[username]/
 ├── components/     Shared UI components
+├── hooks/          Shared client hooks (polling, per-viewer queries)
 ├── lib/            One typed API client per backend domain, plus apiBase.ts
 │                   (backend origin and its misconfiguration checks, ADR 0011)
 ├── proxy.ts        Clerk route gate — public routes and the onboarding redirect
