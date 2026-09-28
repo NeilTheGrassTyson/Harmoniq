@@ -256,16 +256,17 @@ Spotify-style top result; results grouped by kind with tabs on `/search`.
 
 ### Discovery layer
 
-Browsing surface: listening-history-based and playlist-based suggestions,
-plus "what trusted connections are listening to."
+Browsing surface: "what trusted connections are listening to" — highlights,
+reviews and visible listening from friends, follows and friends of friends,
+newest first. Listening-history-based and playlist-based suggestions were
+dropped from this item (Founder, 2026-09-28) and deferred to LATER →
+"Expanded Discovery sources".
 _Security: the first feature that reads across multiple users' data at
 once — visibility flags need to be enforced at the query level here, not
 just at the profile-page level._
 
-Spec **drafted** 2026-09-28, awaiting Founder approval:
-`specs/phase-2-discovery.md`. The draft proposes a chronological v1 and flags
-that "listening-history-based and playlist-based suggestions" can't be built
-from Spotify data under its ToS.
+Spec **drafted** 2026-09-28: `specs/phase-2-discovery.md`, a chronological v1.
+Founder review under way; open questions 1–4 answered 2026-09-28.
 
 ### Spotify starter-library import
 
@@ -307,7 +308,10 @@ treatment as the original profile fields._
 
 ### Expanded Discovery sources
 
-Deeper playlist-based recs, broader "trusted connections" signal.
+Deeper playlist-based recs, broader "trusted connections" signal. Also
+holds the listening-history-based and playlist-based suggestions dropped
+from Discovery v1 (Founder, 2026-09-28). They can't be built from Spotify
+data under its ToS, so they wait for first-party listening data.
 _Security: same query-level enforcement requirement as Discovery v1, just
 against more data sources._
 

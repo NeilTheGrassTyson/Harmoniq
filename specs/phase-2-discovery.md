@@ -187,6 +187,7 @@ _Founder decides._
    left out.** A follow-up is open with the Founder on the review page: whether
    site-wide popularity belongs to Home's trending section (as ENGINEERING_BIBLE
    §5 has it) or to Discovery.
-4. **The roadmap's "playlist-based" and "listening-history-based suggestions"**
-   can't be built from Spotify data under the ToS. Drop them from the roadmap
-   item, or keep them for when first-party listening exists?
+4. ~~**The roadmap's "playlist-based" and "listening-history-based
+   suggestions"**~~ **RESOLVED 2026-09-28 — dropped from Discovery for now and
+   deferred.** ROADMAP.md moves them to LATER → "Expanded Discovery sources",
+   to wait for first-party listening data.
