@@ -43,8 +43,10 @@ forty people, the Alex you're friends with should come first.
   visibility-scoped surface and would be its own decision.
 - Personalising music results by the viewer's taste. That is recommendation,
   deferred (ROADMAP LATER) and ToS-sensitive.
-- Popularity signals in ranking (follower counts, rating counts). §6: popularity
-  alone never qualifies content for surfacing.
+- Popularity from outside Harmoniq, and follower counts. Harmoniq's own
+  first-party activity may *order* matching results (open question 4,
+  resolved as option A); it never puts something in results that the query
+  didn't match — §6: popularity alone never qualifies content for surfacing.
 - Search history or suggestions.
 
 ---
@@ -84,8 +86,15 @@ relationship to anyone else:
    tracks}`, each capped.
 2. People ranked by: exact username or display-name match, then prefix, then
    trigram similarity; ties broken by friend, then followed, then alphabetical.
-3. Music ranked by local-first search's existing scoring; MusicBrainz is
-   consulted only when the local catalog can't answer, as today.
+3. Music ranked by relevance: local-first search's existing match scoring,
+   then activity from people the viewer knows, then Harmoniq-wide first-party
+   activity (question 4, option A). MusicBrainz is consulted only when the
+   local catalog can't answer, as today.
+   - A friend's or follow's rating or highlight counts toward a viewer's
+     ranking only if that viewer could already see it; a private rating never
+     moves a result.
+   - Harmoniq-wide activity counts public ratings and highlights only, as an
+     aggregate, never attributed to anyone.
 4. `top` is always set when there are results: the single most relevant
    item across every kind (relevance signals: open question 4).
 5. Relationship data is read through `friendship_svc` and the follow service,
@@ -105,6 +114,8 @@ relationship to anyone else:
       stranger; a stranger with a stronger match still ranks above a friend
       with a weaker one — both verified by test.
 - [ ] A viewer's relationships never change what another viewer sees or learns.
+- [ ] A private or friends-only rating never changes the order a viewer
+      outside its scope sees — verified by test.
 - [ ] Anonymous search works and ranks by match only.
 - [ ] Suspended users never appear.
 - [ ] Search response time at least as good as today's two calls combined.
@@ -156,7 +167,9 @@ _Founder decides._
    tab shows only that kind with "Show more" paging; the active tab is in the
    URL (`/search?q=…&type=albums`). The nav dropdown stays a grouped preview
    without tabs.
-4. **What makes a result "relevant" beyond its text match?** Raised by the
+4. ~~**What makes a result "relevant" beyond its text match?**~~ **RESOLVED
+   2026-09-28 — option A**, with the visibility guardrails in requirement 3.
+   Raised by the
    answer to question 2. Spotify leans on popularity ("Taylor" finds Taylor
    Swift, not the closest-spelled artist); this spec's Out of Scope currently
    excludes popularity (ENGINEERING_BIBLE §6).
