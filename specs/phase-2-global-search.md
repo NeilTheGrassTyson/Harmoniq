@@ -69,7 +69,9 @@ relationship to anyone else:
 
 - **Entry point:** the nav SearchBar and `/search`.
 - **Core flow:** type; the dropdown shows a top result then a few of each
-  kind; Enter or "See all" opens `/search` with full grouped results.
+  kind; Enter or "See all" opens `/search` on its **All** tab. Tabs for
+  **Artists**, **Albums**, **Tracks** and **People** show one kind each, with
+  "Show more" paging; the active tab is kept in the URL.
 - **Empty:** "No results for …" with nothing else.
 - **Partial failure:** as today — if one half fails, say so and show the other.
 - **Loading:** the existing debounced skeleton.
@@ -88,7 +90,10 @@ relationship to anyone else:
    item across every kind (relevance signals: open question 4).
 5. Relationship data is read through `friendship_svc` and the follow service,
    and used for ordering only.
-6. The existing endpoints stay until the frontend no longer calls them.
+6. `GET /search?q=&type=` narrows the response to one kind
+   (`artists | albums | tracks | people`) and pages it by cursor, for the
+   kind tabs. Without `type`, the All view's capped groups are returned.
+7. The existing endpoints stay until the frontend no longer calls them.
 
 ---
 
@@ -144,9 +149,13 @@ _Founder decides._
    result, modelled on Spotify's:** the single most *relevant* item across
    every kind, not merely the closest text match, followed by the grouped
    sections. What "relevant" means is question 4.
-3. **Should people and music be interleaved** into one ranked list, or stay
-   grouped by kind? Grouped is what exists and is calmer; interleaved is more
-   "one search".
+3. ~~**Should people and music be interleaved**~~ **RESOLVED 2026-09-28 —
+   grouped, never interleaved.** Artists, albums, tracks and people stay
+   cleanly separate, and `/search` gets tabs: **All** (top result, then a few
+   of each kind), **Artists**, **Albums**, **Tracks**, **People**. Each kind
+   tab shows only that kind with "Show more" paging; the active tab is in the
+   URL (`/search?q=…&type=albums`). The nav dropdown stays a grouped preview
+   without tabs.
 4. **What makes a result "relevant" beyond its text match?** Raised by the
    answer to question 2. Spotify leans on popularity ("Taylor" finds Taylor
    Swift, not the closest-spelled artist); this spec's Out of Scope currently
