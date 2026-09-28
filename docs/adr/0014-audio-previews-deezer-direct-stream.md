@@ -55,13 +55,16 @@ must be read at the source before build (see "Conditions").
 | Latency | Deezer's CDN, close to the listener | An extra hop through one region |
 | Privacy | The listener's IP address and user agent reach Deezer's CDN when they press play | Only our backend talks to Deezer |
 | ENGINEERING_BIBLE §7 | Relies on the reading above | Satisfies the strictest reading |
-| Deezer's terms | Streams without storing, which is what third-party summaries say the terms want | Relaying may count as redistribution; unclear |
+| Deezer's terms | Streams without storing, which the terms require | Relaying may count as redistribution; unclear |
 | Failure | A dead URL fails in the browser; the card stays usable | We own retries and error mapping |
 
 ## Conditions
 
-- **Deezer's terms are read at the source before build**, covering
-  commercial use, caching and attribution.
+- **Deezer's terms, as far as excerpts show (2026-09-28):** the API is free
+  for webpages and personal applications, strictly for non-commercial use;
+  audio may never be stored locally or made downloadable; a clearly visible
+  Deezer logo is required. This session could only read excerpts, so one full
+  read of the terms is still owed before build.
 - **A small, visible Deezer mark sits by the play control**, as Deezer's logo
   guidelines require. It stays quiet, per BRAND_BIBLE §7–8.
 - **Nothing reaches Deezer until the user presses play.** The request carries
@@ -76,8 +79,10 @@ Any one of these reopens the decision:
 
 - Deezer changes its terms, withdraws public previews, or starts requiring an
   app key. New app registration has been paused since at least 2024.
-- Harmoniq starts earning money. Third-party summaries say previews are for
-  non-commercial use.
+- Harmoniq starts earning money. Deezer's developer terms limit use of its
+  API to non-commercial purposes, so any revenue (ads, subscriptions,
+  sponsorship) needs a separate agreement with Deezer or a different source
+  before it starts.
 - The privacy cost of the listener's IP reaching Deezer is judged too high,
   for instance if previews become a large share of what people do here.
   Proxying is the answer to that.
