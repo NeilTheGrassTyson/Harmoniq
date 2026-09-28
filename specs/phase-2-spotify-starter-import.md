@@ -144,13 +144,18 @@ requesting the scope. Nothing is stored, so nothing to preserve.
 
 _Founder decides._
 
-1. **Is "import as suggestions" what you meant by a starter library?** The
-   alternatives both write to the profile on the user's behalf — auto-created
-   highlights (which would re-open the public-by-default exception) or a new
-   "library" concept Harmoniq doesn't have.
+1. ~~**Is "import as suggestions" what you meant by a starter library?**~~
+   **RESOLVED 2026-09-28 — yes.** A user with Spotify connected gets a quick
+   way to populate their profile with highlights drawn from their streaming
+   data, choosing each one themselves.
 2. **Top items, saved tracks, or both?** Top items are a better "this is me"
    signal and a narrower grant; saved tracks are larger and noisier.
 3. **Should suggestions include "rate this"** as well as highlight, or stay
    highlight-only to keep the picker light?
 4. **Verify before build:** that the top-items endpoints work for a
    development-mode app under the 5-user cap.
+5. **How quick is "quick"?** Raised by the answer to question 1. One tap per
+   suggestion is the draft. The faster option: tick several suggestions, then
+   one "Add to highlights". Each remains the user's explicit choice and
+   nothing is pre-ticked, so the "nothing auto-populated" exception holds; the
+   15 cap applies to the batch. Recommended: allow ticking several.
