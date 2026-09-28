@@ -151,8 +151,11 @@ _Founder decides._
 2. ~~**Top items, saved tracks, or both?**~~ **RESOLVED 2026-09-28 — top items
    only.** Saved tracks stay out of scope, keeping the narrower
    `user-top-read` grant.
-3. **Should suggestions include "rate this"** as well as highlight, or stay
-   highlight-only to keep the picker light?
+3. ~~**Should suggestions include "rate this"?**~~ **RESOLVED 2026-09-28 —
+   the idea moves to Highlights instead.** The picker stays highlight-only;
+   any highlight without a review, whether added here or by hand, gets an
+   owner-only nudge to review it. Specified in `specs/phase-2-highlights.md`,
+   "Addition 2026-09-28: review nudge".
 4. **Verify before build:** that the top-items endpoints work for a
    development-mode app under the 5-user cap.
 5. **How quick is "quick"?** Raised by the answer to question 1. One tap per

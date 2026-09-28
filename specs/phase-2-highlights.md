@@ -409,6 +409,28 @@ the playlist half, never after it.
    plus a playlist picker on the owner's own profile (Founder decision,
    2026-09-27).**
 
+# Addition 2026-09-28: review nudge
+
+_Founder direction from the Spotify starter import review. Not yet built;
+it follows this spec's current implementation._
+
+A highlighted track or album that its owner hasn't reviewed shows the owner a
+quiet nudge to write one, whether the highlight was added by hand or from the
+starter import.
+
+- **Owner only.** Visitors never see it and it never reveals that a review is
+  missing. It's decided at the data-access layer: only the owner's own
+  response says which highlights lack a review.
+- **Tracks and albums only.** Artists and playlists can't be rated.
+- **Quiet.** A small "Write a review" link on the highlight, opening the
+  item's page at the rating form. No badge, count, notification or
+  reminder elsewhere (BRAND_BIBLE §7–8).
+- **Satisfied by any review of the owner's**, at any visibility; a private
+  review still counts as written.
+- **Dismissible per highlight**, and the dismissal persists.
+
+---
+
 # Implementation decisions
 
 Recorded because they affect future work (WORKFLOW.md §3).
