@@ -250,8 +250,9 @@ _Security: same permission rules as minimal search, now enforced across
 a much larger result surface — worth a dedicated pass rather than
 assuming the minimal version's rules just scale._
 
-Spec **drafted** 2026-09-28, awaiting Founder approval:
-`specs/phase-2-global-search.md`.
+Spec **approved** 2026-09-28: `specs/phase-2-global-search.md`. Match
+quality first, then people you know, then Harmoniq's own activity; a
+Spotify-style top result; results grouped by kind with tabs on `/search`.
 
 ### Discovery layer
 

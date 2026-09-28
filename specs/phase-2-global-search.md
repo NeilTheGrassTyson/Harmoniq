@@ -1,9 +1,10 @@
 # Global Search — One Search Across People and Music
 
-> **Status: DRAFT — awaiting Founder approval.** Tier 1 per WORKFLOW.md §1
+> **Status: APPROVED by the Founder, 2026-09-28.** Tier 1 per WORKFLOW.md §1
 > (net-new, user-facing behaviour; changes what search exposes about people).
-> Nothing here is implemented. Drafted 2026-09-28 from the ROADMAP NEXT item
-> "Global Search (full)".
+> Not yet implemented. Drafted 2026-09-28 from the ROADMAP NEXT item "Global
+> Search (full)"; all open questions resolved in the Founder's review the
+> same day.
 
 ---
 
@@ -149,7 +150,7 @@ existing endpoints when the new one answers 404. No data changes.
 
 # Open Questions
 
-_Founder decides._
+_All resolved in the Founder's review, 2026-09-28._
 
 1. ~~**Should relationship ordering apply at all?**~~ **RESOLVED 2026-09-28 —
    match quality first, people the searcher knows second.** A relationship
