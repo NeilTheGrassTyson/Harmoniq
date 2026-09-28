@@ -157,8 +157,22 @@ _Founder decides._
    any highlight without a review, whether added here or by hand, gets an
    owner-only nudge to review it. Specified in `specs/phase-2-highlights.md`,
    "Addition 2026-09-28: review nudge".
-4. **Verify before build:** that the top-items endpoints work for a
-   development-mode app under the 5-user cap.
+4. ~~**Verify before build**~~ **RESEARCHED 2026-09-28 — should work.** No
+   Spotify change (Nov 2024; Feb–Mar 2026) lists `GET /me/top/{artists,tracks}`
+   as removed — "not removed" by absence from those lists, from search
+   snippets because the session's network policy blocked the pages. Since Feb
+   2026 a development-mode app needs its owner on Spotify Premium (existing
+   apps grandfathered), so the owner account must keep Premium active. Quota
+   is per developer account and shared across its apps (429
+   `QUOTA_EXCEEDED` when exceeded): the picker makes two calls per open, with
+   no retry loop. Use `time_range=medium_term`, 20 of each. Still unconfirmed:
+   whether `limit` still allows 50 and whether fields such as genres survived
+   2026 — neither is needed. The first real call against the Founder's account
+   settles it before build.
+   Sources: developer.spotify.com/blog/2024-11-27-changes-to-the-web-api,
+   developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security,
+   developer.spotify.com/blog/2026-07-23-web-api-quota-updates,
+   github.com/ramsayleung/rspotify/issues/550.
 5. ~~**How quick is "quick"?**~~ **RESOLVED 2026-09-28 — one button opens a
    series of suggestions, each with Add or Ignore.** Nothing is pre-selected
    and nothing is written until the user presses Add; they are suggestions,
