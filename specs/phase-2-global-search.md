@@ -84,8 +84,8 @@ relationship to anyone else:
    trigram similarity; ties broken by friend, then followed, then alphabetical.
 3. Music ranked by local-first search's existing scoring; MusicBrainz is
    consulted only when the local catalog can't answer, as today.
-4. `top` is set only when one result clearly outranks the rest (threshold an
-   open question); otherwise it is absent.
+4. `top` is always set when there are results: the single most relevant
+   item across every kind (relevance signals: open question 4).
 5. Relationship data is read through `friendship_svc` and the follow service,
    and used for ordering only.
 6. The existing endpoints stay until the frontend no longer calls them.
@@ -140,8 +140,21 @@ _Founder decides._
    only reorders equally good matches (friend, then followed, then everyone)
    and never lifts a weaker match above a stronger one — which is
    requirement 2 as written.
-2. **Top result threshold** — always show the best match as "top", or only
-   when it is clearly ahead?
+2. ~~**Top result threshold**~~ **RESOLVED 2026-09-28 — always show a top
+   result, modelled on Spotify's:** the single most *relevant* item across
+   every kind, not merely the closest text match, followed by the grouped
+   sections. What "relevant" means is question 4.
 3. **Should people and music be interleaved** into one ranked list, or stay
    grouped by kind? Grouped is what exists and is calmer; interleaved is more
    "one search".
+4. **What makes a result "relevant" beyond its text match?** Raised by the
+   answer to question 2. Spotify leans on popularity ("Taylor" finds Taylor
+   Swift, not the closest-spelled artist); this spec's Out of Scope currently
+   excludes popularity (ENGINEERING_BIBLE §6).
+   - **A (recommended):** match quality, then activity from people you know
+     (friends' and follows' ratings and highlights), then Harmoniq-wide
+     first-party activity. Closest to Spotify's feel, inside our own data and
+     led by people; needs the Out of Scope line narrowed.
+   - **B:** A plus an open external popularity source such as ListenBrainz.
+     Best at finding the famous thing on day one; adds a dependency.
+   - **C:** match quality and people you know only. No popularity at all.
