@@ -265,8 +265,8 @@ _Security: the first feature that reads across multiple users' data at
 once — visibility flags need to be enforced at the query level here, not
 just at the profile-page level._
 
-Spec **drafted** 2026-09-28: `specs/phase-2-discovery.md`, a chronological v1.
-Founder review under way; open questions 1–4 answered 2026-09-28.
+Spec **approved** 2026-09-28: `specs/phase-2-discovery.md`, a chronological
+v1 from friends, follows and friends of friends; Melodies excluded.
 
 ### Spotify starter-library import
 

@@ -1,12 +1,14 @@
 # Discovery — Music Through the People You Trust
 
-> **Status: DRAFT — awaiting Founder approval.** Tier 1 per WORKFLOW.md §1
+> **Status: APPROVED by the Founder, 2026-09-28.** Tier 1 per WORKFLOW.md §1
 > (net-new surface; reads across many users' data at once; touches the
-> recommendation boundary). Nothing here is implemented. Drafted 2026-09-28
-> from the ROADMAP NEXT item "Discovery layer". This is the draft with the
-> most open questions, deliberately: it is the first surface that could drift
-> into algorithmic ranking, and the constitution is specific about how far it
-> may go.
+> recommendation boundary). Not yet implemented. Drafted 2026-09-28 from the
+> ROADMAP NEXT item "Discovery layer"; all four open questions resolved in the
+> Founder's review the same day. Approved as written: Discovery stays the
+> separate, social surface, and site-wide popularity stays with Home's
+> trending section (ENGINEERING_BIBLE §5). A clarifying question on that point
+> is open on the review page; if the answer differs, it comes back as a change
+> to this spec.
 
 ---
 
@@ -166,7 +168,7 @@ returns 404. Read-only feature: nothing to preserve.
 
 # Open Questions
 
-_Founder decides._
+_All resolved in the Founder's review, 2026-09-28._
 
 1. ~~**Is a chronological, unranked v1 acceptable?**~~ **RESOLVED 2026-09-28 —
    yes, for now, and expected to change later.** The Founder plans a
