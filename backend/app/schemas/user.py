@@ -152,7 +152,8 @@ class OwnProfileResponse(BaseModel):
     visibility_activity: VisibilityScope
     visibility_ratings: VisibilityScope
     visibility_follows: VisibilityScope
-    visibility_highlights: VisibilityScope = VisibilityScope.PUBLIC
+    # None while HIGHLIGHTS_ENABLED is off, so the editor hides the setting.
+    visibility_highlights: VisibilityScope | None = None
     melody_accept_scope: MelodyAcceptScope
     friend_request_scope: FriendRequestScope = FriendRequestScope.EVERYONE
     # None while LISTEN_HISTORY_ENABLED is off.

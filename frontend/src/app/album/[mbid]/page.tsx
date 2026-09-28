@@ -8,6 +8,7 @@ import RatingSection from "@/components/RatingSection";
 import { getAlbum } from "@/lib/catalog";
 import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
 import { getEntityRatings } from "@/lib/ratings";
+import HighlightButton from "@/components/HighlightButton";
 
 function formatDuration(ms: number | null): string {
   if (ms === null) return "";
@@ -72,6 +73,7 @@ export default async function AlbumPage(props: { params: Promise<{ mbid: string 
             <p className="text-tertiary mt-1 text-xs">
               {[album.release_year, typeLabel].filter(Boolean).join(" · ")}
             </p>
+            <HighlightButton entityType="album" mbid={mbid} />
           </div>
         </div>
 

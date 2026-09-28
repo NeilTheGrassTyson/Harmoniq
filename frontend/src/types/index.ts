@@ -129,6 +129,52 @@ export interface FriendsOverview {
   incoming: FriendPerson[];
 }
 
+// ── Highlights ────────────────────────────────────────────────────────────────
+
+export type HighlightType = "track" | "album" | "artist" | "playlist";
+
+export interface HighlightReview {
+  score: number;
+  review_text: string;
+  /** The album's review, standing in for a track the owner hasn't reviewed. */
+  of_album: boolean;
+}
+
+export interface HighlightItem {
+  id: string;
+  entity_type: HighlightType;
+  title: string;
+  subtitle: string | null;
+  image_url: string | null;
+  /** Catalog highlights open their Harmoniq page. */
+  mbid: string | null;
+  /** Playlists open in Spotify. */
+  external_url: string | null;
+  provider: "spotify" | null;
+  review: HighlightReview | null;
+}
+
+export interface HighlightsResponse {
+  items: HighlightItem[];
+  limit: number;
+  /** Owner-only. */
+  visibility?: VisibilityScope | null;
+  /** Owner-only: whether playlist highlights are switched on. */
+  playlists_available?: boolean | null;
+}
+
+export interface PlaylistOption {
+  id: string;
+  name: string;
+  image_url: string | null;
+  highlighted: boolean;
+}
+
+export interface PlaylistPickerResponse {
+  status: "ok" | "not_connected" | "needs_permission" | "unavailable";
+  playlists: PlaylistOption[];
+}
+
 /** Public or viewer-scoped profile. Gated fields are absent (not null) when excluded by visibility. */
 export interface ProfileResponse {
   username: string;
@@ -159,6 +205,8 @@ export interface OwnProfileResponse {
   visibility_activity: VisibilityScope;
   visibility_ratings: VisibilityScope;
   visibility_follows: VisibilityScope;
+  /** Absent or null while highlights are switched off on the backend. */
+  visibility_highlights?: VisibilityScope | null;
   melody_accept_scope: MelodyAcceptScope;
   friend_request_scope?: FriendRequestScope;
   /** Absent or null while listen history is switched off on the backend. */
@@ -182,6 +230,7 @@ export interface ProfileUpdateRequest {
   visibility_activity?: VisibilityScope;
   visibility_ratings?: VisibilityScope;
   visibility_follows?: VisibilityScope;
+  visibility_highlights?: VisibilityScope;
   melody_accept_scope?: MelodyAcceptScope;
   friend_request_scope?: FriendRequestScope;
   store_listening?: boolean;

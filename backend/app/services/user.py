@@ -106,7 +106,11 @@ def build_own_profile(user: User) -> OwnProfileResponse:
         visibility_activity=VisibilityScope(user.visibility_activity),
         visibility_ratings=VisibilityScope(user.visibility_ratings),
         visibility_follows=VisibilityScope(user.visibility_follows),
-        visibility_highlights=VisibilityScope(user.visibility_highlights),
+        visibility_highlights=(
+            VisibilityScope(user.visibility_highlights)
+            if settings.highlights_enabled
+            else None
+        ),
         melody_accept_scope=MelodyAcceptScope(user.melody_accept_scope),
         friend_request_scope=FriendRequestScope(user.friend_request_scope),
         # Absent while the feature is off, so the settings page hides the switch.

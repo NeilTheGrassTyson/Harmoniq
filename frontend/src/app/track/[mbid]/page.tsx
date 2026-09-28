@@ -10,6 +10,7 @@ import StreamingAccess from "@/components/StreamingAccess";
 import { getTrack } from "@/lib/catalog";
 import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
 import { getEntityRatings } from "@/lib/ratings";
+import HighlightButton from "@/components/HighlightButton";
 
 function formatDuration(ms: number | null): string {
   if (ms === null) return "";
@@ -85,6 +86,7 @@ export default async function TrackPage(props: { params: Promise<{ mbid: string 
                 {formatDuration(track.duration_ms)}
               </p>
             )}
+            <HighlightButton entityType="track" mbid={mbid} />
           </div>
         </div>
 

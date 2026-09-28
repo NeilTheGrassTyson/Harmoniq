@@ -43,6 +43,11 @@ vi.mock("@/components/HarmonySection", () => ({
     <div data-testid="harmony-section">{username}</div>
   ),
 }));
+vi.mock("@/components/HighlightsSection", () => ({
+  default: ({ username }: { username: string }) => (
+    <div data-testid="highlights-section">{username}</div>
+  ),
+}));
 
 vi.mock("@/components/ProfileHeader", () => ({
   default: (props: unknown) => {

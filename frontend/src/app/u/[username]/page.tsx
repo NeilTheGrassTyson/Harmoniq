@@ -10,6 +10,7 @@ import { getProfile } from "@/lib/users";
 import { getUserRatings } from "@/lib/ratings";
 import { getListening } from "@/lib/spotify";
 import { errorStatus, isUpstreamFailure } from "@/lib/apiBase";
+import HighlightsSection from "@/components/HighlightsSection";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -61,6 +62,11 @@ export default async function ProfilePage(props: { params: Promise<{ username: s
       <div style={{ padding: "26px 22px 30px", maxWidth: 720 }}>
         <ProfileHeader profile={profile} />
         <HarmonySection key={profile.username} username={profile.username} />
+        <HighlightsSection
+          key={`highlights-${profile.username}`}
+          username={profile.username}
+          isOwnProfile={profile.is_own_profile}
+        />
 
         {/* ── Listening activity (Spotify, display-only) ─────────────────── */}
         {listening !== null && (

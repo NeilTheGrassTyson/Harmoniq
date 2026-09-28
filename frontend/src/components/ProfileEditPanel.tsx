@@ -45,6 +45,8 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
   const [visibilityActivity, setVisibilityActivity] = useState<VisibilityScope>("private");
   const [visibilityRatings, setVisibilityRatings] = useState<VisibilityScope>("private");
   const [visibilityFollows, setVisibilityFollows] = useState<VisibilityScope>("public");
+  // null while highlights are switched off: the row isn't shown or sent.
+  const [visibilityHighlights, setVisibilityHighlights] = useState<VisibilityScope | null>(null);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -70,6 +72,7 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
         setVisibilityActivity(data.visibility_activity);
         setVisibilityRatings(data.visibility_ratings);
         setVisibilityFollows(data.visibility_follows);
+        setVisibilityHighlights(data.visibility_highlights ?? null);
         setOriginalUsername(data.username);
       })
       .catch(() => setSaveError("Couldn't load your profile."))
@@ -139,6 +142,7 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
         visibility_activity: visibilityActivity,
         visibility_ratings: visibilityRatings,
         visibility_follows: visibilityFollows,
+        ...(visibilityHighlights ? { visibility_highlights: visibilityHighlights } : {}),
       });
       onSaved(updated);
     } catch (err: unknown) {
@@ -307,6 +311,19 @@ export default function ProfileEditPanel({ initial, onCancel, onSaved }: Profile
             <VisibilitySelect id={`vis-${field}`} value={value} onChange={setter} />
           </div>
         ))}
+
+        {visibilityHighlights && (
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="vis-highlights" className="text-secondary text-sm">
+              Highlights
+            </label>
+            <VisibilitySelect
+              id="vis-highlights"
+              value={visibilityHighlights}
+              onChange={setVisibilityHighlights}
+            />
+          </div>
+        )}
 
         <p className="text-tertiary text-xs">
           Friends means people you&apos;ve accepted as friends.

@@ -683,7 +683,10 @@ def _playlist_display(item: dict[str, Any]) -> dict[str, Any] | None:
     return {
         "id": playlist_id,
         "name": str(name),
-        "image_url": image if isinstance(image, str) else None,
+        # Rendered as an <img>: only an https URL is passed through.
+        "image_url": image
+        if isinstance(image, str) and image.startswith("https://")
+        else None,
         "owner_id": (item.get("owner") or {}).get("id"),
     }
 
