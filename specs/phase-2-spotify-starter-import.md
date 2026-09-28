@@ -81,8 +81,9 @@ visit and rate. The import writes nothing to their profile by itself.
 
 - **Entry point:** on your own empty Highlights section, "Start from your
   Spotify favourites", and in Settings under Spotify.
-- **Core flow:** a picker with two short lists — top artists, top tracks —
-  each with art and a Highlight button, and a link to the Harmoniq page.
+- **Core flow:** one button opens a picker of suggestions — top artists and
+  top tracks — each with art, a link to its Harmoniq page, and two choices:
+  **Add** (to highlights) or **Ignore**.
 - **Unresolvable items:** shown without a Highlight button and a quiet
   "Not in the Harmoniq catalog yet".
 - **Empty:** "Spotify doesn't have enough listening to suggest from yet."
@@ -158,8 +159,9 @@ _Founder decides._
    "Addition 2026-09-28: review nudge".
 4. **Verify before build:** that the top-items endpoints work for a
    development-mode app under the 5-user cap.
-5. **How quick is "quick"?** Raised by the answer to question 1. One tap per
-   suggestion is the draft. The faster option: tick several suggestions, then
-   one "Add to highlights". Each remains the user's explicit choice and
-   nothing is pre-ticked, so the "nothing auto-populated" exception holds; the
-   15 cap applies to the batch. Recommended: allow ticking several.
+5. ~~**How quick is "quick"?**~~ **RESOLVED 2026-09-28 — one button opens a
+   series of suggestions, each with Add or Ignore.** Nothing is pre-selected
+   and nothing is written until the user presses Add; they are suggestions,
+   never de facto writes. Ignore only hides a suggestion in the open picker
+   and isn't stored (the fetched lists are never persisted), so it may
+   reappear next time.
