@@ -28,8 +28,12 @@ from a person; this lets the recipient actually receive it.
 
 - A short audio preview on a received Melody card, in the inbox, where one
   exists for that track.
-- The same preview on the track page's Melody embed, so a sender can check
-  what they're about to send.
+- A play button on every Melody on the Melodies page, received and sent, so a
+  user can go back to an earlier Melody and hear its preview again (Founder
+  review, 2026-09-28).
+- Previews on track pages, and per track in an album page's tracklist. This
+  also lets a sender check what they're about to send (Founder review,
+  2026-09-28).
 - Resolving a preview from a free, public preview source (see "Source").
 
 ### Out of Scope
@@ -84,8 +88,9 @@ a fresh one per request rather than store it.
 # User Experience
 
 - **Entry point:** a received Melody in the inbox.
-- **Core flow:** a small play control on the card. Tap to hear 30 seconds;
-  tap to stop. The card's existing actions are unchanged beside it.
+- **Core flow:** a small play control beside each playable track: on a
+  Melody card next to its existing actions, on a track page, and on each row
+  of an album's tracklist. Tap to hear 30 seconds; tap to stop.
 - **No preview available:** the control simply isn't there. No "unavailable"
   message on every card.
 - **Loading:** the control shows a quiet busy state; the card stays usable.
@@ -98,7 +103,8 @@ a fresh one per request rather than store it.
 
 # Functional Requirements
 
-1. The inbox and track page can request a preview for a track by its MBID.
+1. The Melodies page (inbox and sent), track pages and album tracklists can
+   request a preview for a track by its MBID.
 2. The backend resolves it (ISRC → Deezer) behind a timeout and a bounded
    cache, and returns either a playable URL or nothing.
 3. Playing a preview makes no write of any kind.
@@ -111,12 +117,14 @@ a fresh one per request rather than store it.
 
 # Acceptance Criteria
 
-- [ ] A received Melody with a resolvable preview plays 30 seconds on demand.
+- [ ] A resolvable preview plays 30 seconds on demand from a received or sent
+      Melody, a track page, and an album's tracklist.
 - [ ] Playing it changes no status, reaction, listen, notification or Harmony
       value — verified by test.
 - [ ] A Melody with no preview shows no control and no error.
 - [ ] A slow or failing preview source leaves the inbox fully usable.
-- [ ] No request to the preview source is made until play is pressed.
+- [ ] No request to the preview source is made until play is pressed, so an
+      album page makes no preview calls on load.
 - [ ] Keyboard and screen-reader operable; never autoplays.
 
 ---
@@ -167,4 +175,6 @@ _Founder decides._
 3. **Verify before build:** that Spotify still withholds previews for new
    apps, and that Deezer's ISRC lookup and preview URLs behave as described.
    Both are from memory, not checked in this session.
-4. **Should senders hear the preview too** (track page), or only recipients?
+4. ~~**Should senders hear the preview too** (track page), or only
+   recipients?~~ **RESOLVED 2026-09-28 — yes**, on the track page and from
+   their sent Melodies.
