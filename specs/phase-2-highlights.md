@@ -1,8 +1,9 @@
 # Highlights — The Curated Half of a Profile
 
-> **Status: APPROVED WITH MODIFICATION — Founder, 2026-09-19.** Tier 1 per
-> WORKFLOW.md §1 (net-new, user-facing feature; changes how user data is
-> shared). Not yet implemented.
+> **Status: APPROVED WITH MODIFICATION — Founder, 2026-09-19; open questions
+> resolved 2026-09-27.** Tier 1 per WORKFLOW.md §1 (net-new, user-facing
+> feature; changes how user data is shared). Implemented on
+> `claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review.
 >
 > **The modification:** a user may also highlight playlists they own on a
 > connected streaming provider. Founder decisions, 2026-09-19 — playlists are a
@@ -383,26 +384,60 @@ the playlist half, never after it.
 
 ---
 
-# Open Questions
+# Open Questions — resolved
 
-_Founder decides._
-
-1. **Can a user highlight something they have not rated?** Assumed yes — a
-   highlight is a statement of taste, and requiring a review first would make
-   the feature much harder to start using.
+1. **Can a user highlight something they have not rated?** **Yes (Founder
+   decision, 2026-09-27).** A highlight is a statement of taste on its own;
+   when the owner has reviewed the item, their review shows with it.
 2. **Should the empty state be shown to visitors, or only to the owner?**
-   Showing "no highlights yet" to a stranger advertises an absence; hiding the
-   section entirely may read as a missing feature.
-3. ~~**Does a playlist highlight snapshot, or follow the provider live?**~~
-   **Resolved — follow live (Founder decision, 2026-09-27).** The card reads
-   the playlist's current name, art and contents from the provider rather than
-   a copy taken at add-time, so it never shows something that no longer
-   exists. The accepted tradeoff: edits the owner makes on Spotify appear on
-   their Harmoniq profile without a fresh decision here. That is bounded by the
-   owner being able to remove the highlight or narrow `visibility_highlights`
-   at any moment, with immediate effect (ENGINEERING_BIBLE §8.1). Nothing from
-   the playlist is persisted beyond the reference in "What is stored", so this
-   decision adds no stored provider data.
-4. **Does a playlist highlight carry a review?** Assumed no. Ratings are
-   polymorphic over tracks and albums only, so there is no playlist review to
-   resolve — the same reasoning that leaves artist highlights review-less.
+   **Shown to everyone (Founder decision, 2026-09-27):** "No highlights yet."
+   The owner additionally sees how to add some, worded so a profile never
+   reads as incomplete without them. A viewer the owner's visibility doesn't
+   admit sees no section at all — not an empty state.
+3. **Does a playlist highlight snapshot, or follow the provider live?**
+   **Follow live (Founder decision, 2026-09-27).** The card reads the
+   playlist's current name and art from the provider rather than a copy taken
+   at add-time, so it never shows something that no longer exists. The
+   accepted tradeoff: edits the owner makes on Spotify appear on their
+   Harmoniq profile without a fresh decision here, bounded by the owner being
+   able to remove the highlight or narrow `visibility_highlights` at any
+   moment, with immediate effect (ENGINEERING_BIBLE §8.1).
+4. **Does a playlist highlight carry a review?** **No.** Ratings are
+   polymorphic over tracks and albums only, the same reasoning that leaves
+   artist highlights review-less.
+5. **Where are highlights added?** **From each track, album and artist page,
+   plus a playlist picker on the owner's own profile (Founder decision,
+   2026-09-27).**
+
+# Implementation decisions
+
+Recorded because they affect future work (WORKFLOW.md §3).
+
+- **Follow live without waiting.** A profile view serves each playlist card's
+  last-seen name and art, stored on the highlight as its display fields, and
+  refreshes cards older than ten minutes in the background (one refresh per
+  owner at a time). A playlist that is gone, no longer the owner's, or no
+  longer readable is removed; an outage changes nothing and is retried.
+- **Only the latest review counts.** If the owner's newest review of an item
+  isn't visible to the viewer, no review is shown — an older, visible one is
+  never substituted, since that would publish something the owner has since
+  replaced. A track falls back to its album's review only when the owner
+  never reviewed the track at all, so a hidden track review is never
+  replaced by a visible album one. All of this runs through
+  `rating_svc.latest_visible_reviews`.
+- **The scope is asked for only when needed.** `playlist-read-private` is
+  requested only while `PLAYLIST_HIGHLIGHTS_ENABLED` is on. Access is read
+  from the scope string Spotify reports granting; a missing string is stored
+  as empty rather than assumed to equal the request. The picker's "Allow
+  access" goes through Spotify's own consent screen, and declining there
+  changes nothing — the existing connection and listening keep working.
+- **Owned playlists only**, filtered by the playlist owner's Spotify id.
+- **Disconnecting Spotify, or Spotify rejecting a revoked grant, removes
+  playlist highlights**; first-party highlights are untouched.
+- **The cap is enforced under a per-user row lock**, so two tabs can't both
+  take the fifteenth slot. Re-adding something already highlighted is a no-op.
+- **The recommendation boundary** is `highlight_svc.first_party_highlights`,
+  which cannot return a playlist; a test pins it.
+- **Rollout.** `HIGHLIGHTS_ENABLED` and `PLAYLIST_HIGHLIGHTS_ENABLED` both
+  default off as specified. Turning on playlists asks each connected user to
+  re-authorize the first time they open the playlist picker, not before.
