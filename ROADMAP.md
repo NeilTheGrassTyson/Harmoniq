@@ -277,15 +277,15 @@ or inform the recommendation layer — a Spotify ToS constraint, not just a
 privacy one. Also capped at 5 dev-mode users until extended access is
 granted._
 
-Spec **drafted** 2026-09-28, awaiting Founder approval:
-`specs/phase-2-spotify-starter-import.md` — proposed as suggestions the user
-picks from, never auto-created highlights.
+Spec **approved** 2026-09-28: `specs/phase-2-spotify-starter-import.md`. One
+button opens suggestions from the user's Spotify top artists and tracks, each
+added or ignored by hand; never auto-created highlights.
 
 **Scope overlap, noted 2026-09-19.** Highlights' playlist half also widens the
 Spotify OAuth scope. Whichever of the two ships first owns the re-consent
 flow; the second reuses it rather than making users re-authorize twice.
 Playlist highlights shipped it first (the picker's "Allow access"); the
-starter-import draft reuses it.
+starter import reuses it.
 
 ---
 

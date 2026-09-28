@@ -1,9 +1,11 @@
 # Spotify Starter Import — A Head Start, Chosen by You
 
-> **Status: DRAFT — awaiting Founder approval.** Tier 1 per WORKFLOW.md §1
-> (changes how user data is collected; widens the Spotify grant). Nothing here
-> is implemented. Drafted 2026-09-28 from the ROADMAP NEXT item "Spotify
-> starter-library import".
+> **Status: APPROVED by the Founder, 2026-09-28.** Tier 1 per WORKFLOW.md §1
+> (changes how user data is collected; widens the Spotify grant). Not yet
+> implemented. Drafted 2026-09-28 from the ROADMAP NEXT item "Spotify
+> starter-library import"; all open questions resolved in the Founder's review
+> the same day. Its review-nudge idea became an addition to
+> `specs/phase-2-highlights.md`.
 
 ---
 
@@ -143,7 +145,7 @@ requesting the scope. Nothing is stored, so nothing to preserve.
 
 # Open Questions
 
-_Founder decides._
+_All resolved in the Founder's review, 2026-09-28._
 
 1. ~~**Is "import as suggestions" what you meant by a starter library?**~~
    **RESOLVED 2026-09-28 — yes.** A user with Spotify connected gets a quick

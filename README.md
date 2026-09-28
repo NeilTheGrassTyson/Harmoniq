@@ -40,7 +40,7 @@ Harmoniq/
 
 **Phase 1 (NOW) is complete.** Music Catalog, User Accounts, Search, Ratings & Reviews, Follows, Home, Spotify integration, Melody, Notifications, Moderation, the Visibility Audit, and Deployment Verification have all shipped — see [ROADMAP.md](ROADMAP.md) for the checklist and dates. Phase 2 (NEXT) work starts from specs in `specs/`, written per [WORKFLOW.md](WORKFLOW.md).
 
-**Phase 2 (NEXT) is under way.** Harmony v1, Melody reactions and streaming links are merged into `dev` (PR #74). Friend Requests, Listen History and Highlights (with Spotify playlists) are implemented and awaiting Founder review. Demo + Open, Global Search and Discovery have approved specs; the Spotify starter import has a draft spec awaiting approval. ROADMAP.md's NEXT tier has the current state of each.
+**Phase 2 (NEXT) is under way.** Harmony v1, Melody reactions and streaming links are merged into `dev` (PR #74). Friend Requests, Listen History and Highlights (with Spotify playlists) are implemented and awaiting Founder review. Demo + Open, Global Search, Discovery and the Spotify starter import all have approved specs. ROADMAP.md's NEXT tier has the current state of each.
 
 ---
 
