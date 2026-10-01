@@ -18,10 +18,17 @@ remains with the Founder; this feature PR targets `dev`, not production.
 ### Harmony, Friend Requests, Listen History and Highlights
 
 Four migrations are pending on production, in this order. **None of them runs
-by itself** (see the next section): run `alembic upgrade head` against the
-production database *before* the backend that needs them goes live, or every
-request that touches `users` fails with `column users.visibility_harmony does
-not exist` — which is exactly what happened on dev before it was migrated.
+by itself** (see the next section), and they must reach the database *before*
+the backend that needs them goes live, or every request that touches `users`
+fails with `column users.visibility_harmony does not exist` — which is exactly
+what happened on dev before it was migrated.
+
+**Running `alembic upgrade head` in the production service's own shell cannot
+apply them.** That container holds the last release's code, and these four
+files exist only on `dev` until the release merges to `main`; Alembic reports
+"nothing to do" and exits cleanly. Apply them either with the pre-deploy fix
+below (the release then migrates itself) or by running Alembic from a checkout
+of `dev` against production's **direct** connection string, before merging.
 
 | Revision       | Adds                                                                 |
 | -------------- | -------------------------------------------------------------------- |
@@ -164,9 +171,10 @@ origins) unless one redirects to the other before any page loads.
 ### Ongoing deployment
 
 Push to `main` → Railway deploys automatically.  
-Migrations do **not** run as part of it. Run `alembic upgrade head` against the
-production database first, then let the deploy proceed — migrations must
-precede the application code that needs them.
+Migrations do **not** run as part of it. They must be applied before the deploy
+that needs them, from a checkout of the commit being deployed — the running
+service's shell only has the *previous* release's migration files, so it cannot
+apply a new one. Migrations must precede the application code that needs them.
 
 ### Clerk webhook (production)
 
@@ -307,12 +315,14 @@ parent `production`). It holds production's data as of creation and its role
 password is copied from production's — reset the role's password on the `dev`
 branch itself so the two credentials differ. Railway `dev` uses this branch's
 **pooled** connection string, converted to asyncpg form (see Connection strings
-above). It must be a host starting `ep-wandering-term-…`; if it starts
-`ep-bitter-butterfly-…` it is production's.
+above). Its host must be the `dev` branch's endpoint (Neon → Branches → `dev` →
+Connect). If it matches the `production` branch's endpoint instead, stop — that
+is the live database.
 
 **Railway.** In the same project, a second environment named `dev`, service
 source branch `dev`, root directory `/backend`, with its own public domain
-(`harmoniq-dev-cf4b.up.railway.app`). Duplicating production copies **every**
+(a generated `*.up.railway.app` domain, written `<dev-backend>` below).
+Duplicating production copies **every**
 variable, including production's — go through all of them:
 
 | Variable | Dev value |
@@ -336,7 +346,7 @@ Git branch `dev` (harmoniq.live is on Vercel DNS, so the record is created for
 you). Preview-scoped variables, each scoped to branch `dev` so other previews do
 not inherit them:
 
-- `NEXT_PUBLIC_API_URL` = `https://harmoniq-dev-cf4b.up.railway.app` — a bare
+- `NEXT_PUBLIC_API_URL` = `https://<dev-backend>.up.railway.app` — a bare
   origin **with** `https://`, no trailing slash.
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = the production `pk_live_…` key. There is
   none for Preview by default, and without it the app cannot start.
@@ -365,10 +375,11 @@ with existing accounts.
 **Checking it.** None of these needs a sign-in:
 
 ```bash
-curl -s  https://harmoniq-dev-cf4b.up.railway.app/api/v1/health              # 200
-curl -s -o /dev/null -w '%{http_code}\n' https://harmoniq-dev-cf4b.up.railway.app/api/v1/users/no-such-user   # 404, not 500
-curl -s -o /dev/null -w '%{http_code}\n' https://harmoniq-dev-cf4b.up.railway.app/docs                        # 404
-curl -si -H "Origin: https://dev.harmoniq.live" https://harmoniq-dev-cf4b.up.railway.app/api/v1/health | grep -i access-control-allow-origin
+DEV=https://<dev-backend>.up.railway.app
+curl -s  $DEV/api/v1/health                                                  # 200
+curl -s -o /dev/null -w '%{http_code}\n' $DEV/api/v1/users/no-such-user     # 404, not 500
+curl -s -o /dev/null -w '%{http_code}\n' $DEV/docs                          # 404
+curl -si -H "Origin: https://dev.harmoniq.live" $DEV/api/v1/health | grep -i access-control-allow-origin
 ```
 
 A `404` on the second means the request reached the database and found no such
@@ -410,8 +421,8 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   2026-09-30: it is not a Railpack problem — `releaseCommand` is not a Railway
   config key (the key is `preDeployCommand`), so it is ignored. See
   [Migrations do not run on deploy](#migrations-do-not-run-on-deploy). Until
-  `railway.json` is fixed, run `alembic upgrade head` by hand after (better:
-  before) each deploy that includes a migration.
+  `railway.json` is fixed, apply each migration by hand **before** the deploy that
+  needs it (the service shell cannot do it afterwards either — see above).
 - **`DATABASE_URL` hostname typo/mismatch** → `socket.gaierror: [Errno -5]
   No address associated with hostname` on `alembic upgrade head`. Copy the
   host from Neon's connection string dialog exactly; don't hand-edit it.
@@ -658,7 +669,7 @@ starting with DNS. In the order they surfaced:
    build time; the build ran about 21 minutes before `NEXT_PUBLIC_API_URL` was
    created. A deployment's creation time against a variable's `createdAt` is
    the check.
-3. **`NEXT_PUBLIC_API_URL` had no `https://`** (`harmoniq-dev-cf4b.up.railway.app`).
+3. **`NEXT_PUBLIC_API_URL` had no `https://`** (a bare `….up.railway.app` hostname).
    `lib/apiBase.ts` reports it as "not an absolute URL" in the browser console.
 4. **No Preview `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.** Only the Production
    target had one, and the app cannot start without it. Nothing warns at build
