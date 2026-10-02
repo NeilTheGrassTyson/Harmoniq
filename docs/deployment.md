@@ -283,8 +283,12 @@ consequence — **"Reset from parent" is available on `production`, and running
 it would replace every live user, rating, follow and Melody with the stale
 root.** That is the ordinary way to refresh a staging branch, so the button is
 one plausible mis-click from destroying production. Neon's **branch
-protection** (paid plans) blocks reset and deletion; it is the guardrail, and
-the naming is only a label on top of it.
+protection** blocks reset and deletion and is the proper guardrail, **but it is
+not available on the current Neon plan** (checked 2026-10-02), so nothing
+technical stops the click. The guardrail is therefore a rule: never use
+"Reset from parent" on `production`, and check the branch name in the page
+header before using it on any branch. Using it on `dev` is the safe direction
+(see [Testing on dev](#testing-on-dev-before-a-release)).
 
 **Railway binds to an endpoint ID, not a branch name.** Renaming a branch does
 not move its compute, so `DATABASE_URL` keeps working across renames — and
@@ -369,10 +373,28 @@ every preview build was pointed at the dev backend; scope it to `dev`.)
 mode (`all_except_custom_domains`) exempts only *production* custom domains.
 `dev.harmoniq.live` is a custom domain on a *preview* branch, so it is gated: a
 signed-out visitor gets a 302 to `vercel.com/sso-api`, and the site looks down.
-Vercel cannot exempt one preview domain. Either turn Vercel Authentication off
-for the project (every `*.vercel.app` preview URL then becomes public, with
-Clerk the only gate) or keep it on and accept that dev is reachable only while
-signed in to Vercel. Whichever is chosen, record it here.
+Vercel cannot exempt one preview domain. **Decision (2026-10-02, Founder):
+Vercel Authentication stays on.** Dev is therefore reachable only by people whose
+Vercel account has access to the project; everyone else — including a Harmoniq
+user with a perfectly good production login — is stopped at a Vercel sign-in
+page before Clerk is ever reached. That is the barrier working, not a fault.
+Check it from a private window: a signed-out request gets a 302 to
+`vercel.com/sso-api`.
+
+To let another person in, add them to the Vercel team (Team Settings → Members →
+Invite, by the email on their Vercel account). Whether that is possible depends
+on the Vercel plan: on a personal Hobby account only the owner can pass the
+gate. Two limits to know about:
+
+- The gate protects the *site*. The dev backend is a public URL, and because dev
+  uses production's Clerk instance, a production session token is accepted by it.
+  Real exposure is small (the dev database is a copy of what production already
+  serves publicly, and CORS only allows `dev.harmoniq.live` from a browser), but
+  it is not a login barrier. An application-level allowlist that rejects any
+  Clerk user not on a list, in both the backend and `proxy.ts`, would close it;
+  it is an authentication change and so needs a spec (WORKFLOW.md §1).
+- Turning Vercel Authentication off to let someone in opens **every** preview
+  URL, not just dev.
 
 **Clerk.** Dev uses production's Clerk instance, which only works on
 `harmoniq.live` and its subdomains — never `*.vercel.app` — which is why dev
@@ -396,6 +418,91 @@ A `404` on the second means the request reached the database and found no such
 user; a `500` means it did not. Then confirm nothing leaked into production:
 `SELECT version_num FROM alembic_version;` on the `production` branch must still
 show whatever it showed before.
+
+### Testing on dev before a release
+
+Dev is the only place a change can be tried signed in against a real backend and
+a copy of real data before it reaches production. (A feature branch's own Vercel
+preview cannot sign in: the production Clerk instance only works on
+`harmoniq.live` and its subdomains, never `*.vercel.app`.) So the test step is
+**merging the feature PR into `dev`**, and `dev → main` is the release.
+
+**How a change gets there.** Merging a PR into `dev` triggers two builds, each
+about a minute or two: Vercel builds branch `dev` and moves `dev.harmoniq.live`
+to it, and Railway's `dev` environment redeploys and runs its pre-deploy
+migration against the Neon `dev` branch. Confirm both finished — Vercel
+deployment `READY`, Railway deploy `SUCCESS` with `APP_ENV: production
+(debug=False)` in its log — before testing, or you will be testing the old build.
+
+**Before you test.**
+
+1. **Can you get in?** Dev is behind a Vercel login (see Deployment Protection
+   above). Use a browser signed in to a Vercel account with access, then sign in
+   to Harmoniq normally. A friend's laptop stopping at a Vercel page is the
+   barrier working.
+2. **How stale is the data?** The `dev` Neon branch is a snapshot of production
+   from when it was created. Compare `SELECT count(*) FROM users;` (and
+   whatever the feature touches) on `dev` and `production`. To refresh, use
+   **Reset from parent on the `dev` branch only** — that overwrites `dev` with
+   production's current data *and its older schema*, so the next Railway `dev`
+   deploy must run to re-apply pending migrations (a real deploy, not a
+   Redeploy; see [Migrations on deploy](#migrations-on-deploy)).
+3. **Use existing accounts.** Dev holds production's `users`, so sign in with an
+   account that already exists. Do not sign up or onboard a new account on dev:
+   it writes `publicMetadata.onboarded` on a real Clerk account that has no
+   matching production row.
+
+**What to test.** The feature's acceptance criteria in its spec, plus the paths
+a release can break: sign-in lands on the existing profile (not onboarding), a
+profile and search load, a Melody can be sent and opened, and the feature itself
+end to end. Checks that need no sign-in are listed under "Checking it" above.
+
+**What a pass on dev does and does not prove.**
+
+- Dev turns the three opt-in switches on (`LISTEN_HISTORY_ENABLED`,
+  `HIGHLIGHTS_ENABLED`, `PLAYLIST_HIGHLIGHTS_ENABLED`); production defaults them
+  off. Something that works on dev is not visible on production until its switch
+  is set there too.
+- Dev has no R2 and no Clerk webhook, so avatar upload and Clerk-side profile
+  sync cannot be tested there.
+- Spotify sign-in works only because `https://dev.harmoniq.live/spotify-callback`
+  is registered in the Spotify dashboard.
+- Flows that need **two** accounts (friend requests, Melody send and respond)
+  can only be exercised if you can sign in as two accounts that already exist in
+  the copied data. Where you cannot, say so in the PR rather than implying the
+  flow was tried.
+- It is one small database and one replica. It says nothing about load.
+
+### Releasing `dev` to `main`
+
+The release is a single `dev → main` PR (GITHUB_WORKFLOW.md §2). Before merging:
+
+1. **Tested on dev**, and the PR body says what was tried and what was not.
+2. **CI green** on the PR.
+3. **Migrations.** Compare `SELECT version_num FROM alembic_version;` on
+   production with `alembic heads` in the release. Anything between them is
+   applied by the release's pre-deploy step before the new backend starts; dev
+   has already run the same files against a production copy. A migration that
+   fails fails the deploy and the previous release keeps serving.
+4. **Switches.** `FRIENDSHIPS_ENABLED` defaults to on, so friend requests go
+   live with this release and existing mutual follows are converted to
+   friendships by the migration. The three opt-in switches default off; set them
+   on the production Railway service when ready. Enabling
+   `PLAYLIST_HIGHLIGHTS_ENABLED` makes each connected Spotify user re-authorize.
+5. **Variables.** Shipping with the switches off needs no new production
+   variables; check the feature's spec before enabling one.
+
+After merging, verify rather than assume:
+
+6. Railway **production** deploy log shows the `Running upgrade …` lines, then
+   `APP_ENV: production (debug=False)`.
+7. On the Neon `production` branch, `SELECT version_num FROM alembic_version;`
+   shows the new head.
+8. `harmoniq.live` loads and signs in, and
+   `/api/v1/users/<nobody>` on the production backend returns 404, not 500.
+
+To withdraw a feature, set its switch to `false`; do not run an Alembic
+downgrade against production.
 
 ---
 

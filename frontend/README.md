@@ -136,7 +136,7 @@ There is no shared fetch wrapper. Each domain has a typed client in `src/lib/` t
 
 ## Deployment
 
-Vercel auto-deploys `main`. Feature branches get automatic preview URLs.
+Vercel auto-deploys `main` to production and `dev` to `dev.harmoniq.live` (behind a Vercel login), which is where to test signed-in before a release — see [docs/deployment.md](../docs/deployment.md#testing-on-dev-before-a-release). Other branches get automatic preview URLs, which cannot sign in because the production Clerk instance only works on `harmoniq.live` subdomains.
 
 Root directory in Vercel: `frontend`  
 Environment variables are configured in the Vercel dashboard — see [docs/deployment.md](../docs/deployment.md).

@@ -86,3 +86,20 @@ Developer merges to main via PR
 - `railway.json` in `backend/` configures the release command.
 - CORS on the backend must explicitly allow the Vercel production domain
   and localhost for development.
+
+---
+
+## Addendum, 2026-10-02
+
+The decision above stands; two of its consequences were not as written.
+
+- **The "release command" was never configured.** `railway.json` declared
+  `releaseCommand`, which is not a Railway config key; Railway's key is
+  `preDeployCommand`, and an unrecognised key is silently ignored. No deploy ever
+  ran a migration from it. Corrected on `dev` (`059331e`); production gets the
+  fix with the next `dev → main` release. Details and the traps (a Redeploy
+  does not run it) are in `docs/deployment.md`, "Migrations on deploy".
+- **There is now a third environment.** `dev.harmoniq.live` — a Vercel branch
+  domain, a Railway `dev` environment and a Neon `dev` branch — exists to test
+  changes signed in before release. It does not alter the Vercel + Railway
+  choice; see `docs/deployment.md`, "Dev environment".

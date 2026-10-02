@@ -197,8 +197,9 @@ scope already assumes; it grants nothing by itself beyond what a user has
 already pointed at that scope._
 
 Spec approved 2026-09-19, open questions resolved 2026-09-27:
-`specs/phase-2-friend-requests.md`. **Implemented** on
-`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review. On by default
+`specs/phase-2-friend-requests.md`. **Implemented**, merged into `dev`
+(PR #82, 2026-09-28) and deployed to `dev.harmoniq.live`; not yet released to
+production. Goes live with the `dev → main` release once tested. On by default
 (`FRIENDSHIPS_ENABLED`); existing mutual follows migrate to friendships. Ships
 before `specs/phase-2-rating-visibility-split.md`, whose friends-only
 commentary is meaningless until a viewer can actually become a friend.
@@ -212,8 +213,9 @@ deleted when it is withdrawn or the provider is disconnected. Provider-sourced
 rows are structurally unreachable from recommendation code._
 
 Spec approved 2026-09-19 (rev 4), decisions 2026-09-27:
-`specs/phase-2-listen-history.md`. **Implemented** on
-`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review. Off by default
+`specs/phase-2-listen-history.md`. **Implemented**, merged into `dev`
+(PR #82, 2026-09-28) and deployed to `dev.harmoniq.live`; not yet released to
+production. Off by default
 (`LISTEN_HISTORY_ENABLED`) and per-user opt-in in Settings.
 
 ### Highlights
@@ -226,9 +228,10 @@ every highlight being added explicitly. An attached review stays gated by the
 owner's separate rating visibility._
 
 Spec approved with modification 2026-09-19, open questions resolved
-2026-09-27: `specs/phase-2-highlights.md`. **Implemented** on
-`claude/astra-harmoniq-v1-eval-6hkz4x`, awaiting Founder review, including
-**playlist highlights from Spotify**. Two switches, both off by default:
+2026-09-27: `specs/phase-2-highlights.md`. **Implemented**, merged into `dev`
+(PR #82, 2026-09-28) and deployed to `dev.harmoniq.live`; not yet released to
+production. Includes **playlist highlights from Spotify**. Two switches, both
+off by default:
 `HIGHLIGHTS_ENABLED`, and `PLAYLIST_HIGHLIGHTS_ENABLED`, which is also the only
 time the wider Spotify scope is requested.
 
