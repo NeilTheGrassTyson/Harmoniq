@@ -171,4 +171,4 @@ alembic downgrade -1
 alembic history
 ```
 
-Migrations run automatically as a Railway release command before each deploy (`railway.json`). Always run `alembic upgrade head` locally after pulling changes that include new migration files.
+Migrations run automatically as Railway's `preDeployCommand` (`railway.json`) before each new release starts; a failing migration fails the deploy and the previous release keeps serving. This was misnamed `releaseCommand`, which Railway ignores, until 2026-10-02, and **production only gets the fix with the next `dev → main` release** — see [docs/deployment.md](../docs/deployment.md#migrations-on-deploy). Always run `alembic upgrade head` locally after pulling changes that include new migration files.

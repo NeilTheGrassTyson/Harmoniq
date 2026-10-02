@@ -169,6 +169,14 @@ or deployed. The runner shuts down its servers and database container.
    and `reacted_at`, and a reaction check constraint. There is no destructive
    migration or inferred historical-reaction backfill. Application flags do
    not make the new ORM compatible with an unmigrated database.
+
+   > **Note, 2026-10-02 (the original review text above is unchanged).** The
+   > "existing Railway release migration command" never ran: `railway.json`
+   > named it `releaseCommand`, which Railway ignores, and it is now
+   > `preDeployCommand` on `dev`. And `a9b0c1d2e3f4` is no longer the head: three
+   > later migrations (`b0c1d2e3f4a5` to `d2e3f4a5b6c7`) are also on `dev`, so
+   > the release head is `d2e3f4a5b6c7`. See
+   > [`docs/deployment.md`](../deployment.md#migrations-on-deploy).
 3. The backend flags `HARMONY_ENABLED`, `MELODY_REACTIONS_ENABLED` and
    `STREAMING_LINKS_ENABLED` default to `true`. No new credentials are required.
    Existing CORS, Clerk and MusicBrainz settings remain necessary. Deploy the

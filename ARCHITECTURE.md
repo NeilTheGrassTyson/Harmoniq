@@ -530,12 +530,21 @@ and validated at their call sites — Alembic migrations can run with only
 
 ## Deployment Flow
 
-- **Frontend:** Push to `main` → Vercel auto-deploys. Feature branches get
-  automatic preview URLs.
-- **Backend:** Push to `main` → Railway auto-deploys via Procfile
-  (`web: uvicorn app.main:app --host 0.0.0.0 --port $PORT`).
-- **Database migrations:** Run `alembic upgrade head` as a Railway release
-  command before the new backend revision receives traffic.
+- **Frontend:** Push to `main` → Vercel auto-deploys. Push to `dev` → Vercel
+  builds `dev.harmoniq.live`. Other branches get automatic preview URLs, which
+  cannot sign in (production Clerk only works on `harmoniq.live` subdomains).
+- **Backend:** Push to `main` → Railway auto-deploys the `production`
+  environment; push to `dev` → the `dev` environment. Start command in
+  `backend/railway.json`.
+- **Database migrations:** `alembic upgrade head` runs as Railway's
+  `deploy.preDeployCommand` in `backend/railway.json`: after the build, before
+  the new revision starts. It was misnamed `releaseCommand` (not a Railway key)
+  until 2026-10-02, so before that no deploy ever migrated. Production gets the
+  fix with the next `dev → main` release. See `docs/deployment.md`.
+
+Three environments: local (Neon `staging` branch), dev (`dev.harmoniq.live`, Neon
+`dev` branch, a copy of production data) and production. How to test on dev and
+release to production: `docs/deployment.md`.
 
 ---
 
@@ -579,10 +588,11 @@ npm run dev
 One direction only: feature branch → `dev` → `main` (WORKFLOW.md §1).
 
 - `main` — production. Reached only by a single `dev → main` PR.
-- `dev` — integration. Permanent and protected; feature PRs land here.
-- Feature branches get a Vercel preview URL. There is no per-branch Neon
-  database; production deploys directly for the current friends-only round,
-  with a `staging` Neon branch planned for the next tier (`docs/deployment.md`).
+- `dev` — integration. Permanent and protected; feature PRs land here, and it
+  is deployed to `dev.harmoniq.live` for testing before release.
+- Feature branches get a Vercel preview URL but no database of their own: the
+  Neon `dev` branch serves dev, and `preview/*` branches the Neon–Vercel
+  integration creates are unused (`docs/deployment.md`).
 
 Naming, PR conventions, CI triggers and branch protection are in
 `docs/GITHUB_WORKFLOW.md`, which is authoritative where this summary is brief.
