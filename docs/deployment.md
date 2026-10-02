@@ -3,21 +3,36 @@
 Harmoniq uses a split deployment:
 
 - **Frontend** → Vercel (automatic from `main`)
-- **Backend** → Railway (automatic from `main`, with migration release command)
+- **Backend** → Railway (automatic from `main`; migrations are **not**
+  automatic — see [Migrations do not run on deploy](#migrations-do-not-run-on-deploy))
 - **Database** → Neon (managed PostgreSQL, always on)
+
+There is also a dev environment (`dev.harmoniq.live`, fed by the `dev` branch);
+see [Dev environment](#dev-environment--devharmoniqlive).
 
 For Phase 2 Harmony, Melody reactions, and streaming links (PR #74), follow
 the [migration and rollback instructions](reviews/phase-2-v1-verification.md#release-and-rollback).
 The additive migration must run before the new backend starts. Merge authority
 remains with the Founder; this feature PR targets `dev`, not production.
 
-### Friend Requests, Listen History and Highlights
+### Harmony, Friend Requests, Listen History and Highlights
 
-Three migrations, all run by the existing release command (`alembic upgrade
-head`) before the new backend starts:
+Four migrations are pending on production, in this order. **None of them runs
+by itself** (see the next section), and they must reach the database *before*
+the backend that needs them goes live, or every request that touches `users`
+fails with `column users.visibility_harmony does not exist` — which is exactly
+what happened on dev before it was migrated.
+
+**Running `alembic upgrade head` in the production service's own shell cannot
+apply them.** That container holds the last release's code, and these four
+files exist only on `dev` until the release merges to `main`; Alembic reports
+"nothing to do" and exits cleanly. Apply them either with the pre-deploy fix
+below (the release then migrates itself) or by running Alembic from a checkout
+of `dev` against production's **direct** connection string, before merging.
 
 | Revision       | Adds                                                                 |
 | -------------- | -------------------------------------------------------------------- |
+| `a9b0c1d2e3f4` | `users.visibility_harmony`, `melodies.reaction`, `melodies.reacted_at` (PR #74) |
 | `b0c1d2e3f4a5` | `friendships`, `users.friend_request_scope`; converts mutual follows |
 | `c1d2e3f4a5b6` | `listens`, `users.store_listening`                                   |
 | `d2e3f4a5b6c7` | `highlights`, `users.visibility_highlights`                          |
@@ -25,6 +40,34 @@ head`) before the new backend starts:
 Every change is additive, and the friendships conversion creates rows
 *alongside* follows, never in place of them. Roll application code back with
 the switches below; do not run an Alembic downgrade against production.
+
+### Migrations do not run on deploy
+
+`backend/railway.json` declares `deploy.releaseCommand`. **Railway has no such
+key.** Its config-as-code schema
+([`railway.com/railway.schema.json`](https://railway.com/railway.schema.json))
+knows `preDeployCommand` and nothing called `releaseCommand`. An unrecognised
+key is not an error — production and dev both deployed with it and neither ever
+ran a migration — so the command has been silently ignored. That is the root
+cause of the "release command silently not running" entry under Troubleshooting,
+which was recorded there as unexplained.
+
+Until `railway.json` is corrected (a change that also alters the production
+deploy pipeline, so it is the Founder's call), migrate by hand. The dev service
+shows the fix works: it has `preDeployCommand: cd /app && alembic upgrade head`
+set on the service itself in Railway (Settings → Deploy → Pre-deploy Command).
+Its deploy log then shows the four `Running upgrade …` lines, from a short-lived
+container that exits before the app's own container starts.
+
+Two traps when using it:
+
+- The command is read when a deployment is **created**. A *Redeploy* replays the
+  previous deployment's config and cached build and does not run it. Trigger a
+  real deploy (a push, or a variable change that actually changes a value —
+  re-saving an unchanged value starts nothing).
+- It runs against whatever `DATABASE_URL` currently holds. Confirm that points at
+  the intended Neon endpoint **before** the first deploy that carries the
+  command.
 
 | Switch                        | Default | Off means                                                          |
 | ----------------------------- | ------- | ------------------------------------------------------------------ |
@@ -121,14 +164,17 @@ origins) unless one redirects to the other before any page loads.
    than loudly at startup: the service boots fine and the feature is simply
    dead. There is no `DEBUG` variable — verbose logging is derived from
    `APP_ENV`.
-5. Railway reads `railway.json` and runs `alembic upgrade head` as a release
-   command before traffic shifts to each new revision.
+5. Railway reads `railway.json`, but its `releaseCommand` is not a key Railway
+   recognises, so **no migration runs on deploy** — see
+   [Migrations do not run on deploy](#migrations-do-not-run-on-deploy).
 
 ### Ongoing deployment
 
 Push to `main` → Railway deploys automatically.  
-The release command runs migrations before the new revision goes live —
-migrations always precede application code during a deploy.
+Migrations do **not** run as part of it. They must be applied before the deploy
+that needs them, from a checkout of the commit being deployed — the running
+service's shell only has the *previous* release's migration files, so it cannot
+apply a new one. Migrations must precede the application code that needs them.
 
 ### Clerk webhook (production)
 
@@ -194,18 +240,26 @@ Neon provides two connection string types:
 - **Pooled** (PgBouncer) — for the live application (`DATABASE_URL` in Railway)
 
 Use the pooled string in `DATABASE_URL` for the running application.  
-Use the direct string when running `alembic upgrade head` (pooler doesn't
-support the `SET` commands Alembic uses for advisory locks).
+Use the direct string when running `alembic upgrade head` by hand (pooler
+doesn't support the `SET` commands Alembic uses for advisory locks). In both
+cases the URL must be in **asyncpg form**: scheme `postgresql+asyncpg://`, and
+the query string exactly `?ssl=require`. Neon's dialog hands you the libpq form
+(`postgresql://…?sslmode=require&channel_binding=require`); converting it is the
+step people miss — see the `sslmode` entries under Troubleshooting.
 
 ### Branches
 
-| Branch       | Role                                                 |
-| ------------ | ---------------------------------------------------- |
-| `production` | **The live database.** Railway points here. Default. |
-| `staging`    | Root branch; a stale copy. Safe for local dev.       |
-| `feature/*`  | Ephemeral per-feature branches                       |
+| Branch       | Role                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| `production` | **The live database.** Railway production points here. Default.      |
+| `dev`        | Child of `production`. Railway `dev` environment points here.         |
+| `staging`    | Root branch; a stale copy. Safe for local dev.                       |
+| `preview/*`  | Created automatically by the Neon–Vercel integration, one per Vercel preview deploy. Nothing uses them; ignore. |
+| `feature/*`  | Ephemeral per-feature branches                                       |
 
-Feature branches are deleted after the PR merges.
+Feature branches are deleted after the PR merges. A `dev` or `preview/*` branch
+is a **point-in-time copy**: it has whatever `production` held when it was
+created, not what it holds now.
 
 There is no `main` branch. This table said there was until 2026-08-30, and
 said production lived on it — wrong on both the name and the role, which is
@@ -231,17 +285,107 @@ branch lists; that is the only authoritative mapping.
 
 ## Environment separation
 
-| Environment | Frontend           | Backend                 | Database                 |
-| ----------- | ------------------ | ----------------------- | ------------------------ |
-| Development | `localhost:3000`   | `localhost:8000`        | Neon `staging` branch    |
-| Staging     | Vercel preview URL | Railway staging service | Neon `staging` branch    |
-| Production  | Vercel production  | Railway production      | Neon `production` branch |
+| Environment | Frontend                                         | Backend                                | Database                 |
+| ----------- | ------------------------------------------------ | -------------------------------------- | ------------------------ |
+| Local       | `localhost:3000`                                 | `localhost:8000`                       | Neon `staging` branch    |
+| Dev         | `dev.harmoniq.live` (Vercel preview, branch `dev`) | Railway `dev` environment, branch `dev` | Neon `dev` branch        |
+| Production  | `harmoniq.live` (Vercel production, `main`)      | Railway `production` environment, `main` | Neon `production` branch |
+
+Railway has exactly two environments, `production` and `dev`. An earlier version
+of this table listed a "Staging" row (a Vercel preview URL and a "Railway
+staging service") that never existed.
 
 Local `backend/.env` points at `staging`, which is correct — development must
 not write to the live database. It also means a migration run locally has not
-touched production. Railway's release command migrates production on deploy;
-if you need to confirm, compare `alembic_version` on both branches rather than
-assuming they agree.
+touched production. Production is migrated by hand (see
+[Migrations do not run on deploy](#migrations-do-not-run-on-deploy)), so
+compare `alembic_version` on the branches rather than assuming they agree.
+
+---
+
+## Dev environment — dev.harmoniq.live
+
+Set up 2026-09-28 to 2026-09-30. It exists so a `dev` build can be exercised
+against a copy of real data before anything reaches `main`. Everything below is
+the configuration that was verified working; the incident it came from is under
+Troubleshooting.
+
+**Neon.** Branch `dev`, created from `production` (Branches → Create branch,
+parent `production`). It holds production's data as of creation and its role
+password is copied from production's — reset the role's password on the `dev`
+branch itself so the two credentials differ. Railway `dev` uses this branch's
+**pooled** connection string, converted to asyncpg form (see Connection strings
+above). Its host must be the `dev` branch's endpoint (Neon → Branches → `dev` →
+Connect). If it matches the `production` branch's endpoint instead, stop — that
+is the live database.
+
+**Railway.** In the same project, a second environment named `dev`, service
+source branch `dev`, root directory `/backend`, with its own public domain
+(a generated `*.up.railway.app` domain, written `<dev-backend>` below).
+Duplicating production copies **every**
+variable, including production's — go through all of them:
+
+| Variable | Dev value |
+| --- | --- |
+| `APP_ENV` | `production` — not `development`. That value serves `/docs` publicly and echoes every SQL statement. Confirm the deploy log reads `APP_ENV: production (debug=False)`. |
+| `DATABASE_URL` | Neon `dev` branch, pooled, asyncpg form |
+| `CORS_ALLOWED_ORIGINS` | `https://dev.harmoniq.live` — dev only, no trailing slash |
+| `SPOTIFY_REDIRECT_URI` | `https://dev.harmoniq.live/spotify-callback`, registered byte-identically in the Spotify dashboard |
+| `TOKEN_ENCRYPTION_KEY` | A **new** Fernet key — never production's. Spotify links copied from production then stop decrypting, and users reconnect |
+| `LISTEN_HISTORY_ENABLED`, `HIGHLIGHTS_ENABLED`, `PLAYLIST_HIGHLIGHTS_ENABLED` | `true` (they default to off) |
+| `CLERK_JWKS_URL`, `CLERK_SECRET_KEY` | Same Clerk instance as the frontend's keys (production's) |
+| `CLERK_WEBHOOK_SECRET`, `R2_*` | Not set. Webhooks and avatar upload stay off on dev |
+| `APP_NAME` | `Harmoniq Dev` (title only) |
+
+The service also carries `preDeployCommand: cd /app && alembic upgrade head`,
+set in the Railway UI, because `railway.json` does not (see
+[Migrations do not run on deploy](#migrations-do-not-run-on-deploy)).
+
+**Vercel.** Add `dev.harmoniq.live` to the `harmoniq` project and assign it to
+Git branch `dev` (harmoniq.live is on Vercel DNS, so the record is created for
+you). Preview-scoped variables, each scoped to branch `dev` so other previews do
+not inherit them:
+
+- `NEXT_PUBLIC_API_URL` = `https://<dev-backend>.up.railway.app` — a bare
+  origin **with** `https://`, no trailing slash.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = the production `pk_live_…` key. There is
+  none for Preview by default, and without it the app cannot start.
+
+Then trigger a **new build** — both are inlined at build time. (As of
+2026-09-30 the `NEXT_PUBLIC_API_URL` Preview variable was not branch-scoped, so
+every preview build was pointed at the dev backend; scope it to `dev`.)
+
+**Deployment Protection.** Vercel Authentication in its default "Standard"
+mode (`all_except_custom_domains`) exempts only *production* custom domains.
+`dev.harmoniq.live` is a custom domain on a *preview* branch, so it is gated: a
+signed-out visitor gets a 302 to `vercel.com/sso-api`, and the site looks down.
+Vercel cannot exempt one preview domain. Either turn Vercel Authentication off
+for the project (every `*.vercel.app` preview URL then becomes public, with
+Clerk the only gate) or keep it on and accept that dev is reachable only while
+signed in to Vercel. Whichever is chosen, record it here.
+
+**Clerk.** Dev uses production's Clerk instance, which only works on
+`harmoniq.live` and its subdomains — never `*.vercel.app` — which is why dev
+needs a subdomain. Sign-in should land on an existing profile, because the `dev`
+database is a copy of production's `users`. The consequence: `CLERK_SECRET_KEY`
+is `sk_live`, so anyone who **onboards** on dev has `publicMetadata.onboarded`
+written on their real Clerk account with no matching row in production. Use dev
+with existing accounts.
+
+**Checking it.** None of these needs a sign-in:
+
+```bash
+DEV=https://<dev-backend>.up.railway.app
+curl -s  $DEV/api/v1/health                                                  # 200
+curl -s -o /dev/null -w '%{http_code}\n' $DEV/api/v1/users/no-such-user     # 404, not 500
+curl -s -o /dev/null -w '%{http_code}\n' $DEV/docs                          # 404
+curl -si -H "Origin: https://dev.harmoniq.live" $DEV/api/v1/health | grep -i access-control-allow-origin
+```
+
+A `404` on the second means the request reached the database and found no such
+user; a `500` means it did not. Then confirm nothing leaked into production:
+`SELECT version_num FROM alembic_version;` on the `production` branch must still
+show whatever it showed before.
 
 ---
 
@@ -273,9 +417,12 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
 
 - **Railway's `releaseCommand` in `railway.json` silently not running
   migrations under the Railpack builder.** Deploy Logs showed no alembic
-  output between `Starting Container` and `Uvicorn running`. Workaround:
-  run `alembic upgrade head` by hand from the Railway service shell after
-  each deploy that includes a migration, until this is root-caused.
+  output between `Starting Container` and `Uvicorn running`. Root-caused
+  2026-09-30: it is not a Railpack problem — `releaseCommand` is not a Railway
+  config key (the key is `preDeployCommand`), so it is ignored. See
+  [Migrations do not run on deploy](#migrations-do-not-run-on-deploy). Until
+  `railway.json` is fixed, apply each migration by hand **before** the deploy that
+  needs it (the service shell cannot do it afterwards either — see above).
 - **`DATABASE_URL` hostname typo/mismatch** → `socket.gaierror: [Errno -5]
   No address associated with hostname` on `alembic upgrade head`. Copy the
   host from Neon's connection string dialog exactly; don't hand-edit it.
@@ -503,6 +650,64 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   `app/main.py`) and logs an error naming the length — never the value.
   Rotating orphans any already-stored refresh tokens; affected users simply
   reconnect.
+
+### `dev.harmoniq.live` would not load (2026-09-28 to 2026-09-30)
+
+A new dev environment (Vercel branch domain, Railway `dev` environment, Neon
+`dev` branch) came up broken. Seven independent faults stacked, and fixing any
+one of them only exposed the next, which is why it read as one mysterious
+outage. **DNS was fine throughout** — the name resolved to Vercel, the
+certificate was valid, and no typo existed in Vercel, Railway or the repo — so
+work from the outside in and stop at the first broken layer rather than
+starting with DNS. In the order they surfaced:
+
+1. **Vercel Authentication gated the domain.** `curl -I` answered 302 to
+   `vercel.com/sso-api`. Standard protection exempts only production custom
+   domains; a custom domain on a preview branch is protected. See
+   [Dev environment](#dev-environment--devharmoniqlive).
+2. **The dev build predated its variables.** `NEXT_PUBLIC_*` are inlined at
+   build time; the build ran about 21 minutes before `NEXT_PUBLIC_API_URL` was
+   created. A deployment's creation time against a variable's `createdAt` is
+   the check.
+3. **`NEXT_PUBLIC_API_URL` had no `https://`** (a bare `….up.railway.app` hostname).
+   `lib/apiBase.ts` reports it as "not an absolute URL" in the browser console.
+4. **No Preview `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.** Only the Production
+   target had one, and the app cannot start without it. Nothing warns at build
+   time.
+5. **`DATABASE_URL` in libpq form** (`sslmode=require`). Every request touching
+   the database returned 500 with `TypeError: connect() got an unexpected
+   keyword argument 'sslmode'`, while `/api/v1/health` stayed green because it
+   never opens a connection. Health passing says nothing about the database;
+   probe a route that queries it (`/api/v1/users/<nobody>` should be 404).
+6. **`APP_ENV` was `development`** on the duplicated environment: public
+   `/docs` and SQL echoed to the logs, on a service about to sit in front of a
+   copy of production data.
+7. **The dev database had never been migrated**, so once it connected every
+   `users` query failed with `column users.visibility_harmony does not exist`.
+   Four migrations were pending, not the three that were expected — the fourth
+   (`a9b0c1d2e3f4`, PR #74) predates them. Root cause is the `releaseCommand`
+   entry above.
+
+Diagnosis notes worth keeping:
+
+- **Railway variable values are redacted for connected apps** (the MCP
+  connector, the agent tool), so `DATABASE_URL`'s host cannot be read that way.
+  Prove which database a service uses from Neon instead: send one read-only
+  request that touches the database and see which `ep-…` endpoint *started*.
+  Neon reports `started_at` on the endpoint; the `dev` endpoint cold-started
+  seconds before the backend's logged error, while `production`'s did not start
+  until a later query. `pg_stat_activity` is not reliable for this — pooled
+  connections are gone by the time you look.
+- **Production was never touched.** Its `alembic_version` stayed at
+  `f8a9b0c1d2e3` with none of the new tables, its last deploy predates the
+  incident, and its backend returned 404 (not 500) on the same probe throughout.
+  The reason to prove this rather than assume it: a duplicated Railway
+  environment can carry production's `DATABASE_URL`, and a command that
+  migrates on deploy would then have migrated the live database.
+- **A Redeploy is not a deploy.** It replays the previous deployment's config
+  and cached build, so a newly added `preDeployCommand` or changed setting is
+  not picked up. Re-saving a variable at its current value starts nothing
+  either; change a value, or push.
 
 ### Avatar upload fails, or every avatar 404s
 
