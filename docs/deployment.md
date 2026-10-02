@@ -3,8 +3,8 @@
 Harmoniq uses a split deployment:
 
 - **Frontend** → Vercel (automatic from `main`)
-- **Backend** → Railway (automatic from `main`; migrations are **not**
-  automatic — see [Migrations do not run on deploy](#migrations-do-not-run-on-deploy))
+- **Backend** → Railway (automatic from `main`; migrations run as a pre-deploy
+  step — see [Migrations on deploy](#migrations-on-deploy))
 - **Database** → Neon (managed PostgreSQL, always on)
 
 There is also a dev environment (`dev.harmoniq.live`, fed by the `dev` branch);
@@ -17,18 +17,20 @@ remains with the Founder; this feature PR targets `dev`, not production.
 
 ### Harmony, Friend Requests, Listen History and Highlights
 
-Four migrations are pending on production, in this order. **None of them runs
-by itself** (see the next section), and they must reach the database *before*
-the backend that needs them goes live, or every request that touches `users`
-fails with `column users.visibility_harmony does not exist` — which is exactly
-what happened on dev before it was migrated.
+Four migrations are pending on production, in this order. They must reach the
+database *before* the backend that needs them goes live, or every request that
+touches `users` fails with `column users.visibility_harmony does not exist` —
+which is exactly what happened on dev before it was migrated. The `dev → main`
+release carries both these files and the `railway.json` pre-deploy command, so
+its deploy applies them before the new backend starts (see
+[Migrations on deploy](#migrations-on-deploy)).
 
-**Running `alembic upgrade head` in the production service's own shell cannot
-apply them.** That container holds the last release's code, and these four
-files exist only on `dev` until the release merges to `main`; Alembic reports
-"nothing to do" and exits cleanly. Apply them either with the pre-deploy fix
-below (the release then migrates itself) or by running Alembic from a checkout
-of `dev` against production's **direct** connection string, before merging.
+**Running `alembic upgrade head` in the production service's own shell ahead of
+that release cannot apply them.** That container holds the last release's code,
+and these four files exist only on `dev` until the release merges to `main`;
+Alembic reports "nothing to do" and exits cleanly. To apply them earlier, run
+Alembic from a checkout of `dev` against production's **direct** connection
+string.
 
 | Revision       | Adds                                                                 |
 | -------------- | -------------------------------------------------------------------- |
@@ -41,34 +43,6 @@ Every change is additive, and the friendships conversion creates rows
 *alongside* follows, never in place of them. Roll application code back with
 the switches below; do not run an Alembic downgrade against production.
 
-### Migrations do not run on deploy
-
-`backend/railway.json` declares `deploy.releaseCommand`. **Railway has no such
-key.** Its config-as-code schema
-([`railway.com/railway.schema.json`](https://railway.com/railway.schema.json))
-knows `preDeployCommand` and nothing called `releaseCommand`. An unrecognised
-key is not an error — production and dev both deployed with it and neither ever
-ran a migration — so the command has been silently ignored. That is the root
-cause of the "release command silently not running" entry under Troubleshooting,
-which was recorded there as unexplained.
-
-Until `railway.json` is corrected (a change that also alters the production
-deploy pipeline, so it is the Founder's call), migrate by hand. The dev service
-shows the fix works: it has `preDeployCommand: cd /app && alembic upgrade head`
-set on the service itself in Railway (Settings → Deploy → Pre-deploy Command).
-Its deploy log then shows the four `Running upgrade …` lines, from a short-lived
-container that exits before the app's own container starts.
-
-Two traps when using it:
-
-- The command is read when a deployment is **created**. A *Redeploy* replays the
-  previous deployment's config and cached build and does not run it. Trigger a
-  real deploy (a push, or a variable change that actually changes a value —
-  re-saving an unchanged value starts nothing).
-- It runs against whatever `DATABASE_URL` currently holds. Confirm that points at
-  the intended Neon endpoint **before** the first deploy that carries the
-  command.
-
 | Switch                        | Default | Off means                                                          |
 | ----------------------------- | ------- | ------------------------------------------------------------------ |
 | `FRIENDSHIPS_ENABLED`         | `true`  | Friends-scoped checks fall back to mutual follow; `/friends` 404s. |
@@ -80,6 +54,42 @@ Rows are kept while a switch is off and reappear when it's turned back on.
 Turning on `PLAYLIST_HIGHLIGHTS_ENABLED` adds `playlist-read-private` to the
 Spotify request, so each connected user is asked to re-authorize the first
 time they open the playlist picker. Declining leaves listening working.
+
+### Migrations on deploy
+
+`backend/railway.json` runs `alembic upgrade head` as `deploy.preDeployCommand`.
+Railway executes that in a short-lived container after the build and before the
+new release starts; if it fails, the deploy fails and the previous release keeps
+serving. The deploy log shows the `Running upgrade …` lines, then the app's own
+container starting.
+
+**History.** Until 2026-10-02 the file declared `deploy.releaseCommand`, which
+is not a Railway key. Its config-as-code schema
+([`railway.com/railway.schema.json`](https://railway.com/railway.schema.json))
+knows `preDeployCommand` and nothing called `releaseCommand`, and an
+unrecognised key is not an error: production and dev both deployed with it and
+neither ever ran a migration. That is the root cause of the "release command
+silently not running" entry under Troubleshooting, which was recorded there as
+unexplained. The fix (`059331e`) is on `dev`. **Production's service builds
+`main`, which still has the old key, so production deploys do not migrate until
+the next `dev → main` release carries the fix.**
+
+Three traps:
+
+- The command is read when a deployment is **created**. A *Redeploy* replays the
+  previous deployment's config and cached build and does not run it. Trigger a
+  real deploy (a push, or a variable change that actually changes a value —
+  re-saving an unchanged value starts nothing).
+- It runs against whatever `DATABASE_URL` currently holds. Confirm that points at
+  the intended Neon endpoint **before** the first deploy that carries the
+  command.
+- The service's own shell cannot apply a *new* migration, because it only has
+  the files from the release it is running. Migrations ship with the deploy that
+  needs them, or run from a checkout of that commit.
+
+The `dev` Railway service also had the same command set in its UI (Settings →
+Deploy → Pre-deploy Command) from before the file was fixed; with the file
+carrying it, that setting is redundant.
 
 ---
 
@@ -164,17 +174,18 @@ origins) unless one redirects to the other before any page loads.
    than loudly at startup: the service boots fine and the feature is simply
    dead. There is no `DEBUG` variable — verbose logging is derived from
    `APP_ENV`.
-5. Railway reads `railway.json`, but its `releaseCommand` is not a key Railway
-   recognises, so **no migration runs on deploy** — see
-   [Migrations do not run on deploy](#migrations-do-not-run-on-deploy).
+5. Railway reads `railway.json` and runs its `preDeployCommand`
+   (`alembic upgrade head`) before each new release starts — see
+   [Migrations on deploy](#migrations-on-deploy), including why this did not
+   work before 2026-10-02.
 
 ### Ongoing deployment
 
 Push to `main` → Railway deploys automatically.  
-Migrations do **not** run as part of it. They must be applied before the deploy
-that needs them, from a checkout of the commit being deployed — the running
-service's shell only has the *previous* release's migration files, so it cannot
-apply a new one. Migrations must precede the application code that needs them.
+The pre-deploy command applies any pending migrations before the new release
+starts, so migrations precede the application code that needs them. (Production
+gets this once the `railway.json` fix reaches `main`; until then, see
+[Migrations on deploy](#migrations-on-deploy).)
 
 ### Clerk webhook (production)
 
@@ -297,9 +308,9 @@ staging service") that never existed.
 
 Local `backend/.env` points at `staging`, which is correct — development must
 not write to the live database. It also means a migration run locally has not
-touched production. Production is migrated by hand (see
-[Migrations do not run on deploy](#migrations-do-not-run-on-deploy)), so
-compare `alembic_version` on the branches rather than assuming they agree.
+touched production. Production migrates when its deploy runs the pre-deploy
+command (see [Migrations on deploy](#migrations-on-deploy)), so compare
+`alembic_version` on the branches rather than assuming they agree.
 
 ---
 
@@ -337,9 +348,8 @@ variable, including production's — go through all of them:
 | `CLERK_WEBHOOK_SECRET`, `R2_*` | Not set. Webhooks and avatar upload stay off on dev |
 | `APP_NAME` | `Harmoniq Dev` (title only) |
 
-The service also carries `preDeployCommand: cd /app && alembic upgrade head`,
-set in the Railway UI, because `railway.json` does not (see
-[Migrations do not run on deploy](#migrations-do-not-run-on-deploy)).
+Migrations run from `railway.json`'s `preDeployCommand` on each deploy (see
+[Migrations on deploy](#migrations-on-deploy)).
 
 **Vercel.** Add `dev.harmoniq.live` to the `harmoniq` project and assign it to
 Git branch `dev` (harmoniq.live is on Vercel DNS, so the record is created for
@@ -419,10 +429,10 @@ the browser and are easy to misdiagnose without Railway's Deploy Logs.
   migrations under the Railpack builder.** Deploy Logs showed no alembic
   output between `Starting Container` and `Uvicorn running`. Root-caused
   2026-09-30: it is not a Railpack problem — `releaseCommand` is not a Railway
-  config key (the key is `preDeployCommand`), so it is ignored. See
-  [Migrations do not run on deploy](#migrations-do-not-run-on-deploy). Until
-  `railway.json` is fixed, apply each migration by hand **before** the deploy that
-  needs it (the service shell cannot do it afterwards either — see above).
+  config key (the key is `preDeployCommand`), so it is ignored. Fixed on `dev`
+  2026-10-02; see [Migrations on deploy](#migrations-on-deploy). Until the fix
+  reaches `main`, production deploys still do not migrate, and the service shell
+  cannot apply a migration that isn't in the release it is running.
 - **`DATABASE_URL` hostname typo/mismatch** → `socket.gaierror: [Errno -5]
   No address associated with hostname` on `alembic upgrade head`. Copy the
   host from Neon's connection string dialog exactly; don't hand-edit it.
