@@ -61,6 +61,23 @@ let it flow back through the normal `dev → main` PR.
 This rule is the canonical one from WORKFLOW.md §1; it is restated here
 because it is the reason the rest of this document exists.
 
+### Testing on `dev` before releasing
+
+`dev` is not only an integration branch: every merge into it is deployed to
+**`dev.harmoniq.live`** (Vercel branch domain, a Railway `dev` environment, and a
+Neon `dev` database branch), which is the one place a change can be tried signed
+in against a real backend and a copy of real data. A feature branch's own Vercel
+preview cannot sign in, so **merging into `dev` is the test step, and `dev →
+main` is the release**.
+
+In practice: merge the feature PR into `dev`, wait for both deploys to finish,
+then test on `dev.harmoniq.live` (it sits behind a Vercel login). Write what you
+tried — and what you could not — in the release PR's Verification section (§3).
+How to reach it, how stale its data is, what a pass does and does not prove, and
+the release checklist are in
+[`docs/deployment.md`](deployment.md#testing-on-dev-before-a-release) and
+[its release checklist](deployment.md#releasing-dev-to-main).
+
 ### Hotfixes
 
 A genuine production emergency may branch from `main` and PR straight into
@@ -375,8 +392,9 @@ git checkout -b feat/my-thing
 # Ship it
 git push -u origin feat/my-thing
 gh pr create --base dev
+# After it merges, test it on dev.harmoniq.live (see §2, "Testing on dev")
 
-# Release
+# Release (only once tested on dev; checklist in docs/deployment.md)
 gh pr create --base main --head dev
 # dev is protected, so the merge no longer deletes it (see §5)
 ```
