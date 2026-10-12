@@ -13,7 +13,7 @@ import uuid
 from functools import lru_cache, partial
 
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import BotoCoreError, ClientError, ParamValidationError
 
 from app.config import settings
 
@@ -32,6 +32,17 @@ MAX_AVATAR_BYTES: int = 5 * 1024 * 1024  # 5 MB
 
 # Cloudflare account ids are 32 lowercase hex characters.
 _ACCOUNT_ID_RE = re.compile(r"[0-9a-f]{32}")
+
+# An R2 S3 key pair is derived from an R2 API token: the Access Key ID is the
+# token's id (32 hex) and the Secret Access Key is the SHA-256 of the token's
+# value (64 hex). A Cloudflare API token pasted into either field has neither
+# shape, and R2 answers it with a bare 401 "Unauthorized".
+_ACCESS_KEY_ID_RE = re.compile(r"[0-9a-f]{32}")
+_SECRET_ACCESS_KEY_RE = re.compile(r"[0-9a-f]{64}")
+
+# R2 bucket names: 3-63 lowercase letters, digits and hyphens, starting and
+# ending with a letter or digit.
+_BUCKET_NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,61}[a-z0-9]")
 
 
 def detect_image_content_type(data: bytes) -> str | None:
@@ -97,6 +108,31 @@ def describe_configuration_problems() -> list[str]:
         problems.append(
             f"R2_ACCOUNT_ID is {len(account_id)} characters and not 32 lowercase "
             "hex — it is the id from the dashboard URL, not an API token"
+        )
+
+    # Lengths only, never the values: on 2026-10-12 R2_BUCKET_NAME held an
+    # unrelated secret, and botocore wrote it into Deploy Logs verbatim.
+    access_key_id = settings.r2_access_key_id or ""
+    if not _ACCESS_KEY_ID_RE.fullmatch(access_key_id):
+        problems.append(
+            f"R2_ACCESS_KEY_ID is {len(access_key_id)} characters and not 32 "
+            "lowercase hex — it is the Access Key ID shown when an R2 token is "
+            "created, not a Cloudflare API token"
+        )
+
+    secret_access_key = settings.r2_secret_access_key or ""
+    if not _SECRET_ACCESS_KEY_RE.fullmatch(secret_access_key):
+        problems.append(
+            f"R2_SECRET_ACCESS_KEY is {len(secret_access_key)} characters and "
+            "not 64 lowercase hex — it is the Secret Access Key shown when an R2 "
+            "token is created, not a Cloudflare API token"
+        )
+
+    bucket_name = settings.r2_bucket_name or ""
+    if not _BUCKET_NAME_RE.fullmatch(bucket_name):
+        problems.append(
+            f"R2_BUCKET_NAME is {len(bucket_name)} characters and not a valid "
+            "bucket name (3-63 lowercase letters, digits and hyphens)"
         )
 
     public_url = settings.r2_public_url or ""
@@ -177,6 +213,15 @@ async def upload_avatar(data: bytes, content_type: str) -> str:
                 content_type,
             ),
         )
+    except ParamValidationError as exc:
+        # botocore embeds the offending parameter in this message, so logging
+        # it would write a mis-set variable's value into Deploy Logs.
+        logger.error(
+            "R2 upload failed for key=%s: botocore rejected the request "
+            "parameters — check R2_BUCKET_NAME; the boot log names the problem",
+            key,
+        )
+        raise StorageError("Avatar upload failed.") from exc
     except (BotoCoreError, ClientError) as exc:
         logger.error("R2 upload failed for key=%s: %s", key, exc)
         raise StorageError("Avatar upload failed.") from exc
