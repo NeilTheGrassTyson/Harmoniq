@@ -494,7 +494,7 @@ editing anything — nothing is written and no secret is printed:
 
 ```bash
 cd backend && R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
-  R2_BUCKET_NAME=harmoniq-avatars R2_PUBLIC_URL=https://pub-xxxx.r2.dev \
+  R2_BUCKET_NAME=avatars-harmoniq R2_PUBLIC_URL=https://pub-xxxx.r2.dev \
   poetry run python scripts/verify_r2.py
 ```
 
@@ -503,8 +503,8 @@ Where each value comes from, in the Cloudflare dashboard under **R2**:
 | Variable | Where |
 | --- | --- |
 | `R2_ACCOUNT_ID` | R2 overview, right sidebar — also the hex id in the dashboard URL. 32 lowercase hex characters |
-| `R2_BUCKET_NAME` | The bucket you created (`harmoniq-avatars`) |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | **Manage R2 API Tokens** → Create → **Object Read & Write**. Both halves are shown once, together — a mismatched pair means one came from an older token |
+| `R2_BUCKET_NAME` | The bucket you created (production: `avatars-harmoniq`). 3–63 lowercase letters, digits and hyphens |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | **Manage R2 API Tokens** → Create → **Object Read & Write**. Both halves are shown once, together — a mismatched pair means one came from an older token. The Access Key ID is 32 lowercase hex and the Secret Access Key 64; a Cloudflare **API token** (the kind used for the API or Wrangler) is neither, and R2 answers it with `Unauthorized` |
 | `R2_PUBLIC_URL` | Bucket → Settings → **Public access** → the `r2.dev` domain, or a custom domain. **No trailing slash** |
 
 Three traps worth naming, because each one uploads successfully and fails
@@ -522,6 +522,14 @@ newline on the secret makes it silently wrong. The boot log now checks these
 cheap, certain rules (`storage.describe_configuration_problems`, called from
 `_log_r2_configuration` in `app/main.py`) and names the variable; the script
 shares that function and then does the round trip a boot path cannot.
+
+Those rules cover the shape of every variable except the secret's
+correctness: account id and Access Key ID (32 hex), Secret Access Key (64
+hex), bucket name (R2 naming rules) and public URL. Problems are reported by
+length, never by value. On 2026-10-12 `R2_BUCKET_NAME` held an unrelated
+password, and botocore printed it into Deploy Logs on every upload attempt.
+That is also why the upload path no longer logs botocore's parameter-validation
+message verbatim.
 
 ---
 

@@ -24,7 +24,7 @@ To check the production values before trusting them, pass them in rather than
 editing .env — nothing is written anywhere:
 
     R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
-        R2_BUCKET_NAME=harmoniq-avatars R2_PUBLIC_URL=https://pub-x.r2.dev \
+        R2_BUCKET_NAME=avatars-harmoniq R2_PUBLIC_URL=https://pub-x.r2.dev \
         poetry run python scripts/verify_r2.py
 
 Exit code is 0 only if every check passed. No secret is ever printed: values
@@ -115,6 +115,16 @@ def main() -> int:
     except ClientError as exc:
         code = exc.response.get("Error", {}).get("Code", "")
         blame = {
+            "Unauthorized": (
+                "R2 does not recognise this key pair. R2_ACCESS_KEY_ID and "
+                "R2_SECRET_ACCESS_KEY must both come from one R2 API token "
+                "(Access Key ID and Secret Access Key), not a Cloudflare API "
+                "token. Create a new R2 token and replace both."
+            ),
+            "401": (
+                "R2 does not recognise this key pair (R2_ACCESS_KEY_ID / "
+                "R2_SECRET_ACCESS_KEY) — both must come from one R2 API token."
+            ),
             "InvalidAccessKeyId": (
                 "R2_ACCESS_KEY_ID is not a valid key for this account. If you "
                 "rotated the token, the id changed too — both halves must come "
