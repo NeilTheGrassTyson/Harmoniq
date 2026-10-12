@@ -20,6 +20,7 @@ certain, shared by the boot log and that script so the two cannot drift apart.
 import logging
 
 import pytest
+from botocore.exceptions import ParamValidationError
 
 from app import main
 from app.config import Settings
@@ -27,7 +28,13 @@ from app.services import storage
 
 _VALID_ACCOUNT = "0123456789abcdef0123456789abcdef"
 _S3_ENDPOINT = f"https://{_VALID_ACCOUNT}.r2.cloudflarestorage.com"
-_NAMES = ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_PUBLIC_URL")
+_NAMES = (
+    "R2_ACCOUNT_ID",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET_NAME",
+    "R2_PUBLIC_URL",
+)
 
 
 def _settings(**overrides: str | None) -> Settings:
@@ -35,7 +42,7 @@ def _settings(**overrides: str | None) -> Settings:
         "r2_account_id": _VALID_ACCOUNT,
         "r2_access_key_id": "a" * 32,
         "r2_secret_access_key": "b" * 64,
-        "r2_bucket_name": "harmoniq-avatars",
+        "r2_bucket_name": "avatars-harmoniq",
         "r2_public_url": "https://pub-abc123.r2.dev",
     }
     values.update(overrides)
@@ -123,6 +130,35 @@ def test_absence_is_not_this_functions_business(configured) -> None:
             {"r2_access_key_id": " " + "a" * 32},
             "whitespace",
         ),
+        # The 2026-10-12 failures, in order. A Cloudflare API token pasted
+        # where the R2 key pair belongs makes R2 answer a bare 401.
+        (
+            "access key id is a Cloudflare API token",
+            {"r2_access_key_id": "Zx9_" + "k" * 36},
+            "Cloudflare API token",
+        ),
+        (
+            "secret is not the 64-hex SHA-256 form",
+            {"r2_secret_access_key": "c" * 40},
+            "64",
+        ),
+        # R2_BUCKET_NAME once held an unrelated password; botocore rejected it
+        # only at upload time, after boot had reported R2 fully configured.
+        (
+            "bucket name with symbols",
+            {"r2_bucket_name": "H{kQ&=x5s*-abCdE"},
+            "not a valid bucket name",
+        ),
+        (
+            "bucket name with uppercase",
+            {"r2_bucket_name": "Avatars-Harmoniq"},
+            "not a valid bucket name",
+        ),
+        (
+            "bucket name too short",
+            {"r2_bucket_name": "av"},
+            "not a valid bucket name",
+        ),
     ],
 )
 def test_a_broken_value_is_named(configured, label, overrides, expected) -> None:
@@ -138,6 +174,28 @@ def test_a_broken_value_is_named(configured, label, overrides, expected) -> None
     joined = " ".join(problems)
     assert expected in joined, f"{label}: {joined!r} does not explain the problem"
     assert any(name in joined for name in _NAMES), f"{label}: no variable named"
+
+
+@pytest.mark.parametrize(
+    ("variable", "value"),
+    [
+        ("r2_bucket_name", "H{kQ&=x5s*-abCdE"),
+        ("r2_access_key_id", "Zx9_" + "k" * 36),
+        ("r2_secret_access_key", "c" * 40),
+    ],
+)
+def test_a_broken_value_is_never_echoed(configured, variable, value) -> None:
+    """A mis-set variable may hold a secret, so problems report lengths only.
+
+    R2_BUCKET_NAME once held an unrelated password, and botocore printed it
+    into Deploy Logs. The boot log must not repeat that mistake.
+    """
+    configured(**{variable: value})
+
+    problems = storage.describe_configuration_problems()
+
+    assert problems
+    assert value not in " ".join(problems)
 
 
 def test_boot_logs_the_problem_as_an_error(configured, caplog) -> None:
@@ -165,3 +223,29 @@ def test_boot_is_silent_when_r2_is_correct(configured, caplog) -> None:
         main._log_r2_configuration()
 
     assert caplog.text == ""
+
+
+async def test_upload_failure_does_not_log_the_rejected_parameter(
+    configured, monkeypatch: pytest.MonkeyPatch, caplog
+) -> None:
+    """botocore puts the offending value in ParamValidationError's message.
+
+    On 2026-10-12 that wrote an unrelated secret, mis-set as R2_BUCKET_NAME,
+    into Deploy Logs on every avatar upload. The log line must name the
+    variable to check, not the value.
+    """
+    leaked = "H{kQ&=x5s*-abCdE"
+    configured(r2_bucket_name=leaked)
+
+    class _RejectingClient:
+        def put_object(self, **_: object) -> None:
+            raise ParamValidationError(report=f'Invalid bucket name "{leaked}"')
+
+    monkeypatch.setattr(storage, "_r2_client", lambda: _RejectingClient())
+
+    with caplog.at_level(logging.ERROR, logger=storage.logger.name):
+        with pytest.raises(storage.StorageError):
+            await storage.upload_avatar(b"\x89PNG\r\n\x1a\n", "image/png")
+
+    assert "R2_BUCKET_NAME" in caplog.text
+    assert leaked not in caplog.text
